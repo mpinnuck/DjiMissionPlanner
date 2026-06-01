@@ -1,30 +1,9 @@
 class Mission {
-  constructor(options = {}) {
-    this.settingsRoot = options.settingsRoot || document;
+  constructor() {
     this.waypoints = [];
     this.pois = [];
     this.wpCounter = 0;
     this.poiCounter = 0;
-  }
-
-  getDefaultAltitude() {
-    return parseFloat(this.settingsRoot.getElementById('defAlt').value) || 50;
-  }
-
-  getDefaultSpeed() {
-    return parseFloat(this.settingsRoot.getElementById('defSpeed').value) || 8;
-  }
-
-  getMissionName() {
-    return this.settingsRoot.getElementById('missionName').value || 'Mission';
-  }
-
-  getFinishAction() {
-    return this.settingsRoot.getElementById('defFinish').value;
-  }
-
-  getHeadingMode() {
-    return this.settingsRoot.getElementById('defHeading').value;
   }
 
   haversine(lat1, lon1, lat2, lon2) {
@@ -67,17 +46,18 @@ class Mission {
     return d;
   }
 
-  createWaypoint(lat, lng) {
+  createWaypoint(lat, lng, options = {}) {
+    const altitude = Number.isFinite(options.altitude) ? options.altitude : 50;
+    const speed = Number.isFinite(options.speed) ? options.speed : 8;
     return {
       id: 'wp_' + (++this.wpCounter),
       lat,
       lng,
-      alt: this.getDefaultAltitude(),
-      speed: this.getDefaultSpeed(),
+      alt: altitude,
+      speed,
       heading: 0,
       gimbalPitch: 0,
-      poiId: null,
-      marker: null
+      poiId: null
     };
   }
 
@@ -87,8 +67,7 @@ class Mission {
       lat,
       lng,
       alt: 0,
-      name: 'POI ' + this.poiCounter,
-      marker: null
+      name: 'POI ' + this.poiCounter
     };
   }
 

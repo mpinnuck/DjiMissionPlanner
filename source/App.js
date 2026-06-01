@@ -7,6 +7,8 @@ class App {
 
     this.onStatus = options.onStatus || null;
     this.onError = options.onError || (message => alert(message));
+    this.waypointMarkers = new Map();
+    this.poiMarkers = new Map();
 
     this.mapController = new MapController(options.mapElementId || 'map');
     this.locationService = new LocationService({
@@ -21,9 +23,11 @@ class App {
       }
     });
 
-    this.exportKmz = new ExportKmz({
-      mission: this.mission,
-      getWaypoints: () => this.waypoints,
+    this.kmzExporter = new ExportKmz({
+      onStatus: message => this.showStatus(message),
+      onError: message => this.onError(message)
+    });
+    this.missionStorage = new MissionStorage({
       onStatus: message => this.showStatus(message),
       onError: message => this.onError(message)
     });
@@ -33,6 +37,8 @@ class App {
     this.setMode('select');
     this.renderList();
     this.updateStats();
+
+    setTimeout(() => this.locateUser(), 0);
   }
 
   get waypoints() {
@@ -63,7 +69,7 @@ class App {
   }
 
   refreshMarkerLabels() {
-    this.mapController.refreshWaypointLabels(this.waypoints);
+    this.mapController.refreshWaypointLabels(this.waypoints, waypoint => this.waypointMarkers.get(waypoint.id));
   }
 
   addWaypointMarker(wp, idx) {
@@ -114,8 +120,12 @@ class App {
   bindMapEvents() {
     this.mapController.onClick(e => {
       if (this.mode === 'wp') {
-        const wp = this.mission.createWaypoint(e.latlng.lat, e.latlng.lng);
-        wp.marker = this.addWaypointMarker(wp, this.waypoints.length + 1);
+        const wp = this.mission.createWaypoint(e.latlng.lat, e.latlng.lng, {
+          altitude: this.ui.getDefaultAltitude(),
+          speed: this.ui.getDefaultSpeed()
+        });
+        const marker = this.addWaypointMarker(wp, this.waypoints.length + 1);
+        this.waypointMarkers.set(wp.id, marker);
         this.mission.addWaypoint(wp);
         this.updateRoute();
         this.renderList();
@@ -123,7 +133,8 @@ class App {
         this.selectItem(wp.id, 'wp');
       } else if (this.mode === 'poi') {
         const poi = this.mission.createPOI(e.latlng.lat, e.latlng.lng);
-        poi.marker = this.addPOIMarker(poi);
+        const marker = this.addPOIMarker(poi);
+        this.poiMarkers.set(poi.id, marker);
         this.mission.addPOI(poi);
         this.renderList();
         this.updateStats();
@@ -194,8 +205,9 @@ class App {
         poi,
         onNameChange: value => {
           poi.name = value;
-          if (poi.marker) {
-            this.mapController.updatePOILabel(poi.marker, poi.name);
+          const marker = this.poiMarkers.get(poi.id);
+          if (marker) {
+            this.mapController.updatePOILabel(marker, poi.name);
           }
           this.renderList();
         },
@@ -210,16 +222,20 @@ class App {
 
   deleteItem(id, type) {
     if (type === 'wp') {
-      const wp = this.mission.deleteWaypoint(id);
-      if (wp && wp.marker) {
-        this.mapController.removeLayer(wp.marker);
+      this.mission.deleteWaypoint(id);
+      const marker = this.waypointMarkers.get(id);
+      if (marker) {
+        this.mapController.removeLayer(marker);
+        this.waypointMarkers.delete(id);
       }
       this.refreshMarkerLabels();
       this.updateRoute();
     } else {
-      const poi = this.mission.deletePOI(id);
-      if (poi && poi.marker) {
-        this.mapController.removeLayer(poi.marker);
+      this.mission.deletePOI(id);
+      const marker = this.poiMarkers.get(id);
+      if (marker) {
+        this.mapController.removeLayer(marker);
+        this.poiMarkers.delete(id);
       }
     }
     if (this.selectedId === id) {
@@ -239,16 +255,18 @@ class App {
     if (!confirm('Clear all waypoints and POIs?')) {
       return;
     }
-    this.waypoints.forEach(wp => {
-      if (wp.marker) {
-        this.mapController.removeLayer(wp.marker);
-      }
-    });
-    this.pois.forEach(poi => {
-      if (poi.marker) {
-        this.mapController.removeLayer(poi.marker);
-      }
-    });
+    this._doClear();
+  }
+
+  clearAllWithoutPrompt() {
+    this._doClear();
+  }
+
+  _doClear() {
+    this.waypointMarkers.forEach(marker => this.mapController.removeLayer(marker));
+    this.poiMarkers.forEach(marker => this.mapController.removeLayer(marker));
+    this.waypointMarkers.clear();
+    this.poiMarkers.clear();
     this.mission.clear();
     this.mapController.clearRoute();
     this.selectedId = null;
@@ -257,8 +275,103 @@ class App {
     this.updateStats();
   }
 
-  exportKMZ() {
-    this.exportKmz.export();
+  exportMissionJson() {
+    return MissionSerializer.stringify({
+      mission: this.mission,
+      settings: this.ui.getMissionSettings()
+    });
+  }
+
+  importMissionJson(jsonText) {
+    const state = MissionSerializer.parse(jsonText);
+
+    this.clearAllWithoutPrompt();
+    this.ui.applyMissionSettings(state.settings);
+
+    state.pois.forEach(poi => {
+      const poiCopy = { ...poi };
+      this.mission.addPOI(poiCopy);
+      const marker = this.addPOIMarker(poiCopy);
+      this.poiMarkers.set(poiCopy.id, marker);
+    });
+
+    state.waypoints.forEach(wp => {
+      const waypointCopy = { ...wp };
+      this.mission.addWaypoint(waypointCopy);
+      const marker = this.addWaypointMarker(waypointCopy, this.waypoints.indexOf(waypointCopy) + 1);
+      this.waypointMarkers.set(waypointCopy.id, marker);
+    });
+
+    this.mission.wpCounter = state.counters.waypoint;
+    this.mission.poiCounter = state.counters.poi;
+
+    this.refreshMarkerLabels();
+    this.recomputeAllPOI();
+    this.updateRoute();
+    this.renderList();
+    this.updateStats();
+    this.showStatus(`Mission loaded (${this.waypoints.length} WPs, ${this.pois.length} POIs)`);
+  }
+
+  doExport() {
+    this.kmzExporter.export({
+      waypoints: this.waypoints,
+      missionName: this.ui.getMissionName(),
+      finishAction: this.ui.getFinishAction(),
+      headingMode: this.ui.getHeadingMode(),
+      defaultSpeed: this.ui.getDefaultSpeed()
+    });
+  }
+
+  async doSaveMission() {
+    try {
+      const jsonText = this.exportMissionJson();
+      const savedPath = await this.missionStorage.saveMissionJson({
+        missionName: this.ui.getMissionName(),
+        jsonText
+      });
+      this.showStatus(`Saved mission: ${savedPath}`);
+    } catch (error) {
+      this.onError(error.message || 'Failed to save mission file.');
+    }
+  }
+
+  async openLoadMissionDialog() {
+    try {
+      const tree = await this.missionStorage.listMissionTree();
+      this.ui.showMissionLoadDialog({
+        rootLabel: tree.rootLabel,
+        nodes: tree.nodes,
+        onCancel: () => this.ui.closeMissionLoadDialog(),
+        onSelectFile: async node => {
+          try {
+            const jsonText = await this.missionStorage.readMissionFile(node.handle);
+            this.importMissionJson(jsonText);
+            this.ui.closeMissionLoadDialog();
+            this.showStatus(`Loaded mission file: ${node.path}`);
+          } catch (error) {
+            this.onError(error.message || 'Failed to load mission file.');
+          }
+        },
+        onRefresh: () => {
+          this.openLoadMissionDialog();
+        },
+        onChooseFolder: async () => {
+          try {
+            await this.missionStorage.pickRootDirectory();
+            this.openLoadMissionDialog();
+          } catch (error) {
+            this.onError(error.message || 'Folder selection was cancelled.');
+          }
+        }
+      });
+    } catch (error) {
+      this.onError(error.message || 'Failed to open mission load dialog.');
+    }
+  }
+
+  doLoadMission() {
+    this.openLoadMissionDialog();
   }
 
   bindUIEvents() {
@@ -268,7 +381,9 @@ class App {
       onSelectMode: () => this.setMode('select'),
       onLocate: () => this.locateUser(),
       onClearAll: () => this.clearAll(),
-      onExport: () => this.exportKMZ()
+      onSaveMission: () => this.doSaveMission(),
+      onLoadMission: () => this.doLoadMission(),
+      onExport: () => this.doExport()
     });
   }
 }

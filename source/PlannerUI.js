@@ -15,7 +15,62 @@ class PlannerUI {
     this.btnSelect = document.getElementById('btnSelect');
     this.btnLocate = document.getElementById('btnLocate');
     this.btnClear = document.getElementById('btnClear');
+    this.btnSaveMission = document.getElementById('btnSaveMission');
+    this.btnLoadMission = document.getElementById('btnLoadMission');
     this.btnExport = document.getElementById('btnExport');
+    this.missionNameInput = document.getElementById('missionName');
+    this.defaultAltitudeInput = document.getElementById('defAlt');
+    this.defaultSpeedInput = document.getElementById('defSpeed');
+    this.finishActionSelect = document.getElementById('defFinish');
+    this.headingModeSelect = document.getElementById('defHeading');
+  }
+
+  getMissionName() {
+    return this.missionNameInput.value || 'Mission';
+  }
+
+  getDefaultAltitude() {
+    return parseFloat(this.defaultAltitudeInput.value) || 50;
+  }
+
+  getDefaultSpeed() {
+    return parseFloat(this.defaultSpeedInput.value) || 8;
+  }
+
+  getFinishAction() {
+    return this.finishActionSelect.value;
+  }
+
+  getHeadingMode() {
+    return this.headingModeSelect.value;
+  }
+
+  getMissionSettings() {
+    return {
+      missionName: this.getMissionName(),
+      defaultAltitude: this.getDefaultAltitude(),
+      defaultSpeed: this.getDefaultSpeed(),
+      finishAction: this.getFinishAction(),
+      headingMode: this.getHeadingMode()
+    };
+  }
+
+  applyMissionSettings(settings = {}) {
+    if (typeof settings.missionName === 'string') {
+      this.missionNameInput.value = settings.missionName;
+    }
+    if (Number.isFinite(settings.defaultAltitude)) {
+      this.defaultAltitudeInput.value = settings.defaultAltitude;
+    }
+    if (Number.isFinite(settings.defaultSpeed)) {
+      this.defaultSpeedInput.value = settings.defaultSpeed;
+    }
+    if (typeof settings.finishAction === 'string') {
+      this.finishActionSelect.value = settings.finishAction;
+    }
+    if (typeof settings.headingMode === 'string') {
+      this.headingModeSelect.value = settings.headingMode;
+    }
   }
 
   bindToolbarEvents(handlers) {
@@ -24,7 +79,116 @@ class PlannerUI {
     this.btnSelect.addEventListener('click', handlers.onSelectMode);
     this.btnLocate.addEventListener('click', handlers.onLocate);
     this.btnClear.addEventListener('click', handlers.onClearAll);
+    this.btnSaveMission.addEventListener('click', handlers.onSaveMission);
+    this.btnLoadMission.addEventListener('click', handlers.onLoadMission);
     this.btnExport.addEventListener('click', handlers.onExport);
+  }
+
+  closeMissionLoadDialog() {
+    const existing = document.getElementById('missionLoadModal');
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  showMissionLoadDialog({ rootLabel, nodes, onCancel, onSelectFile, onRefresh, onChooseFolder }) {
+    this.closeMissionLoadDialog();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'missionLoadModal';
+    overlay.className = 'mission-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'mission-modal';
+
+    const header = document.createElement('div');
+    header.className = 'mission-modal-header';
+    header.innerHTML = `<div class="mission-modal-title">Load Mission</div><div class="mission-modal-subtitle">${rootLabel}</div>`;
+
+    const treeWrap = document.createElement('div');
+    treeWrap.className = 'mission-tree-wrap';
+
+    if (!nodes.length) {
+      const empty = document.createElement('div');
+      empty.className = 'mission-tree-empty';
+      empty.textContent = 'No mission JSON files found in this folder.';
+      treeWrap.appendChild(empty);
+    } else {
+      const rootList = document.createElement('ul');
+      rootList.className = 'mission-tree';
+      nodes.forEach(node => rootList.appendChild(this.createMissionTreeNode(node, onSelectFile)));
+      treeWrap.appendChild(rootList);
+    }
+
+    const footer = document.createElement('div');
+    footer.className = 'mission-modal-footer';
+
+    const changeFolderButton = document.createElement('button');
+    changeFolderButton.className = 'ghost';
+    changeFolderButton.textContent = 'Change Folder';
+    changeFolderButton.addEventListener('click', () => onChooseFolder());
+
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'ghost';
+    refreshButton.textContent = 'Refresh';
+    refreshButton.addEventListener('click', () => onRefresh());
+
+    const closeButton = document.createElement('button');
+    closeButton.className = 'accent2';
+    closeButton.textContent = 'Close';
+    closeButton.addEventListener('click', () => onCancel());
+
+    footer.appendChild(changeFolderButton);
+    footer.appendChild(refreshButton);
+    footer.appendChild(closeButton);
+
+    modal.appendChild(header);
+    modal.appendChild(treeWrap);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) {
+        onCancel();
+      }
+    });
+  }
+
+  createMissionTreeNode(node, onSelectFile) {
+    const li = document.createElement('li');
+    li.className = 'mission-tree-node';
+
+    if (node.type === 'directory') {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'mission-tree-row mission-tree-folder';
+      row.textContent = `▸ ${node.name}`;
+
+      const childList = document.createElement('ul');
+      childList.className = 'mission-tree mission-tree-children';
+      childList.style.display = 'none';
+      node.children.forEach(child => childList.appendChild(this.createMissionTreeNode(child, onSelectFile)));
+
+      row.addEventListener('click', () => {
+        const expanded = childList.style.display !== 'none';
+        childList.style.display = expanded ? 'none' : 'block';
+        row.textContent = `${expanded ? '▸' : '▾'} ${node.name}`;
+      });
+
+      li.appendChild(row);
+      li.appendChild(childList);
+      return li;
+    }
+
+    const fileButton = document.createElement('button');
+    fileButton.type = 'button';
+    fileButton.className = 'mission-tree-row mission-tree-file';
+    fileButton.textContent = node.name;
+    fileButton.title = node.path;
+    fileButton.addEventListener('click', () => onSelectFile(node));
+    li.appendChild(fileButton);
+    return li;
   }
 
   setStatus(message) {

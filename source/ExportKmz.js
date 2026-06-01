@@ -1,23 +1,20 @@
 class ExportKmz {
   constructor(options) {
-    this.mission = options.mission;
-    this.getWaypoints = options.getWaypoints;
     this.onStatus = options.onStatus || null;
     this.onError = options.onError || (message => alert(message));
   }
 
-  export() {
-    const waypoints = this.getWaypoints();
+  export({ waypoints, missionName, finishAction, headingMode, defaultSpeed }) {
     if (waypoints.length < 1) {
       this.onError('Add at least one waypoint before exporting.');
       return;
     }
 
-    const name = this.mission.getMissionName();
-    const finish = this.mission.getFinishAction();
-    const hdgMode = this.mission.getHeadingMode();
+    const name = missionName;
+    const finish = finishAction;
+    const hdgMode = headingMode;
     const now = Date.now();
-    const spd = this.mission.getDefaultSpeed();
+    const spd = defaultSpeed;
 
     const NS = 'http://www.uav.com/wpmz/1.0.2';
 

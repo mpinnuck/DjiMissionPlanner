@@ -414,3 +414,103 @@ button.active-mode-poi {
   line-height: 1.7;
 }
 .empty-state .big { font-size: 28px; margin-bottom: 8px; }
+
+.mission-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(5, 8, 12, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mission-modal {
+  width: min(680px, 95vw);
+  max-height: 80vh;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mission-modal-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.mission-modal-title {
+  font-family: var(--font-mono);
+  color: var(--accent2);
+  font-size: 14px;
+}
+
+.mission-modal-subtitle {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.mission-tree-wrap {
+  overflow: auto;
+  padding: 10px 12px;
+  flex: 1;
+}
+
+.mission-tree,
+.mission-tree-children {
+  list-style: none;
+  padding-left: 0;
+}
+
+.mission-tree-children {
+  margin-left: 16px;
+  border-left: 1px dashed var(--border);
+  padding-left: 10px;
+}
+
+.mission-tree-node {
+  margin: 3px 0;
+}
+
+.mission-tree-row {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.mission-tree-row:hover {
+  background: #21262d;
+  border-color: var(--border);
+}
+
+.mission-tree-folder {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.mission-tree-file {
+  color: var(--accent2);
+}
+
+.mission-tree-empty {
+  color: var(--muted);
+  padding: 10px 4px;
+}
+
+.mission-modal-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  background: var(--bg);
+}

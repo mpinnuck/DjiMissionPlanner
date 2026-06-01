@@ -58,10 +58,11 @@ class MapController {
     }).addTo(this.map);
   }
 
-  refreshWaypointLabels(waypoints) {
+  refreshWaypointLabels(waypoints, markerResolver) {
     waypoints.forEach((wp, i) => {
-      if (wp.marker) {
-        wp.marker.setIcon(this.wpIcon(i + 1));
+      const marker = markerResolver ? markerResolver(wp) : null;
+      if (marker) {
+        marker.setIcon(this.wpIcon(i + 1));
       }
     });
   }

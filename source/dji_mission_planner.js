@@ -1,7 +1,7 @@
 window.missionPlannerApp = new App({
   mapElementId: 'map',
-  onStatus: message => {
-    document.getElementById('sbStatus').textContent = message;
-  },
   onError: message => alert(message)
 });
+
+window.exportMissionJson = () => window.missionPlannerApp.exportMissionJson();
+window.importMissionJson = jsonText => window.missionPlannerApp.importMissionJson(jsonText);

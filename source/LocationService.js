@@ -91,11 +91,6 @@ class LocationService {
       msg = 'Location request timed out. Try again in an open area.';
     }
 
-    const contextError = this.getContextError();
-    if (contextError) {
-      msg = contextError;
-    }
-
     this.onStatus(msg);
     this.onError(msg);
   }
