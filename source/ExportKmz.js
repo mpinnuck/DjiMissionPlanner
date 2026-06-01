@@ -4,7 +4,7 @@ class ExportKmz {
     this.onError = options.onError || (message => alert(message));
   }
 
-  export({ waypoints, missionName, finishAction, rcLostAction = 'goContinue', headingMode, defaultSpeed }) {
+  export({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed }) {
     if (waypoints.length < 1) {
       this.onError('Add at least one waypoint before exporting.');
       return;
@@ -12,9 +12,11 @@ class ExportKmz {
 
     const name = missionName;
     const finish = finishAction;
+    const rcLost = rcLostAction || 'goContinue';
     const hdgMode = headingMode;
     const now = Date.now();
     const spd = defaultSpeed;
+    const lastIndex = waypoints.length - 1;
 
     const NS = 'http://www.uav.com/wpmz/1.0.2';
 
@@ -23,7 +25,7 @@ class ExportKmz {
       <wpml:flyToWaylineMode>safely</wpml:flyToWaylineMode>
       <wpml:finishAction>${finish}</wpml:finishAction>
       <wpml:exitOnRCLost>goContinue</wpml:exitOnRCLost>
-      <wpml:executeRCLostAction>${rcLostAction}</wpml:executeRCLostAction>
+      <wpml:executeRCLostAction>${rcLost}</wpml:executeRCLostAction>
       <wpml:globalTransitionalSpeed>${spd}</wpml:globalTransitionalSpeed>
       <wpml:droneInfo>
         <wpml:droneEnumValue>68</wpml:droneEnumValue>
@@ -42,17 +44,47 @@ class ExportKmz {
   </Document>
 </kml>`;
 
-    let actionGroupId = 1;
-    const wpmlPlacemarks = waypoints.map((wp, i) => {
-      const usePOI = !!wp.poiId;
-      const hdg = usePOI ? wp.heading.toFixed(6) : '0';
-      const hdgModeWP = usePOI ? 'smoothTransition' : hdgMode;
-      const gimbal = usePOI ? wp.gimbalPitch.toFixed(2) : '0';
+    // Action group IDs must be globally unique across all waypoints.
+    // Dronelink uses two action groups per waypoint:
+    //   Group A (snapId)  — gimbalRotate:      snaps gimbal to THIS waypoint's pitch on arrival
+    //   Group B (evenId)  — gimbalEvenlyRotate: smoothly transitions gimbal pitch from THIS
+    //                        waypoint TO the next one during transit. Spans [i, i+1].
+    //                        Omitted on the last waypoint (no next segment to traverse).
+    let nextActionGroupId = 1;
 
-      const agId = actionGroupId++;
-      const gimbalAction = `
+    const wpmlPlacemarks = waypoints.map((wp, i) => {
+      const isFirst = i === 0;
+      const isLast  = i === lastIndex;
+      const usePOI  = !!wp.poiId;
+
+      // ── Heading ──────────────────────────────────────────────────────────
+      // headingAngleEnable=1 only at waypoints with an explicit heading (POI,
+      // first WP, last WP). Transit waypoints let the drone interpolate freely.
+      const hdgAngle  = usePOI ? wp.heading.toFixed(6) : '0';
+      const hdgModeWP = usePOI ? 'smoothTransition' : hdgMode;
+      const hdgEnable = (usePOI || isFirst || isLast) ? '1' : '0';
+
+      // ── Turn mode ────────────────────────────────────────────────────────
+      // Stop at first and last waypoint; fly-through (pass) all others.
+      const turnMode = (isFirst || isLast)
+        ? 'toPointAndStopWithContinuityCurvature'
+        : 'toPointAndPassWithContinuityCurvature';
+
+      // ── Gimbal pitch ─────────────────────────────────────────────────────
+      const gimbalPitch     = usePOI ? wp.gimbalPitch.toFixed(2) : '0';
+      const snapGimbalPitch = isFirst ? '0' : gimbalPitch;
+      const nextWp          = !isLast ? waypoints[i + 1] : null;
+      const nextGimbalPitch = nextWp
+        ? (nextWp.poiId ? nextWp.gimbalPitch.toFixed(2) : '0')
+        : gimbalPitch;
+
+      // ── Action group A: gimbalRotate — only on the first waypoint ──────
+      let snapAction = '';
+      if (isFirst) {
+        const snapId = nextActionGroupId++;
+        snapAction = `
         <wpml:actionGroup>
-          <wpml:actionGroupId>${agId}</wpml:actionGroupId>
+          <wpml:actionGroupId>${snapId}</wpml:actionGroupId>
           <wpml:actionGroupStartIndex>${i}</wpml:actionGroupStartIndex>
           <wpml:actionGroupEndIndex>${i}</wpml:actionGroupEndIndex>
           <wpml:actionGroupMode>parallel</wpml:actionGroupMode>
@@ -60,13 +92,13 @@ class ExportKmz {
             <wpml:actionTriggerType>reachPoint</wpml:actionTriggerType>
           </wpml:actionTrigger>
           <wpml:action>
-            <wpml:actionId>${agId}</wpml:actionId>
+            <wpml:actionId>${snapId}</wpml:actionId>
             <wpml:actionActuatorFunc>gimbalRotate</wpml:actionActuatorFunc>
             <wpml:actionActuatorFuncParam>
               <wpml:gimbalHeadingYawBase>aircraft</wpml:gimbalHeadingYawBase>
               <wpml:gimbalRotateMode>absoluteAngle</wpml:gimbalRotateMode>
               <wpml:gimbalPitchRotateEnable>1</wpml:gimbalPitchRotateEnable>
-              <wpml:gimbalPitchRotateAngle>${gimbal}</wpml:gimbalPitchRotateAngle>
+              <wpml:gimbalPitchRotateAngle>${snapGimbalPitch}</wpml:gimbalPitchRotateAngle>
               <wpml:gimbalRollRotateEnable>0</wpml:gimbalRollRotateEnable>
               <wpml:gimbalRollRotateAngle>0</wpml:gimbalRollRotateAngle>
               <wpml:gimbalYawRotateEnable>0</wpml:gimbalYawRotateEnable>
@@ -77,6 +109,33 @@ class ExportKmz {
             </wpml:actionActuatorFuncParam>
           </wpml:action>
         </wpml:actionGroup>`;
+      }
+
+      // ── Action group B: gimbalEvenlyRotate — smooth transit to next WP ───
+      // Spans from this waypoint index to the next. Omitted on last waypoint.
+      let evenAction = '';
+      if (!isLast) {
+        const evenId = nextActionGroupId++;
+        evenAction = `
+        <wpml:actionGroup>
+          <wpml:actionGroupId>${evenId}</wpml:actionGroupId>
+          <wpml:actionGroupStartIndex>${i}</wpml:actionGroupStartIndex>
+          <wpml:actionGroupEndIndex>${i + 1}</wpml:actionGroupEndIndex>
+          <wpml:actionGroupMode>parallel</wpml:actionGroupMode>
+          <wpml:actionTrigger>
+            <wpml:actionTriggerType>reachPoint</wpml:actionTriggerType>
+          </wpml:actionTrigger>
+          <wpml:action>
+            <wpml:actionId>${evenId}</wpml:actionId>
+            <wpml:actionActuatorFunc>gimbalEvenlyRotate</wpml:actionActuatorFunc>
+            <wpml:actionActuatorFuncParam>
+              <wpml:gimbalPitchRotateAngle>${nextGimbalPitch}</wpml:gimbalPitchRotateAngle>
+              <wpml:gimbalRollRotateAngle>0</wpml:gimbalRollRotateAngle>
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+            </wpml:actionActuatorFuncParam>
+          </wpml:action>
+        </wpml:actionGroup>`;
+      }
 
       return `
       <Placemark>
@@ -90,18 +149,23 @@ class ExportKmz {
         <wpml:waypointSpeed>${wp.speed}</wpml:waypointSpeed>
         <wpml:waypointHeadingParam>
           <wpml:waypointHeadingMode>${hdgModeWP}</wpml:waypointHeadingMode>
-          <wpml:waypointHeadingAngle>${hdg}</wpml:waypointHeadingAngle>
+          <wpml:waypointHeadingAngle>${hdgAngle}</wpml:waypointHeadingAngle>
           <wpml:waypointPoiPoint>0.000000,0.000000,0.000000</wpml:waypointPoiPoint>
-          <wpml:waypointHeadingAngleEnable>1</wpml:waypointHeadingAngleEnable>
+          <wpml:waypointHeadingAngleEnable>${hdgEnable}</wpml:waypointHeadingAngleEnable>
           <wpml:waypointHeadingPathMode>followBadArc</wpml:waypointHeadingPathMode>
           <wpml:waypointHeadingPoiIndex>0</wpml:waypointHeadingPoiIndex>
         </wpml:waypointHeadingParam>
         <wpml:waypointTurnParam>
-          <wpml:waypointTurnMode>toPointAndStopWithContinuityCurvature</wpml:waypointTurnMode>
+          <wpml:waypointTurnMode>${turnMode}</wpml:waypointTurnMode>
           <wpml:waypointTurnDampingDist>0</wpml:waypointTurnDampingDist>
         </wpml:waypointTurnParam>
         <wpml:useStraightLine>0</wpml:useStraightLine>
-        ${gimbalAction}
+        ${snapAction}
+        ${evenAction}
+        <wpml:waypointGimbalHeadingParam>
+          <wpml:waypointGimbalPitchAngle>0</wpml:waypointGimbalPitchAngle>
+          <wpml:waypointGimbalYawAngle>0</wpml:waypointGimbalYawAngle>
+        </wpml:waypointGimbalHeadingParam>
       </Placemark>`;
     }).join('');
 

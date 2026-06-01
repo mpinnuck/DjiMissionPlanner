@@ -500,6 +500,12 @@ button.active-mode-poi {
   margin: 3px 0;
 }
 
+.mission-tree-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .mission-tree-row {
   width: 100%;
   text-align: left;
@@ -522,6 +528,12 @@ button.active-mode-poi {
 
 .mission-tree-file {
   color: var(--accent2);
+}
+
+.mission-tree-delete {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 4px 8px;
 }
 
 .mission-tree-empty {

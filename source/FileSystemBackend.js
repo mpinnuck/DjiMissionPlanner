@@ -3,7 +3,77 @@ class FileSystemBackend {
     this.onStatus = options.onStatus || null;
     this.onError = options.onError || null;
     this.rootDirectoryHandle = null;
-    this.rootLabel = 'settings/missions';
+    this.rootLabel = 'missions';
+    this.directoryHandleStoreName = 'djiMissionPlannerFsHandles';
+    this.directoryHandleKey = 'rootDirectoryHandle';
+  }
+
+  async openHandleDatabase() {
+    if (typeof indexedDB === 'undefined') {
+      return null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.directoryHandleStoreName, 1);
+      request.onupgradeneeded = event => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('handles')) {
+          db.createObjectStore('handles');
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Failed to open handle database.'));
+    });
+  }
+
+  async persistRootDirectoryHandle(handle) {
+    if (!handle) {
+      return;
+    }
+
+    const db = await this.openHandleDatabase();
+    if (!db) {
+      return;
+    }
+
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(handle, this.directoryHandleKey);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('Failed to persist selected folder.'));
+    });
+    db.close();
+  }
+
+  async restoreRootDirectoryHandle() {
+    const db = await this.openHandleDatabase();
+    if (!db) {
+      return null;
+    }
+
+    const handle = await new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readonly');
+      const request = tx.objectStore('handles').get(this.directoryHandleKey);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error('Failed to read saved folder.'));
+    });
+    db.close();
+    return handle;
+  }
+
+  async clearPersistedRootDirectoryHandle() {
+    const db = await this.openHandleDatabase();
+    if (!db) {
+      return;
+    }
+
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').delete(this.directoryHandleKey);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('Failed to clear saved folder.'));
+    });
+    db.close();
   }
 
   canChooseRootDirectory() {
@@ -46,6 +116,10 @@ class FileSystemBackend {
 
     this.rootDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
     await this.ensurePermission(this.rootDirectoryHandle, 'readwrite');
+    this.rootLabel = this.rootDirectoryHandle && this.rootDirectoryHandle.name
+      ? this.rootDirectoryHandle.name
+      : 'missions';
+    await this.persistRootDirectoryHandle(this.rootDirectoryHandle);
     return this.rootDirectoryHandle;
   }
 
@@ -66,19 +140,42 @@ class FileSystemBackend {
 
   async ensureRootDirectory() {
     if (!this.rootDirectoryHandle) {
-      await this.chooseRootDirectory();
+      try {
+        this.rootDirectoryHandle = await this.restoreRootDirectoryHandle();
+      } catch (error) {
+        this.rootDirectoryHandle = null;
+      }
+
+      if (!this.rootDirectoryHandle) {
+        await this.chooseRootDirectory();
+      }
     }
-    const granted = await this.ensurePermission(this.rootDirectoryHandle, 'readwrite');
+
+    let granted = await this.ensurePermission(this.rootDirectoryHandle, 'readwrite');
     if (!granted) {
-      throw new Error('Folder permission was not granted.');
+      this.rootDirectoryHandle = null;
+      try {
+        await this.clearPersistedRootDirectoryHandle();
+      } catch (error) {
+        // Ignore persistence cleanup failures and continue with folder selection.
+      }
+      await this.chooseRootDirectory();
+      granted = await this.ensurePermission(this.rootDirectoryHandle, 'readwrite');
+      if (!granted) {
+        throw new Error('Folder permission was not granted.');
+      }
     }
+
+    this.rootLabel = this.rootDirectoryHandle && this.rootDirectoryHandle.name
+      ? this.rootDirectoryHandle.name
+      : this.rootLabel;
     return this.rootDirectoryHandle;
   }
 
   async getMissionDirectoryHandle(create = true) {
     const root = await this.ensureRootDirectory();
-    const settingsDir = await root.getDirectoryHandle('settings', { create });
-    return settingsDir.getDirectoryHandle('missions', { create });
+    this.rootLabel = root && root.name ? root.name : this.rootLabel;
+    return root;
   }
 
   async resolveDirectoryForPath(relativePath, create = true) {

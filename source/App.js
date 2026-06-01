@@ -6,6 +6,7 @@ class App {
     this.selectedWaypointIds = new Set();
     this.lastWaypointAnchorId = null;
     this.touchRangeAnchorId = null;
+    this.lastLoadedMissionFolder = '';
     this.mission = new Mission();
     this.ui = new PlannerUI({ mapElementId: options.mapElementId || 'map' });
 
@@ -535,17 +536,35 @@ class App {
       this.ui.showMissionLoadDialog({
         rootLabel: tree.rootLabel,
         nodes: tree.nodes,
+        initialExpandedPath: this.lastLoadedMissionFolder,
         onCancel: () => this.ui.closeMissionLoadDialog(),
         onSelectFile: async node => {
           try {
             const jsonText = await this.storage.load(node.path);
             this.importMissionJson(jsonText);
+            this.lastLoadedMissionFolder = this.getMissionFolderPath(node.path, tree.rootLabel);
             this.ui.closeMissionLoadDialog();
             this.showStatus(`Loaded mission file: ${node.path}`);
             this.ui.showToast(`Loaded mission: ${node.path}`, 'success');
           } catch (error) {
             this.onError(error.message || 'Failed to load mission file.');
             this.ui.showToast(error.message || 'Failed to load mission file.', 'error');
+          }
+        },
+        onDeleteFile: async node => {
+          const confirmed = window.confirm(`Delete mission file?\n\n${node.path}`);
+          if (!confirmed) {
+            return;
+          }
+
+          try {
+            await this.storage.delete(node.path);
+            this.showStatus(`Deleted mission file: ${node.path}`);
+            this.ui.showToast(`Deleted mission: ${node.path}`, 'success');
+            this.openLoadMissionDialog();
+          } catch (error) {
+            this.onError(error.message || 'Failed to delete mission file.');
+            this.ui.showToast(error.message || 'Failed to delete mission file.', 'error');
           }
         },
         onRefresh: () => {
@@ -567,6 +586,18 @@ class App {
 
   doLoadMission() {
     this.openLoadMissionDialog();
+  }
+
+  getMissionFolderPath(path, rootLabel) {
+    const normalizedPath = String(path || '').replace(/\\/g, '/');
+    const normalizedRoot = String(rootLabel || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    const prefix = normalizedRoot ? `${normalizedRoot}/` : '';
+    const relative = prefix && normalizedPath.startsWith(prefix)
+      ? normalizedPath.slice(prefix.length)
+      : normalizedPath;
+    const parts = relative.split('/').filter(Boolean);
+    parts.pop();
+    return parts.join('/');
   }
 
   bindUIEvents() {

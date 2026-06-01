@@ -103,8 +103,11 @@ class PlannerUI {
     }
   }
 
-  showMissionLoadDialog({ rootLabel, nodes, onCancel, onSelectFile, onRefresh, onChooseFolder }) {
+  showMissionLoadDialog({ rootLabel, nodes, initialExpandedPath, onCancel, onSelectFile, onDeleteFile, onRefresh, onChooseFolder }) {
     this.closeMissionLoadDialog();
+    const expandedSegments = typeof initialExpandedPath === 'string' && initialExpandedPath.trim()
+      ? initialExpandedPath.split('/').filter(Boolean)
+      : [];
 
     const overlay = document.createElement('div');
     overlay.id = 'missionLoadModal';
@@ -128,7 +131,7 @@ class PlannerUI {
     } else {
       const rootList = document.createElement('ul');
       rootList.className = 'mission-tree';
-      nodes.forEach(node => rootList.appendChild(this.createMissionTreeNode(node, onSelectFile)));
+      nodes.forEach(node => rootList.appendChild(this.createMissionTreeNode(node, onSelectFile, onDeleteFile, expandedSegments)));
       treeWrap.appendChild(rootList);
     }
 
@@ -168,20 +171,30 @@ class PlannerUI {
     });
   }
 
-  createMissionTreeNode(node, onSelectFile) {
+  createMissionTreeNode(node, onSelectFile, onDeleteFile, expandedSegments = [], pathSegments = []) {
     const li = document.createElement('li');
     li.className = 'mission-tree-node';
 
     if (node.type === 'directory') {
+      const nextPathSegments = [...pathSegments, node.name];
+      const isExpanded = expandedSegments.length >= nextPathSegments.length
+        && nextPathSegments.every((segment, index) => expandedSegments[index] === segment);
+
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'mission-tree-row mission-tree-folder';
-      row.textContent = `▸ ${node.name}`;
+      row.textContent = `${isExpanded ? '▾' : '▸'} ${node.name}`;
 
       const childList = document.createElement('ul');
       childList.className = 'mission-tree mission-tree-children';
-      childList.style.display = 'none';
-      node.children.forEach(child => childList.appendChild(this.createMissionTreeNode(child, onSelectFile)));
+      childList.style.display = isExpanded ? 'block' : 'none';
+      node.children.forEach(child => childList.appendChild(this.createMissionTreeNode(
+        child,
+        onSelectFile,
+        onDeleteFile,
+        expandedSegments,
+        nextPathSegments
+      )));
 
       row.addEventListener('click', () => {
         const expanded = childList.style.display !== 'none';
@@ -194,13 +207,31 @@ class PlannerUI {
       return li;
     }
 
+    const row = document.createElement('div');
+    row.className = 'mission-tree-file-row';
+
     const fileButton = document.createElement('button');
     fileButton.type = 'button';
     fileButton.className = 'mission-tree-row mission-tree-file';
     fileButton.textContent = node.name;
     fileButton.title = node.path;
     fileButton.addEventListener('click', () => onSelectFile(node));
-    li.appendChild(fileButton);
+    row.appendChild(fileButton);
+
+    if (typeof onDeleteFile === 'function') {
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'danger mission-tree-delete';
+      deleteButton.textContent = 'Delete';
+      deleteButton.title = `Delete ${node.path}`;
+      deleteButton.addEventListener('click', event => {
+        event.stopPropagation();
+        onDeleteFile(node);
+      });
+      row.appendChild(deleteButton);
+    }
+
+    li.appendChild(row);
     return li;
   }
 
