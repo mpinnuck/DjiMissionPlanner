@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJI Mission Planner</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="stylesheet" href="../css/dji_mission_planner.css"/>
+</head>
+<body>
+
+<!-- ── Top Bar ── -->
+<div id="topbar">
+  <div class="logo">DJI <span>PLANNER</span></div>
+  <div class="sep"></div>
+  <div class="tb-group">
+    <button class="ghost" id="btnAddWP" title="Click map to place waypoints">
+      📍 Add Waypoint
+    </button>
+    <button class="ghost" id="btnAddPOI" title="Click map to place a Point of Interest">
+      🎯 Add POI
+    </button>
+    <button class="ghost" id="btnSelect" title="Select / pan mode">
+      🖱 Select
+    </button>
+  </div>
+  <div class="sep"></div>
+  <div class="tb-group">
+    <button class="ghost" id="btnClear" title="Clear all waypoints and POIs">🗑 Clear All</button>
+  </div>
+  <div class="sep"></div>
+  <div class="tb-group">
+    <button class="ghost" id="btnLocate" title="Center map on your current location">📡 Use My Location</button>
+  </div>
+  <div class="sep"></div>
+  <div class="tb-group">
+    <button class="accent2" id="btnExport">⬇ Export KMZ</button>
+  </div>
+  <div id="stats">
+    WP: <span id="statWP">0</span> &nbsp; POI: <span id="statPOI">0</span> &nbsp; Dist: <span id="statDist">0 m</span>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+
+  <div id="map"></div>
+
+  <div id="sidebar">
+    <div class="panel-title">Mission Settings</div>
+    <div id="defaults-panel">
+      <div class="mission-name-row">
+        <label>Mission Name</label>
+        <input id="missionName" type="text" value="MyMission" placeholder="e.g. Survey_Run1"/>
+      </div>
+      <div class="field-row">
+        <label>Default Alt.</label>
+        <input id="defAlt" type="number" value="50" min="1" max="500" step="1"/>
+        <span class="unit">m</span>
+      </div>
+      <div class="field-row">
+        <label>Default Speed</label>
+        <input id="defSpeed" type="number" value="8" min="1" max="15" step="0.5"/>
+        <span class="unit">m/s</span>
+      </div>
+      <div class="field-row">
+        <label>Finish Action</label>
+        <select id="defFinish">
+          <option value="goHome">Return to Home</option>
+          <option value="noAction">Hover</option>
+          <option value="autoLand">Auto Land</option>
+          <option value="gotoFirstWaypoint">Go to WP1</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Heading Mode</label>
+        <select id="defHeading">
+          <option value="followWayline">Follow Wayline</option>
+          <option value="manually">Manual (per WP)</option>
+          <option value="towardsPOI">Toward POI</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-title">Waypoints &amp; POIs</div>
+    <div id="wp-list-wrap">
+      <div class="empty-state" id="emptyState">
+        <div class="big">🗺</div>
+        Click <b>Add Waypoint</b> then<br>click the map to place points.<br>
+        Add a <b>POI</b> to auto-calculate<br>gimbal pitch &amp; heading.
+      </div>
+      <div id="wp-list"></div>
+    </div>
+
+    <div id="detail-panel">
+      <div class="panel-title">Selected Item</div>
+      <div id="detail-content">
+        <div id="detail-placeholder">Nothing selected</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Status Bar ── -->
+<div id="statusbar">
+  <span id="sbMode" class="status-ok">MODE: SELECT</span>
+  <span id="sbCursor">Lat: — Lon: —</span>
+  <span id="sbStatus">Ready</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.383.0/umd/lucide.min.js"></script>
+<script src="../source/MapController.js"></script>
+<script src="../source/LocationService.js"></script>
+<script src="../source/Mission.js"></script>
+<script src="../source/PlannerUI.js"></script>
+<script src="../source/ExportKmz.js"></script>
+<script src="../source/App.js"></script>
+<script src="../source/dji_mission_planner.js"></script>
+</body>
+</html>
