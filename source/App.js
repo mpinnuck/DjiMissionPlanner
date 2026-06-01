@@ -2,6 +2,10 @@ class App {
   constructor(options) {
     this.mode = 'select';
     this.selectedId = null;
+    this.selectedType = null;
+    this.selectedWaypointIds = new Set();
+    this.lastWaypointAnchorId = null;
+    this.touchRangeAnchorId = null;
     this.mission = new Mission();
     this.ui = new PlannerUI({ mapElementId: options.mapElementId || 'map' });
 
@@ -27,7 +31,7 @@ class App {
       onStatus: message => this.showStatus(message),
       onError: message => this.onError(message)
     });
-    this.missionStorage = new MissionStorage({
+    this.storage = new PersistentStorage({
       onStatus: message => this.showStatus(message),
       onError: message => this.onError(message)
     });
@@ -37,6 +41,7 @@ class App {
     this.setMode('select');
     this.renderList();
     this.updateStats();
+    this.showStatus(this.storage.getDescription());
 
     setTimeout(() => this.locateUser(), 0);
   }
@@ -147,10 +152,165 @@ class App {
     });
   }
 
-  selectItem(id, type) {
+  selectItem(id, type, interaction = {}) {
+    if (type === 'wp' && interaction.shiftKey && this.lastWaypointAnchorId) {
+      this.applyWaypointRangeSelection(this.lastWaypointAnchorId, id, true);
+      this.lastWaypointAnchorId = id;
+      this.applyWaypointSelectionState();
+      return;
+    }
+
+    this.selectedWaypointIds.clear();
     this.selectedId = id;
-    this.ui.highlightSelectedItem(id);
+    this.selectedType = type;
+    if (type === 'wp') {
+      this.lastWaypointAnchorId = id;
+    }
+    this.ui.highlightSelectedItem(id, this.selectedWaypointIds);
     this.showDetail(id, type);
+  }
+
+  toggleWaypointMultiSelect(id, isSelected, options = {}) {
+    if (options.shiftKey && this.lastWaypointAnchorId) {
+      this.applyWaypointRangeSelection(this.lastWaypointAnchorId, id, isSelected);
+    } else if (isSelected) {
+      this.selectedWaypointIds.add(id);
+    } else {
+      this.selectedWaypointIds.delete(id);
+    }
+
+    this.lastWaypointAnchorId = id;
+    this.applyWaypointSelectionState();
+  }
+
+  startWaypointTouchRange(anchorId) {
+    this.touchRangeAnchorId = anchorId;
+    this.applyWaypointRangeSelection(anchorId, anchorId, true);
+    this.lastWaypointAnchorId = anchorId;
+    this.applyWaypointSelectionState();
+  }
+
+  moveWaypointTouchRange(anchorId, targetId, isSelected = true) {
+    if (!this.touchRangeAnchorId) {
+      return;
+    }
+    const sourceAnchor = anchorId || this.touchRangeAnchorId;
+    this.applyWaypointRangeSelection(sourceAnchor, targetId, isSelected);
+    this.lastWaypointAnchorId = targetId;
+    this.applyWaypointSelectionState();
+  }
+
+  endWaypointTouchRange() {
+    this.touchRangeAnchorId = null;
+  }
+
+  applyWaypointRangeSelection(anchorId, targetId, isSelected) {
+    const orderedWaypointIds = this.waypoints.map(wp => wp.id);
+    const startIndex = orderedWaypointIds.indexOf(anchorId);
+    const endIndex = orderedWaypointIds.indexOf(targetId);
+
+    if (startIndex === -1 || endIndex === -1) {
+      return;
+    }
+
+    const from = Math.min(startIndex, endIndex);
+    const to = Math.max(startIndex, endIndex);
+    for (let index = from; index <= to; index += 1) {
+      const waypointId = orderedWaypointIds[index];
+      if (isSelected) {
+        this.selectedWaypointIds.add(waypointId);
+      } else {
+        this.selectedWaypointIds.delete(waypointId);
+      }
+    }
+  }
+
+  applyWaypointSelectionState() {
+    if (this.selectedWaypointIds.size > 1) {
+      this.selectedId = null;
+      this.selectedType = null;
+      this.renderList();
+      this.showBulkWaypointDetail();
+      return;
+    }
+
+    if (this.selectedWaypointIds.size === 1) {
+      const [onlyId] = this.selectedWaypointIds;
+      this.selectedId = onlyId;
+      this.selectedType = 'wp';
+      this.renderList();
+      this.showDetail(onlyId, 'wp');
+      return;
+    }
+
+    if (this.selectedId && this.selectedType && this.selectedType !== 'wp') {
+      this.renderList();
+      this.showDetail(this.selectedId, this.selectedType);
+      return;
+    }
+
+    this.selectedId = null;
+    this.selectedType = null;
+    this.renderList();
+    this.ui.showNothingSelected();
+  }
+
+  clearWaypointMultiSelection() {
+    this.selectedWaypointIds.clear();
+    this.touchRangeAnchorId = null;
+    this.lastWaypointAnchorId = null;
+    this.renderList();
+    if (this.selectedId && this.selectedType) {
+      this.showDetail(this.selectedId, this.selectedType);
+    } else {
+      this.ui.showNothingSelected();
+    }
+  }
+
+  showBulkWaypointDetail() {
+    const selectedWaypoints = this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
+    if (selectedWaypoints.length < 2) {
+      return;
+    }
+
+    this.ui.showBulkWaypointDetail({
+      selectedCount: selectedWaypoints.length,
+      pois: this.pois,
+      onApply: values => this.applyBulkWaypointUpdate(values),
+      onClearSelection: () => this.clearWaypointMultiSelection()
+    });
+  }
+
+  applyBulkWaypointUpdate({ altitudeValue, speedValue, poiValue }) {
+    const altitude = parseFloat(altitudeValue);
+    const speed = parseFloat(speedValue);
+    const applyAltitude = altitudeValue.trim() !== '' && Number.isFinite(altitude);
+    const applySpeed = speedValue.trim() !== '' && Number.isFinite(speed);
+    const applyPoi = poiValue !== '__KEEP__';
+
+    if (!applyAltitude && !applySpeed && !applyPoi) {
+      this.showStatus('No bulk changes applied.');
+      return;
+    }
+
+    const targetWaypoints = this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
+    targetWaypoints.forEach(wp => {
+      if (applyAltitude) {
+        wp.alt = altitude;
+      }
+      if (applySpeed) {
+        wp.speed = speed;
+      }
+      if (applyPoi) {
+        wp.poiId = poiValue === '__NONE__' ? null : poiValue;
+      }
+      this.recomputePOI(wp);
+    });
+
+    this.renderList();
+    this.updateStats();
+    this.showBulkWaypointDetail();
+    this.showStatus(`Updated ${targetWaypoints.length} waypoints.`);
   }
 
   renderList() {
@@ -158,9 +318,14 @@ class App {
       waypoints: this.waypoints,
       pois: this.pois,
       selectedId: this.selectedId,
+      selectedWaypointIds: this.selectedWaypointIds,
       resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
-      onSelect: (id, type) => this.selectItem(id, type),
-      onDelete: (id, type) => this.deleteItem(id, type)
+      onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
+      onDelete: (id, type) => this.deleteItem(id, type),
+      onToggleWaypointMultiSelect: (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options),
+      onRangeWaypointMultiSelect: (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected),
+      onStartWaypointTouchRange: anchorId => this.startWaypointTouchRange(anchorId),
+      onEndWaypointTouchRange: () => this.endWaypointTouchRange()
     });
   }
 
@@ -223,6 +388,10 @@ class App {
   deleteItem(id, type) {
     if (type === 'wp') {
       this.mission.deleteWaypoint(id);
+      this.selectedWaypointIds.delete(id);
+      if (this.lastWaypointAnchorId === id) {
+        this.lastWaypointAnchorId = null;
+      }
       const marker = this.waypointMarkers.get(id);
       if (marker) {
         this.mapController.removeLayer(marker);
@@ -240,10 +409,19 @@ class App {
     }
     if (this.selectedId === id) {
       this.selectedId = null;
+      this.selectedType = null;
       this.ui.showNothingSelected();
     }
     this.renderList();
     this.updateStats();
+    if (this.selectedWaypointIds.size > 1) {
+      this.showBulkWaypointDetail();
+    } else if (this.selectedWaypointIds.size === 1) {
+      const [onlyId] = this.selectedWaypointIds;
+      this.selectedId = onlyId;
+      this.selectedType = 'wp';
+      this.showDetail(onlyId, 'wp');
+    }
   }
 
   setMode(m) {
@@ -270,6 +448,10 @@ class App {
     this.mission.clear();
     this.mapController.clearRoute();
     this.selectedId = null;
+    this.selectedType = null;
+    this.selectedWaypointIds.clear();
+    this.lastWaypointAnchorId = null;
+    this.touchRangeAnchorId = null;
     this.ui.showNothingSelected();
     this.renderList();
     this.updateStats();
@@ -318,52 +500,65 @@ class App {
       waypoints: this.waypoints,
       missionName: this.ui.getMissionName(),
       finishAction: this.ui.getFinishAction(),
+      rcLostAction: this.ui.getRcLostAction(),
       headingMode: this.ui.getHeadingMode(),
       defaultSpeed: this.ui.getDefaultSpeed()
     });
   }
 
+  doUnselectAll() {
+    this.selectedWaypointIds.clear();
+    this.selectedId = null;
+    this.selectedType = null;
+    this.lastWaypointAnchorId = null;
+    this.touchRangeAnchorId = null;
+    this.renderList();
+    this.ui.showNothingSelected();
+    this.showStatus('Selection cleared.');
+  }
+
   async doSaveMission() {
     try {
       const jsonText = this.exportMissionJson();
-      const savedPath = await this.missionStorage.saveMissionJson({
-        missionName: this.ui.getMissionName(),
-        jsonText
-      });
+      const savedPath = await this.storage.save(this.ui.getMissionName(), jsonText);
       this.showStatus(`Saved mission: ${savedPath}`);
+      this.ui.showToast(`Saved mission: ${savedPath}`, 'success');
     } catch (error) {
       this.onError(error.message || 'Failed to save mission file.');
+      this.ui.showToast(error.message || 'Failed to save mission file.', 'error');
     }
   }
 
   async openLoadMissionDialog() {
     try {
-      const tree = await this.missionStorage.listMissionTree();
+      const tree = await this.storage.listTree();
       this.ui.showMissionLoadDialog({
         rootLabel: tree.rootLabel,
         nodes: tree.nodes,
         onCancel: () => this.ui.closeMissionLoadDialog(),
         onSelectFile: async node => {
           try {
-            const jsonText = await this.missionStorage.readMissionFile(node.handle);
+            const jsonText = await this.storage.load(node.path);
             this.importMissionJson(jsonText);
             this.ui.closeMissionLoadDialog();
             this.showStatus(`Loaded mission file: ${node.path}`);
+            this.ui.showToast(`Loaded mission: ${node.path}`, 'success');
           } catch (error) {
             this.onError(error.message || 'Failed to load mission file.');
+            this.ui.showToast(error.message || 'Failed to load mission file.', 'error');
           }
         },
         onRefresh: () => {
           this.openLoadMissionDialog();
         },
-        onChooseFolder: async () => {
+        onChooseFolder: this.storage.canChooseRootDirectory() ? async () => {
           try {
-            await this.missionStorage.pickRootDirectory();
+            await this.storage.chooseRootDirectory();
             this.openLoadMissionDialog();
           } catch (error) {
             this.onError(error.message || 'Folder selection was cancelled.');
           }
-        }
+        } : null
       });
     } catch (error) {
       this.onError(error.message || 'Failed to open mission load dialog.');
@@ -379,6 +574,7 @@ class App {
       onAddWaypoint: () => this.setMode('wp'),
       onAddPOI: () => this.setMode('poi'),
       onSelectMode: () => this.setMode('select'),
+      onUnselectAll: () => this.doUnselectAll(),
       onLocate: () => this.locateUser(),
       onClearAll: () => this.clearAll(),
       onSaveMission: () => this.doSaveMission(),

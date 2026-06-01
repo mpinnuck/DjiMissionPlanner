@@ -61,11 +61,15 @@ class MissionSerializer {
 
   static normalizeSettings(settings) {
     const source = settings && typeof settings === 'object' ? settings : {};
+    const validRcLostActions = new Set(['goContinue', 'goBack']);
     return {
       missionName: typeof source.missionName === 'string' && source.missionName.trim() ? source.missionName : 'Mission',
       defaultAltitude: Number.isFinite(source.defaultAltitude) ? source.defaultAltitude : 50,
       defaultSpeed: Number.isFinite(source.defaultSpeed) ? source.defaultSpeed : 8,
       finishAction: typeof source.finishAction === 'string' && source.finishAction ? source.finishAction : 'goHome',
+      rcLostAction: typeof source.rcLostAction === 'string' && validRcLostActions.has(source.rcLostAction)
+        ? source.rcLostAction
+        : 'goContinue',
       headingMode: typeof source.headingMode === 'string' && source.headingMode ? source.headingMode : 'followWayline'
     };
   }

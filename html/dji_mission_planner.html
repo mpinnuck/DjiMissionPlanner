@@ -25,6 +25,9 @@
     <button class="ghost" id="btnSelect" title="Select / pan mode">
       🖱 Select
     </button>
+    <button class="ghost" id="btnUnselectAll" title="Clear current selection">
+      ✖ Unselect All
+    </button>
   </div>
   <div class="sep"></div>
   <div class="tb-group">
@@ -80,6 +83,13 @@
         </select>
       </div>
       <div class="field-row">
+        <label>RC Lost</label>
+        <select id="defRCLost">
+          <option value="goContinue">Continue Mission</option>
+          <option value="goBack">Return to Home</option>
+        </select>
+      </div>
+      <div class="field-row">
         <label>Heading Mode</label>
         <select id="defHeading">
           <option value="followWayline">Follow Wayline</option>
@@ -125,7 +135,9 @@
 <script src="../source/PlannerUI.js"></script>
 <script src="../source/ExportKmz.js"></script>
 <script src="../source/MissionSerializer.js"></script>
-<script src="../source/MissionStorage.js"></script>
+<script src="../source/LocalStorageBackend.js"></script>
+<script src="../source/FileSystemBackend.js"></script>
+<script src="../source/PersistentStorage.js"></script>
 <script src="../source/App.js"></script>
 <script src="../source/dji_mission_planner.js"></script>
 </body>

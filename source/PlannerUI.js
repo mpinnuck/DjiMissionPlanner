@@ -13,6 +13,7 @@ class PlannerUI {
     this.btnAddWP = document.getElementById('btnAddWP');
     this.btnAddPOI = document.getElementById('btnAddPOI');
     this.btnSelect = document.getElementById('btnSelect');
+    this.btnUnselectAll = document.getElementById('btnUnselectAll');
     this.btnLocate = document.getElementById('btnLocate');
     this.btnClear = document.getElementById('btnClear');
     this.btnSaveMission = document.getElementById('btnSaveMission');
@@ -22,7 +23,9 @@ class PlannerUI {
     this.defaultAltitudeInput = document.getElementById('defAlt');
     this.defaultSpeedInput = document.getElementById('defSpeed');
     this.finishActionSelect = document.getElementById('defFinish');
+    this.rcLostActionSelect = document.getElementById('defRCLost');
     this.headingModeSelect = document.getElementById('defHeading');
+    this.touchRangeSelection = null;
   }
 
   getMissionName() {
@@ -45,12 +48,17 @@ class PlannerUI {
     return this.headingModeSelect.value;
   }
 
+  getRcLostAction() {
+    return this.rcLostActionSelect.value;
+  }
+
   getMissionSettings() {
     return {
       missionName: this.getMissionName(),
       defaultAltitude: this.getDefaultAltitude(),
       defaultSpeed: this.getDefaultSpeed(),
       finishAction: this.getFinishAction(),
+      rcLostAction: this.getRcLostAction(),
       headingMode: this.getHeadingMode()
     };
   }
@@ -68,6 +76,9 @@ class PlannerUI {
     if (typeof settings.finishAction === 'string') {
       this.finishActionSelect.value = settings.finishAction;
     }
+    if (typeof settings.rcLostAction === 'string') {
+      this.rcLostActionSelect.value = settings.rcLostAction;
+    }
     if (typeof settings.headingMode === 'string') {
       this.headingModeSelect.value = settings.headingMode;
     }
@@ -77,6 +88,7 @@ class PlannerUI {
     this.btnAddWP.addEventListener('click', handlers.onAddWaypoint);
     this.btnAddPOI.addEventListener('click', handlers.onAddPOI);
     this.btnSelect.addEventListener('click', handlers.onSelectMode);
+    this.btnUnselectAll.addEventListener('click', handlers.onUnselectAll);
     this.btnLocate.addEventListener('click', handlers.onLocate);
     this.btnClear.addEventListener('click', handlers.onClearAll);
     this.btnSaveMission.addEventListener('click', handlers.onSaveMission);
@@ -123,11 +135,6 @@ class PlannerUI {
     const footer = document.createElement('div');
     footer.className = 'mission-modal-footer';
 
-    const changeFolderButton = document.createElement('button');
-    changeFolderButton.className = 'ghost';
-    changeFolderButton.textContent = 'Change Folder';
-    changeFolderButton.addEventListener('click', () => onChooseFolder());
-
     const refreshButton = document.createElement('button');
     refreshButton.className = 'ghost';
     refreshButton.textContent = 'Refresh';
@@ -138,7 +145,13 @@ class PlannerUI {
     closeButton.textContent = 'Close';
     closeButton.addEventListener('click', () => onCancel());
 
-    footer.appendChild(changeFolderButton);
+    if (typeof onChooseFolder === 'function') {
+      const changeFolderButton = document.createElement('button');
+      changeFolderButton.className = 'ghost';
+      changeFolderButton.textContent = 'Change Folder';
+      changeFolderButton.addEventListener('click', () => onChooseFolder());
+      footer.appendChild(changeFolderButton);
+    }
     footer.appendChild(refreshButton);
     footer.appendChild(closeButton);
 
@@ -195,6 +208,32 @@ class PlannerUI {
     this.sbStatus.textContent = message;
   }
 
+  showToast(message, tone = 'success') {
+    let container = document.getElementById('appToastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'appToastContainer';
+      container.className = 'app-toast-container';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `app-toast ${tone}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.classList.add('visible');
+    });
+
+    setTimeout(() => {
+      toast.classList.remove('visible');
+      setTimeout(() => {
+        toast.remove();
+      }, 180);
+    }, 2200);
+  }
+
   setCursor(lat, lng) {
     this.sbCursor.textContent = `Lat: ${lat.toFixed(6)}  Lon: ${lng.toFixed(6)}`;
   }
@@ -227,13 +266,27 @@ class PlannerUI {
     this.detailContent.innerHTML = '<div id="detail-placeholder">Nothing selected</div>';
   }
 
-  highlightSelectedItem(selectedId) {
+  highlightSelectedItem(selectedId, selectedWaypointIds = new Set()) {
     document.querySelectorAll('.wp-item').forEach(el => {
+      const isMultiSelected = selectedWaypointIds.has(el.dataset.id);
       el.classList.toggle('selected', el.dataset.id === selectedId);
+      el.classList.toggle('multi-selected', isMultiSelected);
     });
   }
 
-  renderList({ waypoints, pois, selectedId, resolvePoiName, onSelect, onDelete }) {
+  renderList({
+    waypoints,
+    pois,
+    selectedId,
+    selectedWaypointIds = new Set(),
+    resolvePoiName,
+    onSelect,
+    onDelete,
+    onToggleWaypointMultiSelect,
+    onRangeWaypointMultiSelect,
+    onStartWaypointTouchRange,
+    onEndWaypointTouchRange
+  }) {
     this.wpList.innerHTML = '';
     const all = [
       ...waypoints.map((waypoint, index) => ({ ...waypoint, _type: 'wp', _idx: index + 1 })),
@@ -250,8 +303,12 @@ class PlannerUI {
       const div = document.createElement('div');
       div.className = 'wp-item' + (item._type === 'poi' ? ' poi-item' : '');
       div.dataset.id = item.id;
+      div.dataset.type = item._type;
       if (item.id === selectedId) {
         div.classList.add('selected');
+      }
+      if (item._type === 'wp' && selectedWaypointIds.has(item.id)) {
+        div.classList.add('multi-selected');
       }
 
       let badge;
@@ -284,7 +341,60 @@ class PlannerUI {
       <div class="wp-coords">${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}</div>
       ${meta}
     `;
-      div.addEventListener('click', () => onSelect(item.id, item._type));
+      if (item._type === 'wp' && typeof onToggleWaypointMultiSelect === 'function') {
+        div.addEventListener('click', ev => {
+          if (ev.target.closest('.wp-del')) {
+            return;
+          }
+          const shouldSelect = !selectedWaypointIds.has(item.id);
+          onToggleWaypointMultiSelect(item.id, shouldSelect, { shiftKey: ev.shiftKey });
+        });
+
+        if (typeof onStartWaypointTouchRange === 'function' && typeof onRangeWaypointMultiSelect === 'function') {
+          div.addEventListener('touchstart', ev => {
+            if (ev.target.closest('.wp-del')) {
+              return;
+            }
+            this.touchRangeSelection = { anchorId: item.id, lastTargetId: item.id };
+            onStartWaypointTouchRange(item.id);
+          }, { passive: true });
+
+          div.addEventListener('touchmove', ev => {
+            if (!this.touchRangeSelection || !ev.touches || ev.touches.length === 0) {
+              return;
+            }
+
+            const touch = ev.touches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            const row = element ? element.closest('.wp-item[data-type="wp"]') : null;
+            if (!row || !row.dataset.id) {
+              return;
+            }
+
+            const targetId = row.dataset.id;
+            if (targetId === this.touchRangeSelection.lastTargetId) {
+              return;
+            }
+
+            this.touchRangeSelection.lastTargetId = targetId;
+            onRangeWaypointMultiSelect(this.touchRangeSelection.anchorId, targetId, true);
+            ev.preventDefault();
+          }, { passive: false });
+
+          const endTouchRange = () => {
+            if (!this.touchRangeSelection) {
+              return;
+            }
+            this.touchRangeSelection = null;
+            onEndWaypointTouchRange();
+          };
+
+          div.addEventListener('touchend', endTouchRange);
+          div.addEventListener('touchcancel', endTouchRange);
+        }
+      } else {
+        div.addEventListener('click', ev => onSelect(item.id, item._type, { shiftKey: ev.shiftKey }));
+      }
       div.querySelector('.wp-del').addEventListener('click', ev => {
         ev.stopPropagation();
         onDelete(item.id, item._type);
@@ -347,6 +457,43 @@ class PlannerUI {
     });
     this.detailContent.querySelector('#d_palt').addEventListener('input', e => {
       onAltitudeChange(e.target.value);
+    });
+  }
+
+  showBulkWaypointDetail({ selectedCount, pois, onApply, onClearSelection }) {
+    const poiOptions = pois.map(poi => `<option value="${poi.id}">${poi.name}</option>`).join('');
+    this.detailContent.innerHTML = `
+      <div class="bulk-edit-header">
+        <div class="bulk-edit-title">Bulk Waypoint Edit</div>
+        <div class="bulk-edit-subtitle">${selectedCount} waypoints selected</div>
+      </div>
+      <div class="field-row"><label>Altitude</label>
+        <input id="bulk_alt" type="number" min="1" max="500" step="1" placeholder="Leave blank to keep"/><span class="unit">m</span></div>
+      <div class="field-row"><label>Speed</label>
+        <input id="bulk_speed" type="number" min="1" max="15" step="0.5" placeholder="Leave blank to keep"/><span class="unit">m/s</span></div>
+      <div class="field-row" style="margin-bottom:10px"><label>Point of Interest</label>
+        <select id="bulk_poi">
+          <option value="__KEEP__">Keep current</option>
+          <option value="__NONE__">None</option>
+          ${poiOptions}
+        </select>
+      </div>
+      <div class="bulk-edit-actions">
+        <button id="bulk_apply" class="accent2">Apply to Selected</button>
+        <button id="bulk_clear" class="ghost">Clear Selection</button>
+      </div>
+    `;
+
+    this.detailContent.querySelector('#bulk_apply').addEventListener('click', () => {
+      onApply({
+        altitudeValue: this.detailContent.querySelector('#bulk_alt').value,
+        speedValue: this.detailContent.querySelector('#bulk_speed').value,
+        poiValue: this.detailContent.querySelector('#bulk_poi').value
+      });
+    });
+
+    this.detailContent.querySelector('#bulk_clear').addEventListener('click', () => {
+      onClearSelection();
     });
   }
 }

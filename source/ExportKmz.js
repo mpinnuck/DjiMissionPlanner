@@ -4,7 +4,7 @@ class ExportKmz {
     this.onError = options.onError || (message => alert(message));
   }
 
-  export({ waypoints, missionName, finishAction, headingMode, defaultSpeed }) {
+  export({ waypoints, missionName, finishAction, rcLostAction = 'goContinue', headingMode, defaultSpeed }) {
     if (waypoints.length < 1) {
       this.onError('Add at least one waypoint before exporting.');
       return;
@@ -23,7 +23,7 @@ class ExportKmz {
       <wpml:flyToWaylineMode>safely</wpml:flyToWaylineMode>
       <wpml:finishAction>${finish}</wpml:finishAction>
       <wpml:exitOnRCLost>goContinue</wpml:exitOnRCLost>
-      <wpml:executeRCLostAction>goBack</wpml:executeRCLostAction>
+      <wpml:executeRCLostAction>${rcLostAction}</wpml:executeRCLostAction>
       <wpml:globalTransitionalSpeed>${spd}</wpml:globalTransitionalSpeed>
       <wpml:droneInfo>
         <wpml:droneEnumValue>68</wpml:droneEnumValue>
