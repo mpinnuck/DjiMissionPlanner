@@ -25,53 +25,162 @@ class MapController {
     this.map.on('mousemove', handler);
   }
 
-  wpIcon(idx, altitude) {
-    const altValue = Number.isFinite(altitude) ? altitude : 0;
+  onZoomEnd(handler) {
+    this.map.on('zoomend', handler);
+  }
+
+  getWaypointMarkerScale() {
+    const zoom = this.map.getZoom();
+    if (zoom >= 19) return 1.22;
+    if (zoom >= 18) return 1.14;
+    if (zoom >= 17) return 1.07;
+    return 1;
+  }
+
+  _buildPinSvg({ fill, mainText, subText = null, scale = 1 }) {
+    const PIN_W = 20;
+    const PIN_H = 32;
+    const width = Math.round(PIN_W * scale);
+    const height = Math.round(PIN_H * scale);
+    const safeMain = this._escapeHtml(String(mainText));
+    const safeSub = subText == null ? '' : this._escapeHtml(String(subText));
+    const mainY = subText == null ? '15' : '13';
+
+    const subMarkup = subText == null
+      ? ''
+      : `<text x="12" y="20" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" fill-opacity="0.95" font-family="'Share Tech Mono', monospace" font-size="5.2" font-weight="400">${safeSub}</text>`;
+
+    const svg = `<svg width="${width}" height="${height}" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 35 C11 31 8 27 5 23 C2.5 19.7 1 16 1 11 C1 5.4 5.6 1 12 1 C18.4 1 23 5.4 23 11 C23 16 21.5 19.7 19 23 C16 27 13 31 12 35 Z"
+        fill="${fill}" stroke="rgba(255,255,255,0.95)" stroke-width="2" stroke-linejoin="round" />
+      <text x="12" y="${mainY}" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="'Share Tech Mono', monospace" font-size="9.4" font-weight="700">${safeMain}</text>
+      ${subMarkup}
+    </svg>`;
+
+    return {
+      html: `<div class="map-pin-svg-wrap">${svg}</div>`,
+      iconAnchor: [Math.round((PIN_W / 2) * scale), Math.round(PIN_H * scale)]
+    };
+  }
+
+  _escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  wpIcon(idx, options = {}) {
+    const {
+      isFirst = false,
+      isLast = false,
+      isSelected = false,
+      altitude = 0
+    } = options;
+
+    let fill = '#1f7cff'; // default waypoint blue
+    if (isFirst || isLast) {
+      fill = '#7f3fbf'; // first/last waypoint purple
+    }
+    if (isSelected) {
+      fill = '#68d5ff'; // selected light blue
+    }
+
+    const altValue = Number.isFinite(altitude) ? Math.round(altitude) : 0;
+    const scale = this.getWaypointMarkerScale();
+    const pin = this._buildPinSvg({
+      fill,
+      mainText: idx,
+      subText: altValue,
+      scale
+    });
+
     return L.divIcon({
       className: '',
-      html: `<div class="wp-label-wrap"><div class="wp-label">${idx}</div><div class="wp-alt-label">${altValue}m</div></div>`,
+      html: pin.html,
       iconSize: null,
-      iconAnchor: [12, 12]
+      iconAnchor: pin.iconAnchor
     });
   }
 
-  poiIcon(name) {
+  poiIcon(idx, isSelected = false) {
+    const safeIndex = this._escapeHtml(String(idx));
+    const fill = isSelected ? '#68d5ff' : '#1f9d55'; // green, selected light blue
+    const pin = this._buildPinSvg({
+      fill,
+      mainText: safeIndex,
+      subText: null,
+      scale: 1
+    });
+
     return L.divIcon({
       className: '',
-      html: `<div class="poi-label">◎ ${name}</div>`,
+      html: pin.html,
       iconSize: null,
-      iconAnchor: [0, 10]
+      iconAnchor: pin.iconAnchor
     });
   }
 
-  addWaypointMarker(wp, idx) {
+  addWaypointMarker(wp, idx, options = {}) {
     return L.marker([wp.lat, wp.lng], {
-      icon: this.wpIcon(idx, wp.alt),
+      icon: this.wpIcon(idx, options),
       draggable: true,
-      zIndexOffset: 100
+      zIndexOffset: 100,
+      bubblingMouseEvents: false
     }).addTo(this.map);
   }
 
-  addPOIMarker(poi) {
+  addPOIMarker(poi, options = {}) {
+    const pinIndex = Number.isFinite(options.index) ? options.index : 1;
     return L.marker([poi.lat, poi.lng], {
-      icon: this.poiIcon(poi.name),
+      icon: this.poiIcon(pinIndex, !!options.isSelected),
       draggable: true,
-      zIndexOffset: 200
+      zIndexOffset: 200,
+      bubblingMouseEvents: false
     }).addTo(this.map);
   }
 
-  refreshWaypointLabels(waypoints, markerResolver) {
+  refreshWaypointLabels(waypoints, markerResolver, options = {}) {
+    const {
+      selectedId = null,
+      selectedType = null,
+      selectedWaypointIds = null
+    } = options;
+
+    const lastIndex = waypoints.length - 1;
     waypoints.forEach((wp, i) => {
       const marker = markerResolver ? markerResolver(wp) : null;
       if (marker) {
-        marker.setIcon(this.wpIcon(i + 1, wp.alt));
+        marker.setIcon(this.wpIcon(i + 1, {
+          isFirst: i === 0,
+          isLast: i === lastIndex,
+          isSelected: (selectedType === 'wp' && selectedId === wp.id)
+            || (selectedWaypointIds instanceof Set && selectedWaypointIds.has(wp.id)),
+          altitude: wp.alt
+        }));
       }
     });
   }
 
-  updatePOILabel(marker, name) {
+  refreshPOILabels(pois, markerResolver, options = {}) {
+    const {
+      selectedId = null,
+      selectedType = null
+    } = options;
+
+    pois.forEach((poi, i) => {
+      const marker = markerResolver ? markerResolver(poi) : null;
+      if (marker) {
+        marker.setIcon(this.poiIcon(i + 1, selectedType === 'poi' && selectedId === poi.id));
+      }
+    });
+  }
+
+  updatePOILabel(marker, index, options = {}) {
     if (marker) {
-      marker.setIcon(this.poiIcon(name));
+      marker.setIcon(this.poiIcon(index, !!options.isSelected));
     }
   }
 

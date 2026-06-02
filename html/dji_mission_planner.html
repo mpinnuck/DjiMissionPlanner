@@ -13,7 +13,7 @@
 
 <!-- ── Top Bar ── -->
 <div id="topbar">
-  <div class="logo">DJI <span>PLANNER</span></div>
+  <div class="logo">DJI <span>PLANNER</span><span class="logo-version" id="appVersion"></span></div>
   <div class="sep"></div>
   <div class="tb-group">
     <button class="ghost" id="btnAddWP" title="Click map to place waypoints">
@@ -46,6 +46,25 @@
   <div class="tb-group">
     <button class="accent2" id="btnExport">⬇ Export KMZ</button>
   </div>
+  <div class="sep"></div>
+  <div class="tb-group flythrough-controls" id="flythroughControls">
+    <button class="ghost" id="btnFTPlay" title="Start virtual flythrough">▶ Play</button>
+    <button class="ghost" id="btnFTPause" title="Pause virtual flythrough">⏸ Pause</button>
+    <button class="ghost" id="btnFTStop" title="Stop virtual flythrough">⏹ Stop</button>
+    <select id="ftSpeed" title="Flythrough speed">
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+      <option value="5">5x</option>
+      <option value="10">10x</option>
+    </select>
+    <label class="ft-toggle" title="Show/hide camera field of view">
+      <input id="chkFTFov" type="checkbox" />
+      👁 FOV
+    </label>
+    <input id="ftSeek" type="range" min="0" max="1000" value="0" title="Seek flythrough timeline" />
+    <span id="ftProgress">00:00 / 00:00</span>
+  </div>
   <div id="stats">
     WP: <span id="statWP">0</span> &nbsp; POI: <span id="statPOI">0</span> &nbsp; Dist: <span id="statDist">0 m</span>
   </div>
@@ -70,8 +89,8 @@
       </div>
       <div class="field-row">
         <label>Default Speed</label>
-        <input id="defSpeed" type="number" value="8" min="1" max="15" step="0.5"/>
-        <span class="unit">m/s</span>
+        <input id="defSpeed" type="number" value="28.8" min="3.6" max="54" step="2"/>
+        <span class="unit">km/h</span>
       </div>
       <div class="field-row">
         <label>Finish Action</label>
@@ -126,6 +145,18 @@
   <span id="sbStatus">Ready</span>
 </div>
 
+<script>
+  const APP_VERSION = 'v1.0';
+  window.APP_VERSION = APP_VERSION;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const versionEl = document.getElementById('appVersion');
+    if (versionEl) {
+      versionEl.textContent = `(${APP_VERSION})`;
+    }
+  });
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.383.0/umd/lucide.min.js"></script>
@@ -138,6 +169,7 @@
 <script src="../source/storage/LocalStorageBackend.js"></script>
 <script src="../source/storage/FileSystemBackend.js"></script>
 <script src="../source/storage/PersistentStorage.js"></script>
+<script src="../source/virtualflight/FlythroughController.js"></script>
 <script src="../source/app/App.js"></script>
 <script src="../source/app/dji_mission_planner.js"></script>
 </body>

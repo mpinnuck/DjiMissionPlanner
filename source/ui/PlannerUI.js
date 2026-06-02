@@ -19,6 +19,13 @@ class PlannerUI {
     this.btnSaveMission = document.getElementById('btnSaveMission');
     this.btnLoadMission = document.getElementById('btnLoadMission');
     this.btnExport = document.getElementById('btnExport');
+    this.btnFTPlay = document.getElementById('btnFTPlay');
+    this.btnFTPause = document.getElementById('btnFTPause');
+    this.btnFTStop = document.getElementById('btnFTStop');
+    this.ftSpeedSelect = document.getElementById('ftSpeed');
+    this.ftFovCheckbox = document.getElementById('chkFTFov');
+    this.ftSeekInput = document.getElementById('ftSeek');
+    this.ftProgress = document.getElementById('ftProgress');
     this.missionNameInput = document.getElementById('missionName');
     this.defaultAltitudeInput = document.getElementById('defAlt');
     this.defaultSpeedInput = document.getElementById('defSpeed');
@@ -37,7 +44,8 @@ class PlannerUI {
   }
 
   getDefaultSpeed() {
-    return parseFloat(this.defaultSpeedInput.value) || 8;
+    const speedKmh = parseFloat(this.defaultSpeedInput.value);
+    return Number.isFinite(speedKmh) ? (speedKmh / 3.6).toFixed(2) : 8;
   }
 
   getFinishAction() {
@@ -71,7 +79,7 @@ class PlannerUI {
       this.defaultAltitudeInput.value = settings.defaultAltitude;
     }
     if (Number.isFinite(settings.defaultSpeed)) {
-      this.defaultSpeedInput.value = settings.defaultSpeed;
+      this.defaultSpeedInput.value = (settings.defaultSpeed * 3.6).toFixed(1);
     }
     if (typeof settings.finishAction === 'string') {
       this.finishActionSelect.value = settings.finishAction;
@@ -94,6 +102,52 @@ class PlannerUI {
     this.btnSaveMission.addEventListener('click', handlers.onSaveMission);
     this.btnLoadMission.addEventListener('click', handlers.onLoadMission);
     this.btnExport.addEventListener('click', handlers.onExport);
+    
+    // Right-click or long-press to change export folder
+    if (typeof handlers.onExportChangeFolder === 'function') {
+      this.btnExport.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        handlers.onExportChangeFolder();
+      });
+      
+      // Long-press support for touch devices
+      let touchStartTime = 0;
+      this.btnExport.addEventListener('touchstart', () => {
+        touchStartTime = Date.now();
+      });
+      this.btnExport.addEventListener('touchend', (e) => {
+        if (Date.now() - touchStartTime > 500) {
+          handlers.onExportChangeFolder();
+        }
+      });
+    }
+  }
+
+  bindFlythroughEvents(handlers = {}) {
+    if (this.btnFTPlay && typeof handlers.onFlythroughPlay === 'function') {
+      this.btnFTPlay.addEventListener('click', handlers.onFlythroughPlay);
+    }
+    if (this.btnFTPause && typeof handlers.onFlythroughPause === 'function') {
+      this.btnFTPause.addEventListener('click', handlers.onFlythroughPause);
+    }
+    if (this.btnFTStop && typeof handlers.onFlythroughStop === 'function') {
+      this.btnFTStop.addEventListener('click', handlers.onFlythroughStop);
+    }
+    if (this.ftSpeedSelect && typeof handlers.onFlythroughSpeedChange === 'function') {
+      this.ftSpeedSelect.addEventListener('change', event => {
+        handlers.onFlythroughSpeedChange(event.target.value);
+      });
+    }
+    if (this.ftFovCheckbox && typeof handlers.onFlythroughFovToggle === 'function') {
+      this.ftFovCheckbox.addEventListener('change', event => {
+        handlers.onFlythroughFovToggle(event.target.checked);
+      });
+    }
+    if (this.ftSeekInput && typeof handlers.onFlythroughSeek === 'function') {
+      this.ftSeekInput.addEventListener('input', event => {
+        handlers.onFlythroughSeek(event.target.value);
+      });
+    }
   }
 
   closeMissionLoadDialog() {
@@ -101,6 +155,248 @@ class PlannerUI {
     if (existing) {
       existing.remove();
     }
+  }
+
+  closeWaypointOptionsDialog() {
+    const existing = document.getElementById('waypointOptionsModal');
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  showWaypointOptionsDialog({
+    waypointLabel,
+    positionText,
+    initialAltitude,
+    initialSpeed,
+    currentPoiId,
+    pois,
+    initialPosition,
+    onClose,
+    onDelete,
+    onPrevious,
+    onNext,
+    onAltitudeChange,
+    onSpeedChange,
+    onPoiChange
+  }) {
+    this.closeWaypointOptionsDialog();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'waypointOptionsModal';
+    overlay.className = 'wp-options-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'wp-options-modal';
+
+    const header = document.createElement('div');
+    header.className = 'wp-options-header';
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'wp-options-delete';
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', () => onDelete());
+
+    const doneButton = document.createElement('button');
+    doneButton.type = 'button';
+    doneButton.className = 'wp-options-done';
+    doneButton.textContent = 'Done';
+    doneButton.addEventListener('click', () => onClose());
+
+    header.appendChild(deleteButton);
+    header.appendChild(doneButton);
+
+    const body = document.createElement('div');
+    body.className = 'wp-options-body';
+    body.innerHTML = `
+      <div class="wp-options-position">${positionText}</div>
+      <div class="wp-options-title">${waypointLabel}</div>
+      <div class="wp-options-section">Altitude</div>
+    `;
+
+    const altitudeBlock = document.createElement('div');
+    altitudeBlock.className = 'wp-options-altitude-block';
+
+    const valueRow = document.createElement('div');
+    valueRow.className = 'wp-options-altitude-values';
+    valueRow.innerHTML = `
+      <span>-59 m</span>
+      <strong id="wpOptionsAltitudeValue">${Math.round(initialAltitude)} m</strong>
+      <span>499 m</span>
+    `;
+
+    const controls = document.createElement('div');
+    controls.className = 'wp-options-altitude-controls';
+
+    const minusButton = document.createElement('button');
+    minusButton.type = 'button';
+    minusButton.className = 'wp-options-step';
+    minusButton.textContent = '−';
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '-59';
+    slider.max = '499';
+    slider.step = '1';
+    slider.value = String(Math.max(-59, Math.min(499, Math.round(initialAltitude))));
+
+    const plusButton = document.createElement('button');
+    plusButton.type = 'button';
+    plusButton.className = 'wp-options-step';
+    plusButton.textContent = '+';
+
+    const updateAltitude = newValue => {
+      const clamped = Math.max(-59, Math.min(499, Math.round(newValue)));
+      slider.value = String(clamped);
+      const valueLabel = valueRow.querySelector('#wpOptionsAltitudeValue');
+      if (valueLabel) {
+        valueLabel.textContent = `${clamped} m`;
+      }
+      onAltitudeChange(clamped);
+    };
+
+    slider.addEventListener('input', () => updateAltitude(parseFloat(slider.value)));
+    minusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) - 1));
+    plusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) + 1));
+
+    controls.appendChild(minusButton);
+    controls.appendChild(slider);
+    controls.appendChild(plusButton);
+
+    altitudeBlock.appendChild(valueRow);
+    altitudeBlock.appendChild(controls);
+    body.appendChild(altitudeBlock);
+
+    const speedRow = document.createElement('div');
+    speedRow.className = 'wp-options-edit-row';
+    speedRow.innerHTML = `
+      <label>Speed</label>
+      <input type="number" min="1" max="15" step="0.5" value="${Number.isFinite(initialSpeed) ? initialSpeed : 8}" />
+      <span>m/s</span>
+    `;
+    const speedInput = speedRow.querySelector('input');
+    speedInput.addEventListener('input', () => onSpeedChange(speedInput.value));
+    body.appendChild(speedRow);
+
+    const poiRow = document.createElement('div');
+    poiRow.className = 'wp-options-edit-row';
+    const poiOptions = [
+      '<option value="">- None -</option>',
+      ...(Array.isArray(pois) ? pois.map(poi =>
+        `<option value="${poi.id}" ${currentPoiId === poi.id ? 'selected' : ''}>${poi.name}</option>`
+      ) : [])
+    ].join('');
+    poiRow.innerHTML = `
+      <label>Point of Interest</label>
+      <select>${poiOptions}</select>
+    `;
+    const poiSelect = poiRow.querySelector('select');
+    poiSelect.addEventListener('change', () => onPoiChange(poiSelect.value));
+    body.appendChild(poiRow);
+
+    const footer = document.createElement('div');
+    footer.className = 'wp-options-footer';
+
+    const prevButton = document.createElement('button');
+    prevButton.type = 'button';
+    prevButton.className = 'wp-options-nav';
+    prevButton.textContent = 'Previous';
+    prevButton.addEventListener('click', () => onPrevious());
+
+    const nextButton = document.createElement('button');
+    nextButton.type = 'button';
+    nextButton.className = 'wp-options-nav';
+    nextButton.textContent = 'Next';
+    nextButton.addEventListener('click', () => onNext());
+
+    footer.appendChild(prevButton);
+    footer.appendChild(nextButton);
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const dragPadding = 10;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const positionModalWithinViewport = (desiredLeft, desiredTop) => {
+      const rect = modal.getBoundingClientRect();
+      const maxLeft = Math.max(dragPadding, window.innerWidth - rect.width - dragPadding);
+      const maxTop = Math.max(dragPadding, window.innerHeight - rect.height - dragPadding);
+      modal.style.left = `${clamp(desiredLeft, dragPadding, maxLeft)}px`;
+      modal.style.top = `${clamp(desiredTop, dragPadding, maxTop)}px`;
+    };
+
+    // Convert the centered flex modal into a movable fixed-position dialog.
+    const initialRect = modal.getBoundingClientRect();
+    const desiredInitialLeft = initialPosition && Number.isFinite(initialPosition.left)
+      ? initialPosition.left
+      : initialRect.left;
+    const desiredInitialTop = initialPosition && Number.isFinite(initialPosition.top)
+      ? initialPosition.top
+      : initialRect.top;
+    modal.style.position = 'fixed';
+    modal.style.margin = '0';
+    modal.style.left = `${desiredInitialLeft}px`;
+    modal.style.top = `${desiredInitialTop}px`;
+    positionModalWithinViewport(desiredInitialLeft, desiredInitialTop);
+
+    let dragState = null;
+
+    const stopDragging = event => {
+      if (!dragState) {
+        return;
+      }
+      if (event && typeof dragState.pointerId === 'number' && header.hasPointerCapture(dragState.pointerId)) {
+        header.releasePointerCapture(dragState.pointerId);
+      }
+      dragState = null;
+      header.classList.remove('is-dragging');
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', stopDragging, true);
+      document.removeEventListener('pointercancel', stopDragging, true);
+    };
+
+    const onPointerMove = event => {
+      if (!dragState || event.pointerId !== dragState.pointerId) {
+        return;
+      }
+      const nextLeft = event.clientX - dragState.offsetX;
+      const nextTop = event.clientY - dragState.offsetY;
+      positionModalWithinViewport(nextLeft, nextTop);
+    };
+
+    header.addEventListener('pointerdown', event => {
+      if (event.button !== 0) {
+        return;
+      }
+      if (event.target.closest('button, input, select, textarea, a, label')) {
+        return;
+      }
+
+      const rect = modal.getBoundingClientRect();
+      dragState = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top
+      };
+
+      header.classList.add('is-dragging');
+      header.setPointerCapture(event.pointerId);
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', stopDragging, true);
+      document.addEventListener('pointercancel', stopDragging, true);
+      event.preventDefault();
+    });
+
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) {
+        stopDragging();
+        onClose();
+      }
+    });
   }
 
   showMissionLoadDialog({ rootLabel, nodes, initialExpandedPath, onCancel, onSelectFile, onDeleteFile, onRefresh, onChooseFolder }) {
@@ -239,7 +535,7 @@ class PlannerUI {
     this.sbStatus.textContent = message;
   }
 
-  showToast(message, tone = 'success') {
+  ensureToastContainer() {
     let container = document.getElementById('appToastContainer');
     if (!container) {
       container = document.createElement('div');
@@ -248,25 +544,88 @@ class PlannerUI {
       document.body.appendChild(container);
     }
 
+    return container;
+  }
+
+  hideToast(toastOrId) {
+    const toast = typeof toastOrId === 'string'
+      ? document.getElementById(toastOrId)
+      : toastOrId;
+    if (!toast) {
+      return;
+    }
+
+    toast.classList.remove('visible');
+    window.setTimeout(() => {
+      toast.remove();
+    }, 180);
+  }
+
+  showToast(message, tone = 'success', options = {}) {
+    const {
+      duration = 2200,
+      id = null,
+      persistent = false
+    } = options;
+    const container = this.ensureToastContainer();
+
+    if (id) {
+      const existing = document.getElementById(id);
+      if (existing) {
+        existing.remove();
+      }
+    }
+
     const toast = document.createElement('div');
     toast.className = `app-toast ${tone}`;
     toast.textContent = message;
+    if (id) {
+      toast.id = id;
+    }
     container.appendChild(toast);
 
     requestAnimationFrame(() => {
       toast.classList.add('visible');
     });
 
-    setTimeout(() => {
-      toast.classList.remove('visible');
-      setTimeout(() => {
-        toast.remove();
-      }, 180);
-    }, 2200);
+    if (!persistent && duration > 0) {
+      window.setTimeout(() => {
+        this.hideToast(toast);
+      }, duration);
+    }
+
+    return toast;
   }
 
   setCursor(lat, lng) {
     this.sbCursor.textContent = `Lat: ${lat.toFixed(6)}  Lon: ${lng.toFixed(6)}`;
+  }
+
+  formatFlythroughTime(totalSeconds) {
+    const safeTotal = Number.isFinite(totalSeconds) && totalSeconds > 0
+      ? totalSeconds
+      : 0;
+    const minutes = Math.floor(safeTotal / 60);
+    const seconds = Math.floor(safeTotal % 60);
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  updateFlythroughProgress(currentSeconds, totalSeconds, progressFraction = null) {
+    const current = this.formatFlythroughTime(currentSeconds);
+    const total = this.formatFlythroughTime(totalSeconds);
+
+    if (this.ftProgress) {
+      this.ftProgress.textContent = `${current} / ${total}`;
+    }
+
+    if (this.ftSeekInput && Number.isFinite(progressFraction)) {
+      const clamped = Math.max(0, Math.min(1, progressFraction));
+      this.ftSeekInput.value = String(Math.round(clamped * 1000));
+    }
+  }
+
+  setFlythroughStopped() {
+    this.updateFlythroughProgress(0, 0, 0);
   }
 
   updateStats({ waypointCount, poiCount, distanceMeters }) {
@@ -303,6 +662,21 @@ class PlannerUI {
       el.classList.toggle('selected', el.dataset.id === selectedId);
       el.classList.toggle('multi-selected', isMultiSelected);
     });
+
+    this.scrollListItemIntoView(selectedId);
+  }
+
+  scrollListItemIntoView(itemId) {
+    if (!itemId || !this.wpList) {
+      return;
+    }
+
+    const row = this.wpList.querySelector(`.wp-item[data-id="${itemId}"]`);
+    if (!row) {
+      return;
+    }
+
+    row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   renderList({
@@ -359,7 +733,7 @@ class PlannerUI {
         meta = `
         <div class="wp-meta">
           <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
-          <span class="wp-meta-tag">Speed <span>${item.speed}m/s</span></span>
+          <span class="wp-meta-tag">Speed <span>${(item.speed * 3.6).toFixed(1)}km/h</span></span>
           ${item.poiId ? `<span class="wp-meta-tag">POI <span>${poiName}</span></span>` : ''}
           ${item.poiId ? `<span class="wp-meta-tag">Hdg <span>${item.heading.toFixed(1)}°</span></span>` : ''}
           ${item.poiId ? `<span class="wp-meta-tag">Pitch <span>${item.gimbalPitch.toFixed(1)}°</span></span>` : ''}
@@ -441,6 +815,8 @@ class PlannerUI {
       });
       this.wpList.appendChild(div);
     });
+
+    this.scrollListItemIntoView(selectedId);
   }
 
   showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange }) {
@@ -458,7 +834,7 @@ class PlannerUI {
       <div class="field-row"><label>WP ${waypointIndex} - Altitude</label>
         <input id="d_alt" type="number" value="${wp.alt}" min="1" max="500" step="1"/><span class="unit">m</span></div>
       <div class="field-row"><label>Speed</label>
-        <input id="d_speed" type="number" value="${wp.speed}" min="1" max="15" step="0.5"/><span class="unit">m/s</span></div>
+        <input id="d_speed" type="number" value="${(wp.speed * 3.6).toFixed(1)}" min="3.6" max="54" step="2"/><span class="unit">km/h</span></div>
       <div class="poi-assign">
         <div class="field-row" style="margin-bottom:4px"><label>Point of Interest</label>
           <select id="d_poi">
@@ -474,7 +850,7 @@ class PlannerUI {
       onAltitudeChange(e.target.value);
     });
     this.detailContent.querySelector('#d_speed').addEventListener('input', e => {
-      onSpeedChange(e.target.value);
+      onSpeedChange((parseFloat(e.target.value) / 3.6).toFixed(2));
     });
     this.detailContent.querySelector('#d_poi').addEventListener('change', e => {
       onPoiChange(e.target.value);
@@ -510,7 +886,7 @@ class PlannerUI {
       <div class="field-row"><label>Altitude</label>
         <input id="bulk_alt" type="number" min="1" max="500" step="1" placeholder="Leave blank to keep"/><span class="unit">m</span></div>
       <div class="field-row"><label>Speed</label>
-        <input id="bulk_speed" type="number" min="1" max="15" step="0.5" placeholder="Leave blank to keep"/><span class="unit">m/s</span></div>
+        <input id="bulk_speed" type="number" min="3.6" max="54" step="2" placeholder="Leave blank to keep"/><span class="unit">km/h</span></div>
       <div class="field-row" style="margin-bottom:10px"><label>Point of Interest</label>
         <select id="bulk_poi">
           <option value="__KEEP__">Keep current</option>

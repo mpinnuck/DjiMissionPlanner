@@ -1,5 +1,6 @@
 class App {
   constructor(options) {
+    this.locationToastId = 'locationLookupToast';
     this.mode = 'select';
     this.selectedId = null;
     this.selectedType = null;
@@ -7,6 +8,8 @@ class App {
     this.lastWaypointAnchorId = null;
     this.touchRangeAnchorId = null;
     this.lastLoadedMissionFolder = '';
+    this.activeWaypointTooltipId = null;
+    this.activeWaypointPopup = null;
     this.mission = new Mission();
     this.ui = new PlannerUI({ mapElementId: options.mapElementId || 'map' });
 
@@ -16,10 +19,33 @@ class App {
     this.poiMarkers = new Map();
 
     this.mapController = new MapController(options.mapElementId || 'map');
+    this.flythrough = typeof FlythroughController === 'function'
+      ? new FlythroughController(this.mapController.map, {
+        onProgress: (t, total) => this.ui.updateFlythroughProgress(
+          t,
+          total,
+          total > 0 ? t / total : 0
+        ),
+        onComplete: () => this.ui.setFlythroughStopped()
+      })
+      : null;
+
     this.locationService = new LocationService({
       onStatus: message => this.showStatus(message),
       onError: message => this.onError(message),
+      onPending: isPending => {
+        if (isPending) {
+          this.ui.showToast('Please wait, finding your location', 'info', {
+            id: this.locationToastId,
+            persistent: true
+          });
+          return;
+        }
+
+        this.ui.hideToast(this.locationToastId);
+      },
       onLocated: location => {
+        this.ui.hideToast(this.locationToastId);
         this.mapController.showUserLocation(location.lat, location.lng, location.accuracy);
         const accText = location.accuracy && Number.isFinite(location.accuracy)
           ? ` (accuracy approx. ${Math.round(location.accuracy)} m)`
@@ -44,7 +70,7 @@ class App {
     this.updateStats();
     this.showStatus(this.storage.getDescription());
 
-    setTimeout(() => this.locateUser(), 0);
+    this.locateUser();
   }
 
   get waypoints() {
@@ -75,12 +101,29 @@ class App {
   }
 
   refreshMarkerLabels() {
-    this.mapController.refreshWaypointLabels(this.waypoints, waypoint => this.waypointMarkers.get(waypoint.id));
+    this.mapController.refreshWaypointLabels(
+      this.waypoints,
+      waypoint => this.waypointMarkers.get(waypoint.id),
+      {
+        selectedId: this.selectedId,
+        selectedType: this.selectedType,
+        selectedWaypointIds: this.selectedWaypointIds
+      }
+    );
+
+    this.mapController.refreshPOILabels(
+      this.pois,
+      poi => this.poiMarkers.get(poi.id),
+      {
+        selectedId: this.selectedId,
+        selectedType: this.selectedType
+      }
+    );
   }
 
   addWaypointMarker(wp, idx) {
     const m = this.mapController.addWaypointMarker(wp, idx);
-    m.on('click', () => this.selectItem(wp.id, 'wp'));
+    m.on('click', () => this.onWaypointMarkerClick(wp.id));
     m.on('dragend', e => {
       wp.lat = e.target.getLatLng().lat;
       wp.lng = e.target.getLatLng().lng;
@@ -95,13 +138,254 @@ class App {
     return m;
   }
 
+  onWaypointMarkerClick(waypointId) {
+    if (this.selectedType === 'poi') {
+      this.selectedId = null;
+      this.selectedType = null;
+    }
+
+    const isSingleSelectedWaypoint =
+      this.selectedType === 'wp'
+      && this.selectedId === waypointId
+      && this.selectedWaypointIds.size === 0;
+    const isMultiSelectedWaypoint = this.selectedWaypointIds.has(waypointId);
+
+    if (isSingleSelectedWaypoint) {
+      this.closeWaypointTooltip();
+      this.ui.closeWaypointOptionsDialog();
+      this.clearSelection(true);
+      return;
+    }
+
+    if (isMultiSelectedWaypoint) {
+      this.selectedWaypointIds.delete(waypointId);
+      if (this.lastWaypointAnchorId === waypointId) {
+        const [nextAnchor] = this.selectedWaypointIds;
+        this.lastWaypointAnchorId = nextAnchor || null;
+      }
+      this.closeWaypointTooltip();
+      this.applyWaypointSelectionState();
+      return;
+    }
+
+    if (this.selectedType === 'wp' && this.selectedId && this.selectedWaypointIds.size === 0) {
+      this.selectedWaypointIds.add(this.selectedId);
+    }
+
+    this.selectedWaypointIds.add(waypointId);
+    this.lastWaypointAnchorId = waypointId;
+    this.applyWaypointSelectionState();
+    this.showWaypointTooltip(waypointId);
+  }
+
+  closeWaypointTooltip() {
+    this.activeWaypointTooltipId = null;
+    if (this.activeWaypointPopup && this.mapController && this.mapController.map) {
+      this.mapController.map.closePopup(this.activeWaypointPopup);
+      this.activeWaypointPopup = null;
+    }
+  }
+
+  formatWaypointTime(seconds) {
+    const safe = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+    const mins = Math.floor(safe / 60);
+    const secs = Math.floor(safe % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+
+  getWaypointMetrics(targetIndex) {
+    let cumulativeDistance = 0;
+    let cumulativeTime = 0;
+
+    for (let index = 1; index <= targetIndex; index += 1) {
+      const prev = this.waypoints[index - 1];
+      const curr = this.waypoints[index];
+      if (!prev || !curr) {
+        continue;
+      }
+
+      const segmentDistance = this.mission.haversine(prev.lat, prev.lng, curr.lat, curr.lng);
+      cumulativeDistance += segmentDistance;
+
+      const segmentSpeed = Number.isFinite(prev.speed) && prev.speed > 0 ? prev.speed : 1;
+      cumulativeTime += segmentDistance / segmentSpeed;
+    }
+
+    const totalDistance = this.mission.totalDistance();
+    const progressPercent = totalDistance > 0
+      ? Math.round((cumulativeDistance / totalDistance) * 100)
+      : 0;
+
+    return {
+      cumulativeDistance,
+      cumulativeTime,
+      totalDistance,
+      progressPercent
+    };
+  }
+
+  showWaypointTooltip(waypointId) {
+    const wp = this.mission.findWaypoint(waypointId);
+    const marker = this.waypointMarkers.get(waypointId);
+    if (!wp || !marker) {
+      return;
+    }
+
+    const waypointIndex = this.waypoints.indexOf(wp);
+    if (waypointIndex === -1) {
+      return;
+    }
+
+    const metrics = this.getWaypointMetrics(waypointIndex);
+    const previous = waypointIndex > 0 ? this.waypoints[waypointIndex - 1] : null;
+    const next = waypointIndex < this.waypoints.length - 1 ? this.waypoints[waypointIndex + 1] : null;
+
+    let course = 0;
+    if (previous) {
+      course = this.mission.bearing(previous.lat, previous.lng, wp.lat, wp.lng);
+    } else if (next) {
+      course = this.mission.bearing(wp.lat, wp.lng, next.lat, next.lng);
+    }
+
+    const speedKmh = (Number.isFinite(wp.speed) ? wp.speed : 0) * 3.6;
+    const tooltipHtml = `
+      <div class="wp-map-tooltip-content">
+        <div class="wp-map-tooltip-title">Waypoint ${waypointIndex + 1}</div>
+        <div>Position: ${(metrics.cumulativeDistance / 1000).toFixed(2)} km (${metrics.progressPercent}%)</div>
+        <div>Time: ${this.formatWaypointTime(metrics.cumulativeTime)}</div>
+        <div>Waypoint 1: ${Math.round(metrics.cumulativeDistance)} m</div>
+        <div>Course: ${Math.round(course)}°</div>
+        <div>Altitude: ${Math.round(wp.alt)} m</div>
+        <div>Speed: ${Math.round(speedKmh)} kmh</div>
+        <div>Gimbal Pitch: ${Number.isFinite(wp.gimbalPitch) ? wp.gimbalPitch.toFixed(1) : '0.0'}°</div>
+        <button type="button" class="wp-map-tooltip-options">Tap for Options</button>
+      </div>
+    `;
+
+    this.closeWaypointTooltip();
+
+    const popup = L.popup({
+      className: 'wp-map-popup',
+      closeButton: false,
+      autoClose: true,
+      closeOnClick: true,
+      offset: [0, -24]
+    })
+      .setLatLng(marker.getLatLng())
+      .setContent(tooltipHtml)
+      .openOn(this.mapController.map);
+
+    this.activeWaypointTooltipId = waypointId;
+    this.activeWaypointPopup = popup;
+
+    requestAnimationFrame(() => {
+      const popupElement = popup ? popup.getElement() : null;
+      const button = popupElement ? popupElement.querySelector('.wp-map-tooltip-options') : null;
+      if (!button) {
+        return;
+      }
+
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openWaypointOptionsDialog(waypointId);
+      });
+    });
+  }
+
+  openWaypointOptionsDialog(waypointId) {
+    const wp = this.mission.findWaypoint(waypointId);
+    if (!wp) {
+      return;
+    }
+
+    const waypointIndex = this.waypoints.indexOf(wp);
+    if (waypointIndex === -1) {
+      return;
+    }
+
+    const metrics = this.getWaypointMetrics(waypointIndex);
+    let initialDialogPosition = null;
+    const popupElement = this.activeWaypointPopup && typeof this.activeWaypointPopup.getElement === 'function'
+      ? this.activeWaypointPopup.getElement()
+      : null;
+    if (popupElement) {
+      const popupRect = popupElement.getBoundingClientRect();
+      initialDialogPosition = {
+        left: popupRect.right + 10,
+        top: popupRect.top
+      };
+    }
+
+    this.ui.showWaypointOptionsDialog({
+      waypointLabel: `Waypoint ${waypointIndex + 1}`,
+      positionText: `Position: ${(metrics.cumulativeDistance / 1000).toFixed(2)} km (${metrics.progressPercent}%)`,
+      initialAltitude: wp.alt,
+      initialSpeed: wp.speed,
+      currentPoiId: wp.poiId,
+      pois: this.pois,
+      initialPosition: initialDialogPosition,
+      onClose: () => this.ui.closeWaypointOptionsDialog(),
+      onDelete: () => {
+        this.ui.closeWaypointOptionsDialog();
+        this.closeWaypointTooltip();
+        this.deleteItem(waypointId, 'wp');
+      },
+      onPrevious: () => {
+        const prev = this.waypoints[waypointIndex - 1];
+        if (!prev) {
+          return;
+        }
+        this.selectItem(prev.id, 'wp');
+        this.showWaypointTooltip(prev.id);
+        this.openWaypointOptionsDialog(prev.id);
+      },
+      onNext: () => {
+        const next = this.waypoints[waypointIndex + 1];
+        if (!next) {
+          return;
+        }
+        this.selectItem(next.id, 'wp');
+        this.showWaypointTooltip(next.id);
+        this.openWaypointOptionsDialog(next.id);
+      },
+      onAltitudeChange: altitudeValue => {
+        wp.alt = Number.isFinite(altitudeValue) ? altitudeValue : wp.alt;
+        this.recomputePOI(wp);
+        this.syncFlythroughMission();
+        this.renderList();
+        this.showWaypointTooltip(wp.id);
+      },
+      onSpeedChange: speedValue => {
+        const speedKmh = parseFloat(speedValue);
+        if (Number.isFinite(speedKmh) && speedKmh > 0) {
+          wp.speed = (speedKmh / 3.6).toFixed(2);
+          this.syncFlythroughMission();
+          this.renderList();
+          this.showWaypointTooltip(wp.id);
+        }
+      },
+      onPoiChange: poiId => {
+        wp.poiId = poiId || null;
+        this.recomputePOI(wp);
+        this.syncFlythroughMission();
+        this.renderList();
+        this.showWaypointTooltip(wp.id);
+      }
+    });
+  }
+
   addPOIMarker(poi) {
-    const m = this.mapController.addPOIMarker(poi);
+    const poiIndex = this.pois.findIndex(item => item.id === poi.id);
+    const m = this.mapController.addPOIMarker(poi, {
+      index: poiIndex >= 0 ? poiIndex + 1 : (this.pois.length + 1)
+    });
     m.on('click', () => this.selectItem(poi.id, 'poi'));
     m.on('dragend', e => {
       poi.lat = e.target.getLatLng().lat;
       poi.lng = e.target.getLatLng().lng;
       this.recomputeAllPOI();
+      this.syncFlythroughMission();
       this.renderList();
       this.updateStats();
       if (this.selectedId === poi.id) {
@@ -123,6 +407,22 @@ class App {
     this.mapController.updateRoute(this.waypoints, {
       onInsertWaypoint: (insertIndex, latlng) => this.insertWaypointAt(insertIndex, latlng)
     });
+    this.syncFlythroughMission();
+  }
+
+  syncFlythroughMission() {
+    if (!this.flythrough) {
+      return;
+    }
+
+    this.flythrough.setMission(this.waypoints);
+    this.ui.updateFlythroughProgress(
+      this.flythrough.currentTime,
+      this.flythrough.totalTime,
+      this.flythrough.totalTime > 0
+        ? this.flythrough.currentTime / this.flythrough.totalTime
+        : 0
+    );
   }
 
   insertWaypointAt(index, latlng) {
@@ -165,11 +465,22 @@ class App {
         this.renderList();
         this.updateStats();
         this.selectItem(poi.id, 'poi');
+      } else if (this.mode === 'select') {
+        const hasSelection = this.selectedId || this.selectedWaypointIds.size > 0;
+        if (hasSelection) {
+          this.closeWaypointTooltip();
+          this.ui.closeWaypointOptionsDialog();
+          this.clearSelection(true);
+        }
       }
     });
 
     this.mapController.onMouseMove(e => {
       this.ui.setCursor(e.latlng.lat, e.latlng.lng);
+    });
+
+    this.mapController.onZoomEnd(() => {
+      this.refreshMarkerLabels();
     });
   }
 
@@ -184,6 +495,10 @@ class App {
     this.selectedWaypointIds.clear();
     this.selectedId = id;
     this.selectedType = type;
+    if (type !== 'wp') {
+      this.closeWaypointTooltip();
+      this.ui.closeWaypointOptionsDialog();
+    }
     if (type === 'wp') {
       this.lastWaypointAnchorId = id;
     }
@@ -304,9 +619,9 @@ class App {
 
   applyBulkWaypointUpdate({ altitudeValue, speedValue, poiValue }) {
     const altitude = parseFloat(altitudeValue);
-    const speed = parseFloat(speedValue);
+    const speedKmh = parseFloat(speedValue);
     const applyAltitude = altitudeValue.trim() !== '' && Number.isFinite(altitude);
-    const applySpeed = speedValue.trim() !== '' && Number.isFinite(speed);
+    const applySpeed = speedValue.trim() !== '' && Number.isFinite(speedKmh);
     const applyPoi = poiValue !== '__KEEP__';
 
     if (!applyAltitude && !applySpeed && !applyPoi) {
@@ -320,13 +635,15 @@ class App {
         wp.alt = altitude;
       }
       if (applySpeed) {
-        wp.speed = speed;
+        wp.speed = (speedKmh / 3.6).toFixed(2);
       }
       if (applyPoi) {
         wp.poiId = poiValue === '__NONE__' ? null : poiValue;
       }
       this.recomputePOI(wp);
     });
+
+    this.syncFlythroughMission();
 
     this.renderList();
     this.updateStats();
@@ -383,6 +700,7 @@ class App {
         onAltitudeChange: value => {
           wp.alt = parseFloat(value) || 50;
           this.recomputePOI(wp);
+          this.syncFlythroughMission();
           this.renderList();
           if (wp.poiId) {
             this.showDetail(id, 'wp');
@@ -390,11 +708,13 @@ class App {
         },
         onSpeedChange: value => {
           wp.speed = parseFloat(value) || 8;
+          this.syncFlythroughMission();
           this.renderList();
         },
         onPoiChange: value => {
           wp.poiId = value || null;
           this.recomputePOI(wp);
+          this.syncFlythroughMission();
           this.renderList();
           this.showDetail(id, 'wp');
         }
@@ -408,15 +728,12 @@ class App {
         poi,
         onNameChange: value => {
           poi.name = value;
-          const marker = this.poiMarkers.get(poi.id);
-          if (marker) {
-            this.mapController.updatePOILabel(marker, poi.name);
-          }
           this.renderList();
         },
         onAltitudeChange: value => {
           poi.alt = parseFloat(value) || 0;
           this.recomputeAllPOI();
+          this.syncFlythroughMission();
           this.renderList();
         }
       });
@@ -485,6 +802,7 @@ class App {
     this.poiMarkers.clear();
     this.mission.clear();
     this.mapController.clearRoute();
+    this.syncFlythroughMission();
     this.selectedId = null;
     this.selectedType = null;
     this.selectedWaypointIds.clear();
@@ -545,7 +863,24 @@ class App {
     });
   }
 
+  async changeExportFolder() {
+    try {
+      const dirHandle = await this.kmzExporter.promptForFolder();
+      if (dirHandle) {
+        this.showStatus('Export folder updated. Next export will use this folder.');
+      }
+    } catch (err) {
+      this.showStatus(`Failed to select export folder: ${err.message}`);
+    }
+  }
+
   doUnselectAll() {
+    this.clearSelection(false);
+  }
+
+  clearSelection(silent = false) {
+    this.closeWaypointTooltip();
+    this.ui.closeWaypointOptionsDialog();
     this.selectedWaypointIds.clear();
     this.selectedId = null;
     this.selectedType = null;
@@ -553,7 +888,9 @@ class App {
     this.touchRangeAnchorId = null;
     this.renderList();
     this.ui.showNothingSelected();
-    this.showStatus('Selection cleared.');
+    if (!silent) {
+      this.showStatus('Selection cleared.');
+    }
   }
 
   async doSaveMission() {
@@ -648,7 +985,50 @@ class App {
       onClearAll: () => this.clearAll(),
       onSaveMission: () => this.doSaveMission(),
       onLoadMission: () => this.doLoadMission(),
-      onExport: () => this.doExport()
+      onExport: () => this.doExport(),
+      onExportChangeFolder: () => this.changeExportFolder()
+    });
+
+    this.ui.bindFlythroughEvents({
+      onFlythroughPlay: () => {
+        if (this.flythrough) {
+          this.syncFlythroughMission();
+          this.flythrough.play();
+        }
+      },
+      onFlythroughPause: () => {
+        if (this.flythrough) {
+          this.flythrough.pause();
+        }
+      },
+      onFlythroughStop: () => {
+        if (this.flythrough) {
+          this.flythrough.stop();
+          this.ui.setFlythroughStopped();
+        }
+      },
+      onFlythroughSpeedChange: speedValue => {
+        if (!this.flythrough) {
+          return;
+        }
+        const speed = parseFloat(speedValue);
+        if (Number.isFinite(speed) && speed > 0) {
+          this.flythrough.setSpeed(speed);
+        }
+      },
+      onFlythroughFovToggle: isEnabled => {
+        if (this.flythrough) {
+          this.flythrough.setShowFOV(!!isEnabled);
+        }
+      },
+      onFlythroughSeek: seekValue => {
+        if (!this.flythrough) {
+          return;
+        }
+        const raw = parseFloat(seekValue);
+        const fraction = Number.isFinite(raw) ? raw / 1000 : 0;
+        this.flythrough.seekTo(fraction);
+      }
     });
   }
 }

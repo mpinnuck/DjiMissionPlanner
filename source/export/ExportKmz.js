@@ -2,6 +2,72 @@ class ExportKmz {
   constructor(options) {
     this.onStatus = options.onStatus || null;
     this.onError = options.onError || (message => alert(message));
+    this.folderHandleKey = 'djiMissionPlanner:exportFolderHandle';
+    this.folderHandle = null;
+    this.loadFolderHandle();
+  }
+
+  loadFolderHandle() {
+    // Try to load persisted folder handle from IndexedDB or localStorage
+    // For now, we'll use a simple approach with localStorage
+    const handleStr = localStorage.getItem(this.folderHandleKey);
+    if (handleStr) {
+      try {
+        // Note: FileSystemFileHandle can't be directly serialized, so we'll need
+        // to reprompt. We just use this as a flag to remember user preference.
+        this.folderHandle = 'saved';
+      } catch (e) {
+        this.folderHandle = null;
+      }
+    }
+  }
+
+  hasSavedFolder() {
+    return localStorage.getItem(this.folderHandleKey) !== null;
+  }
+
+  async promptForFolder() {
+    try {
+      const dirHandle = await window.showDirectoryPicker({
+        mode: 'readwrite'
+      });
+      // Store a flag indicating user has selected a folder
+      localStorage.setItem(this.folderHandleKey, 'true');
+      this.folderHandle = dirHandle;
+      return dirHandle;
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        this.onError(`Failed to access folder: ${err.message}`);
+      }
+      return null;
+    }
+  }
+
+  clearSavedFolder() {
+    localStorage.removeItem(this.folderHandleKey);
+    this.folderHandle = null;
+  }
+
+  async getExportFolder() {
+    // If no folder saved, prompt user
+    if (!this.hasSavedFolder()) {
+      return await this.promptForFolder();
+    }
+    
+    // Try to use the existing permission (browser may have revoked it)
+    try {
+      const dirHandle = await window.showDirectoryPicker({
+        mode: 'readwrite'
+      });
+      return dirHandle;
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        // Permission was revoked or unavailable, clear and reprompt
+        this.clearSavedFolder();
+        return await this.promptForFolder();
+      }
+      return null;
+    }
   }
 
   export({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed }) {
@@ -72,11 +138,7 @@ class ExportKmz {
 
       // ── Gimbal pitch ─────────────────────────────────────────────────────
       const gimbalPitch     = usePOI ? wp.gimbalPitch.toFixed(2) : '0';
-      const snapGimbalPitch = isFirst ? '0' : gimbalPitch;
-      const nextWp          = !isLast ? waypoints[i + 1] : null;
-      const nextGimbalPitch = nextWp
-        ? (nextWp.poiId ? nextWp.gimbalPitch.toFixed(2) : '0')
-        : gimbalPitch;
+      const snapGimbalPitch = gimbalPitch;
 
       // ── Action group A: gimbalRotate — only on the first waypoint ──────
       let snapAction = '';
@@ -129,8 +191,42 @@ class ExportKmz {
             <wpml:actionId>${evenId}</wpml:actionId>
             <wpml:actionActuatorFunc>gimbalEvenlyRotate</wpml:actionActuatorFunc>
             <wpml:actionActuatorFuncParam>
-              <wpml:gimbalPitchRotateAngle>${nextGimbalPitch}</wpml:gimbalPitchRotateAngle>
+              <wpml:gimbalPitchRotateAngle>${gimbalPitch}</wpml:gimbalPitchRotateAngle>
               <wpml:gimbalRollRotateAngle>0</wpml:gimbalRollRotateAngle>
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+            </wpml:actionActuatorFuncParam>
+          </wpml:action>
+        </wpml:actionGroup>`;
+      }
+
+      // ── Action group C: gimbalRotate — also on the last waypoint ──────────
+      // Ensures the last waypoint has its correct gimbal pitch
+      let lastAction = '';
+      if (isLast && gimbalPitch !== '0') {
+        const lastId = nextActionGroupId++;
+        lastAction = `
+        <wpml:actionGroup>
+          <wpml:actionGroupId>${lastId}</wpml:actionGroupId>
+          <wpml:actionGroupStartIndex>${i}</wpml:actionGroupStartIndex>
+          <wpml:actionGroupEndIndex>${i}</wpml:actionGroupEndIndex>
+          <wpml:actionGroupMode>parallel</wpml:actionGroupMode>
+          <wpml:actionTrigger>
+            <wpml:actionTriggerType>reachPoint</wpml:actionTriggerType>
+          </wpml:actionTrigger>
+          <wpml:action>
+            <wpml:actionId>${lastId}</wpml:actionId>
+            <wpml:actionActuatorFunc>gimbalRotate</wpml:actionActuatorFunc>
+            <wpml:actionActuatorFuncParam>
+              <wpml:gimbalHeadingYawBase>aircraft</wpml:gimbalHeadingYawBase>
+              <wpml:gimbalRotateMode>absoluteAngle</wpml:gimbalRotateMode>
+              <wpml:gimbalPitchRotateEnable>1</wpml:gimbalPitchRotateEnable>
+              <wpml:gimbalPitchRotateAngle>${gimbalPitch}</wpml:gimbalPitchRotateAngle>
+              <wpml:gimbalRollRotateEnable>0</wpml:gimbalRollRotateEnable>
+              <wpml:gimbalRollRotateAngle>0</wpml:gimbalRollRotateAngle>
+              <wpml:gimbalYawRotateEnable>0</wpml:gimbalYawRotateEnable>
+              <wpml:gimbalYawRotateAngle>0</wpml:gimbalYawRotateAngle>
+              <wpml:gimbalRotateTimeEnable>0</wpml:gimbalRotateTimeEnable>
+              <wpml:gimbalRotateTime>0</wpml:gimbalRotateTime>
               <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
             </wpml:actionActuatorFuncParam>
           </wpml:action>
@@ -162,6 +258,7 @@ class ExportKmz {
         <wpml:useStraightLine>0</wpml:useStraightLine>
         ${snapAction}
         ${evenAction}
+        ${lastAction}
         <wpml:waypointGimbalHeadingParam>
           <wpml:waypointGimbalPitchAngle>0</wpml:waypointGimbalPitchAngle>
           <wpml:waypointGimbalYawAngle>0</wpml:waypointGimbalYawAngle>
@@ -191,17 +288,40 @@ class ExportKmz {
     wpmz.file('template.kml', templateKml);
     wpmz.file('waylines.wpml', wpml);
 
-    zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(blob => {
+    zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(async blob => {
+      const filename = name.replace(/\s+/g, '_') + '.kmz';
+      
+      // Try to save to folder if one is configured
+      if (this.hasSavedFolder()) {
+        try {
+          const dirHandle = await this.getExportFolder();
+          if (dirHandle) {
+            const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            if (this.onStatus) {
+              this.onStatus(`Exported: ${filename}  (${waypoints.length} WPs)`);
+            }
+            return;
+          }
+        } catch (err) {
+          // Fall back to download if folder writing fails
+          console.warn('Folder save failed, falling back to download:', err);
+        }
+      }
+      
+      // Fallback: trigger browser download
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = name.replace(/\s+/g, '_') + '.kmz';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       if (this.onStatus) {
-        this.onStatus(`Exported: ${name}.kmz  (${waypoints.length} WPs)`);
+        this.onStatus(`Exported: ${filename}  (${waypoints.length} WPs)`);
       }
     });
   }

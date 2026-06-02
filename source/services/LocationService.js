@@ -3,8 +3,15 @@ class LocationService {
     this.onStatus = options.onStatus;
     this.onLocated = options.onLocated;
     this.onError = options.onError;
+    this.onPending = options.onPending || null;
     this.watchId = null;
     this.locationCacheKey = 'djiMissionPlanner:lastKnownLocation';
+  }
+
+  setPending(isPending) {
+    if (typeof this.onPending === 'function') {
+      this.onPending(isPending);
+    }
   }
 
   requestPosition(requestOptions, onSuccess, onFailure) {
@@ -19,6 +26,7 @@ class LocationService {
   }
 
   emitLocation(pos) {
+    this.setPending(false);
     const location = {
       lat: pos.coords.latitude,
       lng: pos.coords.longitude,
@@ -128,6 +136,7 @@ class LocationService {
 
   locateUser() {
     if (!('geolocation' in navigator)) {
+      this.setPending(false);
       const msg = 'Geolocation is not supported by this browser.';
       this.onStatus(msg);
       this.onError(msg);
@@ -136,11 +145,13 @@ class LocationService {
 
     const contextError = this.getContextError();
     if (contextError) {
+      this.setPending(false);
       this.onStatus(contextError);
       this.onError(contextError);
       return;
     }
 
+    this.setPending(true);
     this.onStatus('Detecting current location...');
     this.clearWatch();
 
@@ -209,6 +220,7 @@ class LocationService {
   }
 
   handleLocationError(err) {
+    this.setPending(false);
     const cachedLocation = this.getLastKnownLocation();
     if (cachedLocation) {
       this.onLocated(cachedLocation);
