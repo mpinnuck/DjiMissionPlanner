@@ -311,6 +311,7 @@ class PlannerUI {
     selectedId,
     selectedWaypointIds = new Set(),
     resolvePoiName,
+    resolveWaypointLegDistance,
     onSelect,
     onDelete,
     onToggleWaypointMultiSelect,
@@ -344,9 +345,17 @@ class PlannerUI {
 
       let badge;
       let meta = '';
+      let coordExtra = '';
       if (item._type === 'wp') {
         badge = `<span class="wp-badge wp">WP${item._idx}</span>`;
         const poiName = item.poiId ? resolvePoiName(item.poiId) : '—';
+        const legDistanceMeters = typeof resolveWaypointLegDistance === 'function'
+          ? resolveWaypointLegDistance(item, item._idx - 1)
+          : null;
+        const legDistanceText = Number.isFinite(legDistanceMeters)
+          ? (legDistanceMeters >= 1000 ? `${(legDistanceMeters / 1000).toFixed(2)} km` : `${Math.round(legDistanceMeters)} m`)
+          : '—';
+        coordExtra = `<span class="wp-leg-distance">Dist: ${legDistanceText}</span>`;
         meta = `
         <div class="wp-meta">
           <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
@@ -369,7 +378,7 @@ class PlannerUI {
         <span class="wp-name">${item._type === 'poi' ? item.name : ('Waypoint ' + item._idx)}</span>
         <button class="wp-del" data-id="${item.id}" data-type="${item._type}">✕</button>
       </div>
-      <div class="wp-coords">${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}</div>
+      <div class="wp-coords"><span>${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}</span>${coordExtra}</div>
       ${meta}
     `;
       if (item._type === 'wp' && typeof onToggleWaypointMultiSelect === 'function') {

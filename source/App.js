@@ -120,7 +120,27 @@ class App {
   }
 
   updateRoute() {
-    this.mapController.updateRoute(this.waypoints);
+    this.mapController.updateRoute(this.waypoints, {
+      onInsertWaypoint: (insertIndex, latlng) => this.insertWaypointAt(insertIndex, latlng)
+    });
+  }
+
+  insertWaypointAt(index, latlng) {
+    const safeIndex = Math.max(0, Math.min(index, this.waypoints.length));
+    const wp = this.mission.createWaypoint(latlng.lat, latlng.lng, {
+      altitude: this.ui.getDefaultAltitude(),
+      speed: this.ui.getDefaultSpeed()
+    });
+
+    this.mission.insertWaypointAt(safeIndex, wp);
+    const marker = this.addWaypointMarker(wp, safeIndex + 1);
+    this.waypointMarkers.set(wp.id, marker);
+
+    this.updateRoute();
+    this.renderList();
+    this.updateStats();
+    this.selectItem(wp.id, 'wp');
+    this.showStatus(`Inserted waypoint ${safeIndex + 1}.`);
   }
 
   bindMapEvents() {
@@ -321,6 +341,22 @@ class App {
       selectedId: this.selectedId,
       selectedWaypointIds: this.selectedWaypointIds,
       resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
+      resolveWaypointLegDistance: (waypoint, index) => {
+        if (index <= 0) {
+          return 0;
+        }
+
+        let accumulated = 0;
+        for (let waypointIndex = 1; waypointIndex <= index; waypointIndex += 1) {
+          const previous = this.waypoints[waypointIndex - 1];
+          const current = this.waypoints[waypointIndex];
+          if (!previous || !current) {
+            continue;
+          }
+          accumulated += this.mission.haversine(previous.lat, previous.lng, current.lat, current.lng);
+        }
+        return accumulated;
+      },
       onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
       onDelete: (id, type) => this.deleteItem(id, type),
       onToggleWaypointMultiSelect: (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options),
@@ -328,6 +364,7 @@ class App {
       onStartWaypointTouchRange: anchorId => this.startWaypointTouchRange(anchorId),
       onEndWaypointTouchRange: () => this.endWaypointTouchRange()
     });
+    this.refreshMarkerLabels();
   }
 
   showDetail(id, type) {
@@ -491,6 +528,7 @@ class App {
     this.refreshMarkerLabels();
     this.recomputeAllPOI();
     this.updateRoute();
+    this.mapController.focusMission(this.waypoints, this.pois);
     this.renderList();
     this.updateStats();
     this.showStatus(`Mission loaded (${this.waypoints.length} WPs, ${this.pois.length} POIs)`);

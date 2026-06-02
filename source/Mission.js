@@ -85,6 +85,13 @@ class Mission {
     return wp;
   }
 
+  insertWaypointAt(index, wp) {
+    const safeIndex = Math.max(0, Math.min(index, this.waypoints.length));
+    this.waypoints.splice(safeIndex, 0, wp);
+    this.recomputePOI(wp);
+    return wp;
+  }
+
   addPOI(poi) {
     this.pois.push(poi);
     return poi;

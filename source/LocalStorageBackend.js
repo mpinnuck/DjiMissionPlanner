@@ -37,6 +37,11 @@ class LocalStorageBackend {
     if (raw.startsWith(`${this.rootLabel}/`)) {
       return raw;
     }
+
+    if (raw.toLowerCase().endsWith('.json')) {
+      return `${this.rootLabel}/${raw}`;
+    }
+
     if (raw.includes('/')) {
       return raw.endsWith('.json') ? raw : `${raw}.json`;
     }

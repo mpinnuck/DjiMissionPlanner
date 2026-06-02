@@ -3,7 +3,7 @@ class FileSystemBackend {
     this.onStatus = options.onStatus || null;
     this.onError = options.onError || null;
     this.rootDirectoryHandle = null;
-    this.rootLabel = 'missions';
+    this.rootLabel = 'Mission Files';
     this.directoryHandleStoreName = 'djiMissionPlannerFsHandles';
     this.directoryHandleKey = 'rootDirectoryHandle';
   }
@@ -97,16 +97,24 @@ class FileSystemBackend {
   normalizePath(name) {
     const raw = String(name || '').trim().replace(/\\/g, '/');
     if (!raw) {
-      return `${this.rootLabel}/Mission.json`;
+      return 'Mission.json';
     }
-    if (raw.startsWith(`${this.rootLabel}/`)) {
-      return raw;
+
+    const rootPrefix = `${this.rootLabel}/`;
+    const withoutRootPrefix = raw.startsWith(rootPrefix)
+      ? raw.slice(rootPrefix.length)
+      : raw;
+
+    if (withoutRootPrefix.toLowerCase().endsWith('.json')) {
+      return withoutRootPrefix;
     }
-    if (raw.includes('/')) {
-      return raw.endsWith('.json') ? raw : `${raw}.json`;
+
+    if (withoutRootPrefix.includes('/')) {
+      return withoutRootPrefix.endsWith('.json') ? withoutRootPrefix : `${withoutRootPrefix}.json`;
     }
-    const safeName = this.sanitizeMissionName(raw);
-    return `${this.rootLabel}/${safeName}.json`;
+
+    const safeName = this.sanitizeMissionName(withoutRootPrefix);
+    return `${safeName}.json`;
   }
 
   async chooseRootDirectory() {
@@ -118,7 +126,7 @@ class FileSystemBackend {
     await this.ensurePermission(this.rootDirectoryHandle, 'readwrite');
     this.rootLabel = this.rootDirectoryHandle && this.rootDirectoryHandle.name
       ? this.rootDirectoryHandle.name
-      : 'missions';
+      : 'Mission Files';
     await this.persistRootDirectoryHandle(this.rootDirectoryHandle);
     return this.rootDirectoryHandle;
   }
@@ -236,11 +244,15 @@ class FileSystemBackend {
 
   async listTree() {
     const missionDir = await this.getMissionDirectoryHandle(true);
-    const nodes = await this.readDirectoryTree(missionDir, this.rootLabel);
+    const nodes = await this.readDirectoryTree(missionDir, '');
     return {
       rootLabel: this.rootLabel,
       nodes
     };
+  }
+
+  joinPath(parent, child) {
+    return parent ? `${parent}/${child}` : child;
   }
 
   async readDirectoryTree(directoryHandle, relativePath) {
@@ -260,7 +272,7 @@ class FileSystemBackend {
 
     const directoryNodes = [];
     for (const entry of directories) {
-      const path = `${relativePath}/${entry.name}`;
+      const path = this.joinPath(relativePath, entry.name);
       directoryNodes.push({
         type: 'directory',
         name: entry.name,
@@ -272,7 +284,7 @@ class FileSystemBackend {
     const fileNodes = files.map(entry => ({
       type: 'file',
       name: entry.name,
-      path: `${relativePath}/${entry.name}`
+      path: this.joinPath(relativePath, entry.name)
     }));
 
     return [...directoryNodes, ...fileNodes];
