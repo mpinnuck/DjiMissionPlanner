@@ -254,6 +254,8 @@ class App {
     }
 
     const speedKmh = (Number.isFinite(wp.speed) ? wp.speed : 0) * 3.6;
+    const hagMeters = this.heightAboveGroundByWaypointId.get(wp.id);
+    const hagLabel = Number.isFinite(hagMeters) ? ` (${Math.round(hagMeters)})` : '';
     const tooltipHtml = `
       <div class="wp-map-tooltip-content">
         <div class="wp-map-tooltip-title">Waypoint ${waypointIndex + 1}</div>
@@ -261,7 +263,7 @@ class App {
         <div>Time: ${this.formatWaypointTime(metrics.cumulativeTime)}</div>
         <div>Waypoint 1: ${Math.round(metrics.cumulativeDistance)} m</div>
         <div>Course: ${Math.round(course)}°</div>
-        <div>Altitude: ${Math.round(wp.alt)} m</div>
+        <div>Altitude: ${Math.round(wp.alt)} m${hagLabel}</div>
         <div>Speed: ${Math.round(speedKmh)} kmh</div>
         <div>Gimbal Pitch: ${Number.isFinite(wp.gimbalPitch) ? wp.gimbalPitch.toFixed(1) : '0.0'}°</div>
         <button type="button" class="wp-map-tooltip-options">Tap for Options</button>
@@ -327,6 +329,7 @@ class App {
       waypointLabel: `Waypoint ${waypointIndex + 1}`,
       positionText: `Position: ${(metrics.cumulativeDistance / 1000).toFixed(2)} km (${metrics.progressPercent}%)`,
       initialAltitude: wp.alt,
+      initialHeightAboveGround: this.heightAboveGroundByWaypointId.get(wp.id),
       initialSpeed: wp.speed,
       currentPoiId: wp.poiId,
       pois: this.pois,

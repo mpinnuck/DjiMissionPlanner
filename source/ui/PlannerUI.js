@@ -168,6 +168,7 @@ class PlannerUI {
     waypointLabel,
     positionText,
     initialAltitude,
+    initialHeightAboveGround,
     initialSpeed,
     currentPoiId,
     pois,
@@ -220,9 +221,28 @@ class PlannerUI {
 
     const valueRow = document.createElement('div');
     valueRow.className = 'wp-options-altitude-values';
+
+    const hasInitialHag = Number.isFinite(initialHeightAboveGround);
+    const hagOffset = hasInitialHag
+      ? (initialHeightAboveGround - initialAltitude)
+      : null;
+
+    const formatAltitudeLabel = altitudeMeters => {
+      if (!Number.isFinite(altitudeMeters)) {
+        return '0 m';
+      }
+
+      if (!Number.isFinite(hagOffset)) {
+        return `${Math.round(altitudeMeters)} m`;
+      }
+
+      const hagValue = Math.round(altitudeMeters + hagOffset);
+      return `${Math.round(altitudeMeters)} m (${hagValue})`;
+    };
+
     valueRow.innerHTML = `
       <span>-59 m</span>
-      <strong id="wpOptionsAltitudeValue">${Math.round(initialAltitude)} m</strong>
+      <strong id="wpOptionsAltitudeValue">${formatAltitudeLabel(initialAltitude)}</strong>
       <span>499 m</span>
     `;
 
@@ -251,7 +271,7 @@ class PlannerUI {
       slider.value = String(clamped);
       const valueLabel = valueRow.querySelector('#wpOptionsAltitudeValue');
       if (valueLabel) {
-        valueLabel.textContent = `${clamped} m`;
+        valueLabel.textContent = formatAltitudeLabel(clamped);
       }
       onAltitudeChange(clamped);
     };
