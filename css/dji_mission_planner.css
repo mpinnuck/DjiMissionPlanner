@@ -335,8 +335,14 @@ button.active-mode-poi {
 }
 .wp-meta {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   margin-top: 3px;
+}
+
+.wp-meta-row {
+  display: flex;
+  gap: 10px;
   flex-wrap: wrap;
 }
 .wp-meta-tag {
@@ -347,6 +353,15 @@ button.active-mode-poi {
   padding: 1px 5px;
 }
 .wp-meta-tag span { color: var(--text); }
+
+.wp-meta-row-computed {
+  margin-top: 1px;
+}
+
+.wp-meta-tag-computed {
+  background: #f2f3f5;
+  border: 1px solid #e2e4e8;
+}
 
 /* Detail Editor */
 #detail-panel {

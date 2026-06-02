@@ -58,6 +58,12 @@ class App {
       onStatus: message => this.showStatus(message),
       onError: message => this.onError(message)
     });
+    this.elevationService = typeof ElevationService === 'function'
+      ? new ElevationService({ onError: () => {} })
+      : null;
+    this.heightAboveGroundByWaypointId = new Map();
+    this.hagRefreshTimer = null;
+    this.hagRefreshToken = 0;
     this.storage = new PersistentStorage({
       onStatus: message => this.showStatus(message),
       onError: message => this.onError(message)
@@ -658,6 +664,7 @@ class App {
       selectedId: this.selectedId,
       selectedWaypointIds: this.selectedWaypointIds,
       resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
+      resolveWaypointHeightAboveGround: waypoint => this.heightAboveGroundByWaypointId.get(waypoint.id),
       resolveWaypointLegDistance: (waypoint, index) => {
         if (index <= 0) {
           return 0;
@@ -682,6 +689,119 @@ class App {
       onEndWaypointTouchRange: () => this.endWaypointTouchRange()
     });
     this.refreshMarkerLabels();
+    this.scheduleHeightAboveGroundRefresh();
+  }
+
+  getTakeoffPoi() {
+    const poi1 = this.pois.find(poi => poi.id === 'poi_1');
+    if (poi1) {
+      return poi1;
+    }
+
+    const namedPoi1 = this.pois.find(poi => typeof poi.name === 'string' && poi.name.trim().toLowerCase() === 'poi 1');
+    if (namedPoi1) {
+      return namedPoi1;
+    }
+
+    return this.pois[0] || null;
+  }
+
+  scheduleHeightAboveGroundRefresh() {
+    if (!this.elevationService) {
+      return;
+    }
+
+    if (this.hagRefreshTimer) {
+      clearTimeout(this.hagRefreshTimer);
+    }
+
+    this.hagRefreshTimer = setTimeout(() => {
+      this.hagRefreshTimer = null;
+      this.refreshHeightAboveGround();
+    }, 120);
+  }
+
+  async refreshHeightAboveGround() {
+    if (!this.elevationService || this.waypoints.length === 0) {
+      return;
+    }
+
+    const takeoffPoi = this.getTakeoffPoi();
+    if (!takeoffPoi) {
+      return;
+    }
+
+    const refreshToken = ++this.hagRefreshToken;
+    const points = [
+      { key: '__takeoff__', lat: takeoffPoi.lat, lng: takeoffPoi.lng },
+      ...this.waypoints.map(waypoint => ({ key: waypoint.id, lat: waypoint.lat, lng: waypoint.lng }))
+    ];
+
+    const elevations = await this.elevationService.getElevations(points);
+    if (refreshToken !== this.hagRefreshToken) {
+      return;
+    }
+
+    const takeoffKey = this.elevationService._key(takeoffPoi.lat, takeoffPoi.lng);
+    const takeoffGround = elevations.get(takeoffKey);
+    if (!Number.isFinite(takeoffGround)) {
+      return;
+    }
+
+    let updated = false;
+    this.waypoints.forEach(waypoint => {
+      const waypointKey = this.elevationService._key(waypoint.lat, waypoint.lng);
+      const waypointGround = elevations.get(waypointKey);
+      if (!Number.isFinite(waypointGround)) {
+        return;
+      }
+
+      // HOG formula requested by user:
+      // Hog = Hw + HASw - HASpoi1
+      // Hw: waypoint height above takeoff (wp.alt)
+      // HASw: waypoint ground height above sea level (terrain at waypoint)
+      // HASpoi1: POI1 ground height above sea level (terrain at takeoff)
+      const groundRelativeToTakeoff = waypoint.alt + waypointGround - takeoffGround;
+      const previous = this.heightAboveGroundByWaypointId.get(waypoint.id);
+      if (!Number.isFinite(previous) || Math.abs(previous - groundRelativeToTakeoff) > 0.05) {
+        this.heightAboveGroundByWaypointId.set(waypoint.id, groundRelativeToTakeoff);
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      this.ui.renderList({
+        waypoints: this.waypoints,
+        pois: this.pois,
+        selectedId: this.selectedId,
+        selectedWaypointIds: this.selectedWaypointIds,
+        resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
+        resolveWaypointHeightAboveGround: waypoint => this.heightAboveGroundByWaypointId.get(waypoint.id),
+        resolveWaypointLegDistance: (waypoint, index) => {
+          if (index <= 0) {
+            return 0;
+          }
+
+          let accumulated = 0;
+          for (let waypointIndex = 1; waypointIndex <= index; waypointIndex += 1) {
+            const previous = this.waypoints[waypointIndex - 1];
+            const current = this.waypoints[waypointIndex];
+            if (!previous || !current) {
+              continue;
+            }
+            accumulated += this.mission.haversine(previous.lat, previous.lng, current.lat, current.lng);
+          }
+          return accumulated;
+        },
+        onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
+        onDelete: (id, type) => this.deleteItem(id, type),
+        onToggleWaypointMultiSelect: (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options),
+        onRangeWaypointMultiSelect: (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected),
+        onStartWaypointTouchRange: anchorId => this.startWaypointTouchRange(anchorId),
+        onEndWaypointTouchRange: () => this.endWaypointTouchRange()
+      });
+      this.refreshMarkerLabels();
+    }
   }
 
   showDetail(id, type) {

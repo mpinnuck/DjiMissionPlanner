@@ -685,6 +685,7 @@ class PlannerUI {
     selectedId,
     selectedWaypointIds = new Set(),
     resolvePoiName,
+    resolveWaypointHeightAboveGround,
     resolveWaypointLegDistance,
     onSelect,
     onDelete,
@@ -723,6 +724,10 @@ class PlannerUI {
       if (item._type === 'wp') {
         badge = `<span class="wp-badge wp">WP${item._idx}</span>`;
         const poiName = item.poiId ? resolvePoiName(item.poiId) : '—';
+        const hagMeters = typeof resolveWaypointHeightAboveGround === 'function'
+          ? resolveWaypointHeightAboveGround(item)
+          : null;
+        const hagLabel = Number.isFinite(hagMeters) ? `${Math.round(hagMeters)}` : '—';
         const legDistanceMeters = typeof resolveWaypointLegDistance === 'function'
           ? resolveWaypointLegDistance(item, item._idx - 1)
           : null;
@@ -732,17 +737,27 @@ class PlannerUI {
         coordExtra = `<span class="wp-leg-distance">Dist: ${legDistanceText}</span>`;
         meta = `
         <div class="wp-meta">
-          <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
-          <span class="wp-meta-tag">Speed <span>${(item.speed * 3.6).toFixed(1)}km/h</span></span>
-          ${item.poiId ? `<span class="wp-meta-tag">POI <span>${poiName}</span></span>` : ''}
-          ${item.poiId ? `<span class="wp-meta-tag">Hdg <span>${item.heading.toFixed(1)}°</span></span>` : ''}
-          ${item.poiId ? `<span class="wp-meta-tag">Pitch <span>${item.gimbalPitch.toFixed(1)}°</span></span>` : ''}
+          <div class="wp-meta-row">
+            <span class="wp-meta-tag">Alt <span>${item.alt}m (${hagLabel})</span></span>
+            <span class="wp-meta-tag">Speed <span>${(item.speed * 3.6).toFixed(1)}km/h</span></span>
+          </div>
+          ${item.poiId ? `
+          <div class="wp-meta-row">
+            <span class="wp-meta-tag">POI <span>${poiName}</span></span>
+          </div>
+          ` : ''}
+          <div class="wp-meta-row wp-meta-row-computed">
+            ${item.poiId ? `<span class="wp-meta-tag wp-meta-tag-computed">Hdg <span>${item.heading.toFixed(1)}°</span></span>` : ''}
+            ${item.poiId ? `<span class="wp-meta-tag wp-meta-tag-computed">Pitch <span>${item.gimbalPitch.toFixed(1)}°</span></span>` : ''}
+          </div>
         </div>`;
       } else {
         badge = '<span class="wp-badge poi">POI</span>';
         meta = `<div class="wp-meta">
-        <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
-        <span class="wp-meta-tag">${item.name}</span>
+        <div class="wp-meta-row">
+          <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
+          <span class="wp-meta-tag">${item.name}</span>
+        </div>
       </div>`;
       }
 
