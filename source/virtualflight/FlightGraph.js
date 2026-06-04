@@ -152,7 +152,7 @@ class FlightGraph {
     }
 
     ctx.clearRect(0, 0, rect.width, rect.height);
-    ctx.drawImage(this._offscreenCanvas, 0, 0);
+    ctx.drawImage(this._offscreenCanvas, 0, 0, w, h, 0, 0, rect.width, rect.height);
     this._drawCursor(ctx, this._layout, this._scaleFns, cursorTime);
   }
 
