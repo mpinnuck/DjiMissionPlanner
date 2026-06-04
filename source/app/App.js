@@ -50,7 +50,6 @@ class App {
         }
       })
       : null;
-    this.applyDroneConfiguration(false);
 
     this.locationService = new LocationService({
       onStatus: message => this.showStatus(message),
@@ -81,7 +80,7 @@ class App {
       onError: message => this.onError(message)
     });
     this.elevationService = typeof ElevationService === 'function'
-      ? new ElevationService({ onError: () => {} })
+      ? new ElevationService({ onError: message => this.showStatus(message) })
       : null;
     this.heightAboveGroundByWaypointId = new Map();
     this.waypointGroundElevationById = new Map();
@@ -95,6 +94,7 @@ class App {
 
     this.bindMapEvents();
     this.bindUIEvents();
+    this.applyDroneConfiguration(false);
     this.setMode('select');
     this.renderList();
     this.updateStats();
@@ -556,6 +556,7 @@ class App {
       onInsertWaypoint: (insertIndex, latlng) => this.insertWaypointAt(insertIndex, latlng)
     });
     this.syncFlythroughMission();
+    this.scheduleHeightAboveGroundRefresh();
   }
 
   syncFlythroughMission() {
@@ -590,6 +591,7 @@ class App {
     this.updateRoute();
     this.renderList();
     this.updateStats();
+    this.refreshMarkerLabels();
     this.selectItem(wp.id, 'wp');
     this.showStatus(`Inserted waypoint ${safeIndex + 1}.`);
   }
@@ -893,8 +895,7 @@ class App {
       return;
     }
 
-    const takeoffKey = this.elevationService._key(takeoffPoi.lat, takeoffPoi.lng);
-    const takeoffGround = elevations.get(takeoffKey);
+    const takeoffGround = this.elevationService.getElevation(takeoffPoi.lat, takeoffPoi.lng, elevations);
     if (!Number.isFinite(takeoffGround)) {
       return;
     }
@@ -907,8 +908,7 @@ class App {
     }
 
     this.waypoints.forEach(waypoint => {
-      const waypointKey = this.elevationService._key(waypoint.lat, waypoint.lng);
-      const waypointGround = elevations.get(waypointKey);
+      const waypointGround = this.elevationService.getElevation(waypoint.lat, waypoint.lng, elevations);
       if (!Number.isFinite(waypointGround)) {
         return;
       }
@@ -1249,8 +1249,7 @@ class App {
     ];
 
     const elevations = await this.elevationService.getElevations(points);
-    const takeoffKey = this.elevationService._key(takeoffPoi.lat, takeoffPoi.lng);
-    const takeoffGround = elevations.get(takeoffKey);
+    const takeoffGround = this.elevationService.getElevation(takeoffPoi.lat, takeoffPoi.lng, elevations);
     if (!Number.isFinite(takeoffGround)) {
       this.showStatus('Unable to resolve takeoff elevation.');
       return;
@@ -1258,8 +1257,7 @@ class App {
 
     let updatedCount = 0;
     this.waypoints.forEach(waypoint => {
-      const waypointKey = this.elevationService._key(waypoint.lat, waypoint.lng);
-      const waypointGround = elevations.get(waypointKey);
+      const waypointGround = this.elevationService.getElevation(waypoint.lat, waypoint.lng, elevations);
       if (!Number.isFinite(waypointGround)) {
         return;
       }
@@ -1301,7 +1299,19 @@ class App {
       return false;
     }
 
-    const payload = JSON.stringify(selectedWaypoints, null, 2);
+    // Clipboard format intentionally excludes internal IDs and derived fields.
+    // Future paste can generate fresh IDs and recompute heading/gimbal from POI links.
+    const clipboardPayload = {
+      schema: 'dji-mission-planner/waypoint-copy-v1',
+      copiedAt: Date.now(),
+      waypoints: selectedWaypoints.map(waypoint => ({
+        lat: waypoint.lat,
+        lng: waypoint.lng,
+        alt: waypoint.alt,
+        speed: waypoint.speed
+      }))
+    };
+    const payload = JSON.stringify(clipboardPayload, null, 2);
 
     try {
       if (navigator.clipboard && window.isSecureContext) {

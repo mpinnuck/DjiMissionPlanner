@@ -17,6 +17,17 @@ class ElevationService {
     return chunks;
   }
 
+  getElevation(lat, lng, elevations = null) {
+    // Prefer a caller-provided result map from getElevations() so a single fetch batch
+    // can be reused without waiting for cache propagation checks in caller logic.
+    // Fall back to the persistent cache for direct lookups.
+    const key = this._key(lat, lng);
+    if (elevations instanceof Map && elevations.has(key)) {
+      return elevations.get(key);
+    }
+    return this.cache.has(key) ? this.cache.get(key) : null;
+  }
+
   async getElevations(points = []) {
     const result = new Map();
     const unique = [];

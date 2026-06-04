@@ -1201,7 +1201,7 @@ class PlannerUI {
       <div class="field-row"><label>WP ${waypointIndex} - Altitude</label>
         <input id="d_alt" type="number" value="${wp.alt}" min="1" max="500" step="1"/><span class="unit">m</span></div>
       <div class="field-row"><label>Speed</label>
-        <input id="d_speed" type="number" value="${(wp.speed * 3.6).toFixed(1)}" min="3.6" max="54" step="2"/><span class="unit">km/h</span></div>
+        <input id="d_speed" type="number" value="${Math.round(wp.speed * 3.6)}" min="4" max="54" step="1"/><span class="unit">km/h</span></div>
       <div class="poi-assign">
         <div class="field-row" style="margin-bottom:4px"><label>Point of Interest</label>
           <select id="d_poi">
@@ -1217,7 +1217,12 @@ class PlannerUI {
       onAltitudeChange(e.target.value);
     });
     this.detailContent.querySelector('#d_speed').addEventListener('input', e => {
-      onSpeedChange((parseFloat(e.target.value) / 3.6).toFixed(2));
+      const speedKmh = Math.round(parseFloat(e.target.value));
+      if (!Number.isFinite(speedKmh)) {
+        return;
+      }
+      e.target.value = String(speedKmh);
+      onSpeedChange((speedKmh / 3.6).toFixed(2));
     });
     this.detailContent.querySelector('#d_poi').addEventListener('change', e => {
       onPoiChange(e.target.value);
@@ -1225,6 +1230,12 @@ class PlannerUI {
   }
 
   showPOIDetail({ poi, onNameChange, onAltitudeChange }) {
+    const isTakeoffPoi = poi.id === 'poi_1'
+      || (typeof poi.name === 'string' && poi.name.trim().toLowerCase() === 'poi 1');
+    const takeoffNote = isTakeoffPoi
+      ? 'This POI is currently used as the takeoff reference for terrain HAG calculations.'
+      : 'POI named "POI 1" is used as the takeoff reference for terrain HAG calculations.';
+
     this.detailContent.innerHTML = `
       <div class="field-row"><label>POI Name</label>
         <input id="d_pname" type="text" value="${poi.name}"/></div>
@@ -1232,6 +1243,9 @@ class PlannerUI {
         <input id="d_palt" type="number" value="${poi.alt}" min="-500" max="500" step="1"/><span class="unit">m</span></div>
       <div style="margin-top:8px;font-size:11px;color:var(--muted)">
         Assign this POI to waypoints to auto-calculate gimbal pitch and drone heading.
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:var(--muted)">
+        ${takeoffNote}
       </div>
     `;
 

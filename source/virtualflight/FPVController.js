@@ -148,8 +148,11 @@ class FPVController {
     const vfov = 2 * Math.atan(
       Math.tan(this._hfovDeg * 0.5 * Math.PI / 180) / this._sensorAspect
     ) * 180 / Math.PI;
+    const containerAspect = (this._container.offsetWidth > 0 && this._container.offsetHeight > 0)
+      ? (this._container.offsetWidth / this._container.offsetHeight)
+      : FPVController.DEFAULT_ASPECT;
 
-    this._camera = new THREE.PerspectiveCamera(vfov, FPVController.DEFAULT_ASPECT, 0.5, 8000);
+    this._camera = new THREE.PerspectiveCamera(vfov, containerAspect, 0.5, 8000);
     this._camera.rotation.order = 'YXZ';
 
     // Renderer

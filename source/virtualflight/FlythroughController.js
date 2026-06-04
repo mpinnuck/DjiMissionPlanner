@@ -80,7 +80,9 @@ class FlythroughController {
       : 0;
 
     if (this._timeline.length) {
-      this._updateDisplay(this._timeline[0]);
+      const frame = this._timeline[0];
+      this._updateDisplay(frame);
+      if (this.onFrame) this.onFrame(frame);
     }
     return true;
   }
@@ -94,7 +96,9 @@ class FlythroughController {
     this._closeTelemetryPopup();
     if (this._totalTime <= 0) {
       this._missionTime = 0;
-      this._updateDisplay(this._timeline[0]);
+      const frame = this._timeline[0];
+      this._updateDisplay(frame);
+      if (this.onFrame) this.onFrame(frame);
       if (this.onProgress) this.onProgress(0, 0);
       if (this.onComplete) this.onComplete();
       return;
@@ -126,7 +130,11 @@ class FlythroughController {
     if (wasPlaying) this.pause();
     const safeFraction = Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
     this._missionTime = safeFraction * this._totalTime;
-    if (this._timeline.length) this._updateDisplay(this._getFrame(this._missionTime));
+    if (this._timeline.length) {
+      const frame = this._getFrame(this._missionTime);
+      this._updateDisplay(frame);
+      if (this.onFrame) this.onFrame(frame);
+    }
     if (this.onProgress) this.onProgress(this._missionTime, this._totalTime);
     if (wasPlaying) this.play();
   }
@@ -154,7 +162,9 @@ class FlythroughController {
     }
 
     if (show && this._timeline.length) {
-      this._updateDisplay(this._getFrame(this._missionTime));
+      const frame = this._getFrame(this._missionTime);
+      this._updateDisplay(frame);
+      if (this.onFrame) this.onFrame(frame);
     }
   }
 
@@ -174,7 +184,9 @@ class FlythroughController {
     ) * 180 / Math.PI;
 
     if (Array.isArray(this._timeline) && this._timeline.length) {
-      this._updateDisplay(this._getFrame(this._missionTime));
+      const frame = this._getFrame(this._missionTime);
+      this._updateDisplay(frame);
+      if (this.onFrame) this.onFrame(frame);
     }
   }
 
