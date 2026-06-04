@@ -230,7 +230,8 @@ class FPVController {
     // Horizontal line with a tick showing tilt angle
     const cx = w / 2, cy = h * 0.88;
     const lineW = w * 0.18;
-    const pitchRad = gimbalPitch * Math.PI / 180;
+    const clampedPitch = Math.max(-90, Math.min(90, gimbalPitch));
+    const pitchRad = clampedPitch * Math.PI / 180;
     c.strokeStyle = 'rgba(255,255,255,0.7)';
     c.lineWidth = 1.5;
     c.beginPath();
@@ -244,7 +245,8 @@ class FPVController {
     c.lineWidth = 2;
     c.beginPath();
     c.moveTo(cx, cy);
-    c.lineTo(cx + pointerLen * Math.sin(-pitchRad), cy - pointerLen * Math.cos(-pitchRad));
+    // Mapping: 0 deg = horizontal, -90 deg = vertical down, +90 deg = vertical up.
+    c.lineTo(cx + pointerLen * Math.cos(-pitchRad), cy + pointerLen * Math.sin(-pitchRad));
     c.stroke();
 
     c.fillStyle = 'rgba(255,255,255,0.6)';
