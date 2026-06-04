@@ -82,7 +82,7 @@ class FPVController {
     }
   }
 
-  // ── Public API ───────────────────────────────────────────────────────────
+  // Public methods
 
   /**
    * Preload satellite tiles covering the mission waypoints.
@@ -172,6 +172,8 @@ class FPVController {
     this._clearTiles();
     this._renderer?.dispose();
   }
+
+  // Private members
 
   // ── Three.js init ─────────────────────────────────────────────────────────
 

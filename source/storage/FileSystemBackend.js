@@ -8,6 +8,8 @@ class FileSystemBackend {
     this.directoryHandleKey = 'rootDirectoryHandle';
   }
 
+  // Public methods
+
   async openHandleDatabase() {
     if (typeof indexedDB === 'undefined') {
       return null;

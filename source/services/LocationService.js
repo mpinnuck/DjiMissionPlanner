@@ -8,6 +8,8 @@ class LocationService {
     this.locationCacheKey = 'djiMissionPlanner:lastKnownLocation';
   }
 
+  // Public methods
+
   setPending(isPending) {
     if (typeof this.onPending === 'function') {
       this.onPending(isPending);

@@ -119,6 +119,8 @@ class App {
     this.locateUser();
   }
 
+  // Public methods
+
   get waypoints() {
     return this.mission.waypoints;
   }
@@ -1156,27 +1158,6 @@ class App {
     this._doClear();
   }
 
-  _doClear() {
-    this.waypointMarkers.forEach(marker => this.mapController.removeLayer(marker));
-    this.poiMarkers.forEach(marker => this.mapController.removeLayer(marker));
-    this.waypointMarkers.clear();
-    this.poiMarkers.clear();
-    this.heightAboveGroundByWaypointId.clear();
-    this.waypointGroundElevationById.clear();
-    this.takeoffGroundElevation = null;
-    this.mission.clear();
-    this.mapController.clearRoute();
-    this.syncFlythroughMission();
-    this.selectedId = null;
-    this.selectedType = null;
-    this.selectedWaypointIds.clear();
-    this.lastWaypointAnchorId = null;
-    this.touchRangeAnchorId = null;
-    this.ui.showNothingSelected();
-    this.renderList();
-    this.updateStats();
-  }
-
   exportMissionJson() {
     return MissionSerializer.stringify({
       mission: this.mission,
@@ -1615,5 +1596,28 @@ class App {
       this.fpv.hide();
       this.showStatus('FPV view hidden.');
     }
+  }
+
+  // Private members
+
+  _doClear() {
+    this.waypointMarkers.forEach(marker => this.mapController.removeLayer(marker));
+    this.poiMarkers.forEach(marker => this.mapController.removeLayer(marker));
+    this.waypointMarkers.clear();
+    this.poiMarkers.clear();
+    this.heightAboveGroundByWaypointId.clear();
+    this.waypointGroundElevationById.clear();
+    this.takeoffGroundElevation = null;
+    this.mission.clear();
+    this.mapController.clearRoute();
+    this.syncFlythroughMission();
+    this.selectedId = null;
+    this.selectedType = null;
+    this.selectedWaypointIds.clear();
+    this.lastWaypointAnchorId = null;
+    this.touchRangeAnchorId = null;
+    this.ui.showNothingSelected();
+    this.renderList();
+    this.updateStats();
   }
 }

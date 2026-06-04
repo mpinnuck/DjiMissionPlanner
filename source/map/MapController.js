@@ -17,6 +17,8 @@ class MapController {
     ).addTo(this.map);
   }
 
+  // Public methods
+
   onClick(handler) {
     this.map.on('click', handler);
   }
@@ -35,41 +37,6 @@ class MapController {
     if (zoom >= 18) return 1.14;
     if (zoom >= 17) return 1.07;
     return 1;
-  }
-
-  _buildPinSvg({ fill, mainText, subText = null, scale = 1 }) {
-    const PIN_W = 20;
-    const PIN_H = 32;
-    const width = Math.round(PIN_W * scale);
-    const height = Math.round(PIN_H * scale);
-    const safeMain = this._escapeHtml(String(mainText));
-    const safeSub = subText == null ? '' : this._escapeHtml(String(subText));
-    const mainY = subText == null ? '15' : '13';
-
-    const subMarkup = subText == null
-      ? ''
-      : `<text x="12" y="20" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" fill-opacity="0.95" font-family="'Share Tech Mono', monospace" font-size="5.2" font-weight="400">${safeSub}</text>`;
-
-    const svg = `<svg width="${width}" height="${height}" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M12 35 C11 31 8 27 5 23 C2.5 19.7 1 16 1 11 C1 5.4 5.6 1 12 1 C18.4 1 23 5.4 23 11 C23 16 21.5 19.7 19 23 C16 27 13 31 12 35 Z"
-        fill="${fill}" stroke="rgba(255,255,255,0.95)" stroke-width="2" stroke-linejoin="round" />
-      <text x="12" y="${mainY}" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="'Share Tech Mono', monospace" font-size="9.4" font-weight="700">${safeMain}</text>
-      ${subMarkup}
-    </svg>`;
-
-    return {
-      html: `<div class="map-pin-svg-wrap">${svg}</div>`,
-      iconAnchor: [Math.round((PIN_W / 2) * scale), Math.round(PIN_H * scale)]
-    };
-  }
-
-  _escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   wpIcon(idx, options = {}) {
@@ -369,5 +336,42 @@ class MapController {
 
     const zoomTarget = accuracyMeters && accuracyMeters < 60 ? 18 : 16;
     this.map.setView([lat, lng], zoomTarget);
+  }
+
+  // Private members
+
+  _buildPinSvg({ fill, mainText, subText = null, scale = 1 }) {
+    const PIN_W = 20;
+    const PIN_H = 32;
+    const width = Math.round(PIN_W * scale);
+    const height = Math.round(PIN_H * scale);
+    const safeMain = this._escapeHtml(String(mainText));
+    const safeSub = subText == null ? '' : this._escapeHtml(String(subText));
+    const mainY = subText == null ? '15' : '13';
+
+    const subMarkup = subText == null
+      ? ''
+      : `<text x="12" y="20" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" fill-opacity="0.95" font-family="'Share Tech Mono', monospace" font-size="5.2" font-weight="400">${safeSub}</text>`;
+
+    const svg = `<svg width="${width}" height="${height}" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 35 C11 31 8 27 5 23 C2.5 19.7 1 16 1 11 C1 5.4 5.6 1 12 1 C18.4 1 23 5.4 23 11 C23 16 21.5 19.7 19 23 C16 27 13 31 12 35 Z"
+        fill="${fill}" stroke="rgba(255,255,255,0.95)" stroke-width="2" stroke-linejoin="round" />
+      <text x="12" y="${mainY}" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="'Share Tech Mono', monospace" font-size="9.4" font-weight="700">${safeMain}</text>
+      ${subMarkup}
+    </svg>`;
+
+    return {
+      html: `<div class="map-pin-svg-wrap">${svg}</div>`,
+      iconAnchor: [Math.round((PIN_W / 2) * scale), Math.round(PIN_H * scale)]
+    };
+  }
+
+  _escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

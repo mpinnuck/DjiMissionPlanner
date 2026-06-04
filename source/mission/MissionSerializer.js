@@ -1,4 +1,6 @@
 class MissionSerializer {
+  // Public methods
+
   static snapshot({ mission, settings = null, ui = null }) {
     const missionSettings = settings || (ui && typeof ui.getMissionSettings === 'function'
       ? ui.getMissionSettings()

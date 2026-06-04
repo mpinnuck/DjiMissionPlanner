@@ -44,6 +44,8 @@ class PlannerUI {
     this.updateDroneInputsState();
   }
 
+  // Public methods
+
   getMissionName() {
     return this.missionNameInput.value || 'Mission';
   }

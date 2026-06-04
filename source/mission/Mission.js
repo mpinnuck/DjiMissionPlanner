@@ -6,6 +6,8 @@ class Mission {
     this.poiCounter = 0;
   }
 
+  // Public methods
+
   haversine(lat1, lon1, lat2, lon2) {
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;

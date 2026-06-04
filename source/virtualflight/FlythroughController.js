@@ -62,7 +62,7 @@ class FlythroughController {
     this._rafHandle  = null;
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // Public methods
 
   /**
    * Precompute the animation timeline from the waypoints array.
@@ -195,6 +195,8 @@ class FlythroughController {
     this._clearLayers();
     this._timeline = [];
   }
+
+  // Private members
 
   // ── Animation loop ──────────────────────────────────────────────────────
 

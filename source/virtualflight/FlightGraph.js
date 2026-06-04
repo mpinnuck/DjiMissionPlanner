@@ -2,10 +2,15 @@ class FlightGraph {
   constructor(options = {}) {
     this._overlay = options.overlayElement || null;
     this._canvas = options.canvasElement || null;
+    this._offscreenCanvas = document.createElement('canvas');
+    this._staticDrawn = false;
+    this._layout = null;
+    this._scaleFns = null;
     this._data = null;
     this._visible = false;
   }
 
+  // Public methods
   get isVisible() {
     return this._visible;
   }
@@ -65,6 +70,7 @@ class FlightGraph {
     }
 
     this._data = data;
+    this._staticDrawn = false;
     this._overlay.style.display = 'block';
     this._visible = true;
     this.draw(cursorTime);
@@ -82,6 +88,7 @@ class FlightGraph {
     if (!this._visible) {
       return;
     }
+    this._staticDrawn = false;
     this.show({ waypoints, mission, cursorTime });
   }
 
@@ -93,7 +100,11 @@ class FlightGraph {
     // Keep cursor scale aligned to the flythrough runtime timeline. Segment-based
     // totals from buildData can differ slightly due to interpolation/rounding.
     if (Number.isFinite(totalTime) && totalTime > 0) {
+      const prevTotalTime = Number(this._data.totalTime) || 0;
       this._data.totalTime = totalTime;
+      if (Math.abs(prevTotalTime - totalTime) > 0.001) {
+        this._staticDrawn = false;
+      }
     }
     this.draw(currentTime);
   }
@@ -110,16 +121,45 @@ class FlightGraph {
     }
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
+    const w = Math.round(rect.width * dpr);
+    const h = Math.round(rect.height * dpr);
+
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      this._staticDrawn = false;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       return;
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, rect.width, rect.height);
 
+    if (!this._staticDrawn) {
+      this._layout = this._computeLayout(rect.width, rect.height);
+      this._scaleFns = this._computeScaleFns(this._layout, this._data, this._data.totalTime);
+
+      this._offscreenCanvas.width = w;
+      this._offscreenCanvas.height = h;
+      const offCtx = this._offscreenCanvas.getContext('2d');
+      if (!offCtx) {
+        return;
+      }
+      offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      offCtx.clearRect(0, 0, rect.width, rect.height);
+      this._drawStaticGraph(offCtx, this._layout, this._data, this._data.totalTime);
+      this._staticDrawn = true;
+    }
+
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.drawImage(this._offscreenCanvas, 0, 0);
+    this._drawCursor(ctx, this._layout, this._scaleFns, cursorTime);
+  }
+
+  // Private members
+
+  _computeLayout(width, height) {
     const padLeft = 38;
     const padRight = 54;
     const cursorRailTop = 4;
@@ -127,152 +167,137 @@ class FlightGraph {
     const cursorRailGap = 8;
     const padTop = cursorRailTop + cursorRailHeight + cursorRailGap;
     const padBottom = 24;
-    const plotW = Math.max(10, rect.width - padLeft - padRight);
-    const plotH = Math.max(10, rect.height - padTop - padBottom);
+    const plotW = Math.max(10, width - padLeft - padRight);
+    const plotH = Math.max(10, height - padTop - padBottom);
 
-    const data = this._data;
-    const totalTime = Math.max(1, data.totalTime);
+    return {
+      padLeft,
+      padRight,
+      padTop,
+      padBottom,
+      plotW,
+      plotH,
+      cursorRailTop,
+      cursorRailHeight
+    };
+  }
+
+  _computeScaleFns(layout, data, totalTimeInput) {
+    const totalTime = Math.max(1, Number(totalTimeInput) || 0);
     const rawAltRange = data.maxAlt - data.minAlt;
     const rawSpeedRange = data.maxSpeed - data.minSpeed;
     const safeAltRange = Math.max(1, rawAltRange);
     const safeSpeedRange = Math.max(1, rawSpeedRange);
 
-    const xAt = t => padLeft + (Math.max(0, Math.min(totalTime, t)) / totalTime) * plotW;
-    const yAltAt = alt => {
-      if (rawAltRange < 0.01) {
-        return padTop + (plotH * 0.5);
-      }
-      return padTop + (1 - (alt - data.minAlt) / safeAltRange) * plotH;
-    };
-    const ySpeedAt = speed => {
-      // Keep near-constant speed traces visible instead of pinning to the x-axis.
-      if (rawSpeedRange < 0.5) {
-        return padTop + (plotH * 0.5);
-      }
-      return padTop + (1 - (speed - data.minSpeed) / safeSpeedRange) * plotH;
+    const xAt = t => {
+      const safeT = Number.isFinite(t) ? t : 0;
+      return layout.padLeft + (Math.max(0, Math.min(totalTime, safeT)) / totalTime) * layout.plotW;
     };
 
+    const yAltAt = alt => {
+      if (rawAltRange < 0.01) {
+        return layout.padTop + (layout.plotH * 0.5);
+      }
+      return layout.padTop + (1 - (alt - data.minAlt) / safeAltRange) * layout.plotH;
+    };
+
+    const ySpeedAt = speed => {
+      if (rawSpeedRange < 0.5) {
+        return layout.padTop + (layout.plotH * 0.5);
+      }
+      return layout.padTop + (1 - (speed - data.minSpeed) / safeSpeedRange) * layout.plotH;
+    };
+
+    return {
+      totalTime,
+      rawAltRange,
+      rawSpeedRange,
+      xAt,
+      yAltAt,
+      ySpeedAt
+    };
+  }
+
+  _drawGrid(ctx, layout, data) {
     const axisTickCount = 4;
     for (let i = 0; i <= axisTickCount; i += 1) {
       const ratio = i / axisTickCount;
-      const y = padTop + (ratio * plotH);
+      const y = layout.padTop + (ratio * layout.plotH);
 
-      // Subtle horizontal guide lines for coarse scale readability.
       ctx.strokeStyle = 'rgba(255,255,255,0.10)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(padLeft, y);
-      ctx.lineTo(padLeft + plotW, y);
+      ctx.moveTo(layout.padLeft, y);
+      ctx.lineTo(layout.padLeft + layout.plotW, y);
       ctx.stroke();
 
-      // Altitude scale (left axis, cyan).
       const altValue = data.maxAlt - ((data.maxAlt - data.minAlt) * ratio);
       ctx.strokeStyle = 'rgba(0, 212, 255, 0.85)';
       ctx.beginPath();
-      ctx.moveTo(padLeft - 4, y);
-      ctx.lineTo(padLeft, y);
+      ctx.moveTo(layout.padLeft - 4, y);
+      ctx.lineTo(layout.padLeft, y);
       ctx.stroke();
       ctx.font = '10px Barlow, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'rgba(0, 212, 255, 0.95)';
-      ctx.fillText(`${Math.round(altValue)}`, padLeft - 6, y);
+      ctx.fillText(`${Math.round(altValue)}`, layout.padLeft - 6, y);
 
-      // Speed scale (right axis, amber).
       const speedValue = data.maxSpeed - ((data.maxSpeed - data.minSpeed) * ratio);
       ctx.strokeStyle = 'rgba(240, 165, 0, 0.85)';
       ctx.beginPath();
-      ctx.moveTo(padLeft + plotW, y);
-      ctx.lineTo(padLeft + plotW + 4, y);
+      ctx.moveTo(layout.padLeft + layout.plotW, y);
+      ctx.lineTo(layout.padLeft + layout.plotW + 4, y);
       ctx.stroke();
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'rgba(240, 165, 0, 0.95)';
-      ctx.fillText(`${Math.round(speedValue)}`, padLeft + plotW + 6, y);
+      ctx.fillText(`${Math.round(speedValue)}`, layout.padLeft + layout.plotW + 6, y);
     }
+  }
 
-    const sampleAtTime = t => {
-      if (!Array.isArray(data.points) || data.points.length === 0) {
-        return { alt: 0, speedKmh: 0, time: 0 };
-      }
-
-      const clampedT = Math.max(0, Math.min(totalTime, Number.isFinite(t) ? t : 0));
-      if (data.points.length === 1) {
-        return {
-          alt: data.points[0].alt,
-          speedKmh: data.points[0].speedKmh,
-          time: clampedT
-        };
-      }
-
-      for (let i = 1; i < data.points.length; i += 1) {
-        const left = data.points[i - 1];
-        const right = data.points[i];
-        if (clampedT <= right.t) {
-          const span = Math.max(0.000001, right.t - left.t);
-          const alpha = Math.max(0, Math.min(1, (clampedT - left.t) / span));
-          return {
-            alt: left.alt + (right.alt - left.alt) * alpha,
-            speedKmh: left.speedKmh + (right.speedKmh - left.speedKmh) * alpha,
-            time: clampedT
-          };
-        }
-      }
-
-      const last = data.points[data.points.length - 1];
-      return { alt: last.alt, speedKmh: last.speedKmh, time: clampedT };
-    };
-
+  _drawAxes(ctx, layout) {
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(padLeft, padTop);
-    ctx.lineTo(padLeft, padTop + plotH);
-    ctx.lineTo(padLeft + plotW, padTop + plotH);
+    ctx.moveTo(layout.padLeft, layout.padTop);
+    ctx.lineTo(layout.padLeft, layout.padTop + layout.plotH);
+    ctx.lineTo(layout.padLeft + layout.plotW, layout.padTop + layout.plotH);
     ctx.stroke();
+  }
 
+  _drawAltitudeLine(ctx, layout, scaleFns, data) {
     ctx.strokeStyle = 'rgba(0, 212, 255, 0.95)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.points.forEach((point, index) => {
-      const x = xAt(point.t);
-      const y = yAltAt(point.alt);
+      const x = scaleFns.xAt(point.t);
+      const y = scaleFns.yAltAt(point.alt);
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
     ctx.stroke();
+  }
 
+  _drawSpeedLine(ctx, layout, scaleFns, data) {
     ctx.strokeStyle = 'rgba(240, 165, 0, 0.95)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.points.forEach((point, index) => {
-      const x = xAt(point.t);
-      const y = ySpeedAt(point.speedKmh);
+      const x = scaleFns.xAt(point.t);
+      const y = scaleFns.ySpeedAt(point.speedKmh);
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
     ctx.stroke();
+  }
 
-    const cursorX = xAt(cursorTime);
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cursorX, cursorRailTop);
-    ctx.lineTo(cursorX, padTop + plotH);
-    ctx.stroke();
-
-    const formatTime = seconds => {
-      const safe = Math.max(0, Math.round(seconds));
-      const mm = Math.floor(safe / 60);
-      const ss = safe % 60;
-      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-    };
-
+  _drawXAxis(ctx, layout, scaleFns, totalTime) {
     const xTickStepSeconds = 30;
-    const pixelsPer30s = (plotW / totalTime) * xTickStepSeconds;
+    const pixelsPer30s = (layout.plotW / Math.max(1, totalTime)) * xTickStepSeconds;
     const minLabelSpacingPx = 36;
     const labelEveryN = Math.max(1, Math.ceil(minLabelSpacingPx / Math.max(1, pixelsPer30s)));
-    const endTimeLabelX = padLeft + plotW - 36;
+    const endTimeLabelX = layout.padLeft + layout.plotW - 36;
     const endTimeLabelSafeGap = 44;
 
     ctx.strokeStyle = 'rgba(255,255,255,0.28)';
@@ -285,17 +310,17 @@ class FlightGraph {
     let tickIndex = 0;
     for (let t = xTickStepSeconds; t < totalTime; t += xTickStepSeconds) {
       tickIndex += 1;
-      const x = xAt(t);
+      const x = scaleFns.xAt(t);
 
       ctx.beginPath();
-      ctx.moveTo(x, padTop + plotH);
-      ctx.lineTo(x, padTop + plotH + 4);
+      ctx.moveTo(x, layout.padTop + layout.plotH);
+      ctx.lineTo(x, layout.padTop + layout.plotH + 4);
       ctx.stroke();
 
       if (tickIndex % labelEveryN === 0) {
         const wouldOverlapEndTime = x >= (endTimeLabelX - endTimeLabelSafeGap);
         if (!wouldOverlapEndTime) {
-          ctx.fillText(formatTime(t), x, padTop + plotH + 6);
+          ctx.fillText(this._formatTime(t), x, layout.padTop + layout.plotH + 6);
         }
       }
     }
@@ -303,21 +328,92 @@ class FlightGraph {
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('Time', 4, padTop + plotH + 14);
-    ctx.fillText('00:00', padLeft - 4, padTop + plotH + 14);
-    ctx.fillText(formatTime(totalTime), padLeft + plotW - 36, padTop + plotH + 14);
+    ctx.fillText('Time', 4, layout.padTop + layout.plotH + 14);
+    ctx.fillText('00:00', layout.padLeft - 4, layout.padTop + layout.plotH + 14);
+    ctx.fillText(this._formatTime(totalTime), layout.padLeft + layout.plotW - 36, layout.padTop + layout.plotH + 14);
+  }
 
-    const sample = sampleAtTime(cursorTime);
-    const readout = `${Math.round(sample.alt)}m   ${Math.round(sample.speedKmh)}km/h   ${formatTime(sample.time)}`;
+  _drawStaticGraph(ctx, layout, data, totalTime) {
+    this._drawGrid(ctx, layout, data);
+    this._drawAxes(ctx, layout);
+    this._drawAltitudeLine(ctx, layout, this._scaleFns, data);
+    this._drawSpeedLine(ctx, layout, this._scaleFns, data);
+    this._drawXAxis(ctx, layout, this._scaleFns, totalTime);
+  }
+
+  _formatTime(seconds) {
+    const safe = Math.max(0, Math.round(seconds));
+    const mm = Math.floor(safe / 60);
+    const ss = safe % 60;
+    return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  }
+
+  _sampleAtTime(t) {
+    const data = this._data;
+    if (!data || !Array.isArray(data.points) || data.points.length === 0) {
+      return { alt: 0, speedKmh: 0, time: 0 };
+    }
+
+    const totalTime = Math.max(1, data.totalTime);
+    const clampedT = Math.max(0, Math.min(totalTime, Number.isFinite(t) ? t : 0));
+
+    if (data.points.length === 1) {
+      return {
+        alt: data.points[0].alt,
+        speedKmh: data.points[0].speedKmh,
+        time: clampedT
+      };
+    }
+
+    let low = 0;
+    let high = data.points.length - 1;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const midPoint = data.points[mid];
+      if (midPoint.t < clampedT) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    const rightIndex = Math.max(1, Math.min(data.points.length - 1, low));
+    const left = data.points[rightIndex - 1];
+    const right = data.points[rightIndex];
+
+    if (clampedT >= right.t) {
+      return { alt: right.alt, speedKmh: right.speedKmh, time: clampedT };
+    }
+
+    const span = Math.max(0.000001, right.t - left.t);
+    const alpha = Math.max(0, Math.min(1, (clampedT - left.t) / span));
+    return {
+      alt: left.alt + (right.alt - left.alt) * alpha,
+      speedKmh: left.speedKmh + (right.speedKmh - left.speedKmh) * alpha,
+      time: clampedT
+    };
+  }
+
+  _drawCursor(ctx, layout, scaleFns, cursorTime) {
+    const cursorX = scaleFns.xAt(cursorTime);
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cursorX, layout.cursorRailTop);
+    ctx.lineTo(cursorX, layout.padTop + layout.plotH);
+    ctx.stroke();
+
+    const sample = this._sampleAtTime(cursorTime);
+    const readout = `${Math.round(sample.alt)}m   ${Math.round(sample.speedKmh)}km/h   ${this._formatTime(sample.time)}`;
     ctx.font = '12px Barlow, sans-serif';
     const readoutPaddingX = 8;
     const readoutW = ctx.measureText(readout).width + (readoutPaddingX * 2);
     const readoutH = 18;
     const readoutX = Math.min(
-      padLeft + plotW - readoutW,
-      Math.max(padLeft, cursorX - (readoutW / 2))
+      layout.padLeft + layout.plotW - readoutW,
+      Math.max(layout.padLeft, cursorX - (readoutW / 2))
     );
-    const readoutY = cursorRailTop + 14;
+    const readoutY = layout.cursorRailTop + 14;
 
     ctx.fillStyle = 'rgba(5, 18, 28, 0.86)';
     ctx.fillRect(readoutX, readoutY - 12, readoutW, readoutH);

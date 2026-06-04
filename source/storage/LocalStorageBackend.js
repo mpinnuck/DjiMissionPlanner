@@ -7,6 +7,8 @@ class LocalStorageBackend {
     this.rootLabel = 'settings/missions';
   }
 
+  // Public methods
+
   canChooseRootDirectory() {
     return false;
   }

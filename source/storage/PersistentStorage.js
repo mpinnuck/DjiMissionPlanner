@@ -5,6 +5,8 @@ class PersistentStorage {
     this.backend = this.createBackend(options.backend);
   }
 
+  // Public methods
+
   createBackend(backendMode) {
     if (backendMode === 'filesystem') {
       return new FileSystemBackend({ onStatus: this.onStatus, onError: this.onError });

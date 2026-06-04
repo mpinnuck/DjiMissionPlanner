@@ -5,17 +5,7 @@ class ElevationService {
     this.endpoint = options.endpoint || 'https://api.open-meteo.com/v1/elevation';
   }
 
-  _key(lat, lng) {
-    return `${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`;
-  }
-
-  _chunk(list, chunkSize) {
-    const chunks = [];
-    for (let i = 0; i < list.length; i += chunkSize) {
-      chunks.push(list.slice(i, i + chunkSize));
-    }
-    return chunks;
-  }
+  // Public methods
 
   getElevation(lat, lng, elevations = null) {
     // Prefer a caller-provided result map from getElevations() so a single fetch batch
@@ -90,5 +80,19 @@ class ElevationService {
     }
 
     return result;
+  }
+
+  // Private members
+
+  _key(lat, lng) {
+    return `${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`;
+  }
+
+  _chunk(list, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < list.length; i += chunkSize) {
+      chunks.push(list.slice(i, i + chunkSize));
+    }
+    return chunks;
   }
 }

@@ -7,6 +7,8 @@ class ExportKmz {
     this.loadFolderHandle();
   }
 
+  // Public methods
+
   loadFolderHandle() {
     const handleStr = localStorage.getItem(this.folderHandleKey);
     if (handleStr) {
