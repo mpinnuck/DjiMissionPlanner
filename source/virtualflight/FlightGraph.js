@@ -88,7 +88,6 @@ class FlightGraph {
     if (!this._visible) {
       return;
     }
-    this._staticDrawn = false;
     this.show({ waypoints, mission, cursorTime });
   }
 
@@ -148,7 +147,7 @@ class FlightGraph {
       }
       offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       offCtx.clearRect(0, 0, rect.width, rect.height);
-      this._drawStaticGraph(offCtx, this._layout, this._data, this._data.totalTime);
+      this._drawStaticGraph(offCtx, this._layout, this._scaleFns, this._data, this._data.totalTime);
       this._staticDrawn = true;
     }
 
@@ -266,7 +265,7 @@ class FlightGraph {
     ctx.stroke();
   }
 
-  _drawAltitudeLine(ctx, layout, scaleFns, data) {
+  _drawAltitudeLine(ctx, scaleFns, data) {
     ctx.strokeStyle = 'rgba(0, 212, 255, 0.95)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -279,7 +278,7 @@ class FlightGraph {
     ctx.stroke();
   }
 
-  _drawSpeedLine(ctx, layout, scaleFns, data) {
+  _drawSpeedLine(ctx, scaleFns, data) {
     ctx.strokeStyle = 'rgba(240, 165, 0, 0.95)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -333,12 +332,12 @@ class FlightGraph {
     ctx.fillText(this._formatTime(totalTime), layout.padLeft + layout.plotW - 36, layout.padTop + layout.plotH + 14);
   }
 
-  _drawStaticGraph(ctx, layout, data, totalTime) {
+  _drawStaticGraph(ctx, layout, scaleFns, data, totalTime) {
     this._drawGrid(ctx, layout, data);
     this._drawAxes(ctx, layout);
-    this._drawAltitudeLine(ctx, layout, this._scaleFns, data);
-    this._drawSpeedLine(ctx, layout, this._scaleFns, data);
-    this._drawXAxis(ctx, layout, this._scaleFns, totalTime);
+    this._drawAltitudeLine(ctx, scaleFns, data);
+    this._drawSpeedLine(ctx, scaleFns, data);
+    this._drawXAxis(ctx, layout, scaleFns, totalTime);
   }
 
   _formatTime(seconds) {
