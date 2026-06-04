@@ -208,7 +208,7 @@ class FPVController {
     c.textAlign = 'right';
     c.fillText(`SPD`, w - 14, h * 0.08);
     c.fillStyle = '#ffffff';
-    c.fillText(`${speedKmh != null ? speedKmh.toFixed(1) : '—'} km/h`, w - 14, h * 0.14);
+    c.fillText(`${speedKmh != null ? Math.round(speedKmh) : '—'} km/h`, w - 14, h * 0.14);
 
     // ── Heading (top-centre) ──
     const hdgLabel = this._headingLabel(heading);

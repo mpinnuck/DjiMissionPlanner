@@ -113,7 +113,7 @@ class PlannerUI {
       this.defaultAltitudeInput.value = settings.defaultAltitude;
     }
     if (Number.isFinite(settings.defaultSpeed)) {
-      this.defaultSpeedInput.value = (settings.defaultSpeed * 3.6).toFixed(1);
+      this.defaultSpeedInput.value = String(Math.round(settings.defaultSpeed * 3.6));
     }
     if (typeof settings.droneProfile === 'string' && this.droneProfileSelect) {
       this.droneProfileSelect.value = settings.droneProfile;
@@ -1077,7 +1077,7 @@ class PlannerUI {
           <div class="wp-meta-row">
             <span class="wp-meta-tag">Alt <span>${Math.round(item.alt)}m</span></span>
             <span class="wp-meta-tag">HAG <span>${hagLabel}</span></span>
-            <span class="wp-meta-tag">Speed <span>${(item.speed * 3.6).toFixed(1)}km/h</span></span>
+            <span class="wp-meta-tag">Speed <span>${Math.round(item.speed * 3.6)}km/h</span></span>
           </div>
           ${item.poiId ? `
           <div class="wp-meta-row">
@@ -1217,12 +1217,21 @@ class PlannerUI {
       onAltitudeChange(e.target.value);
     });
     this.detailContent.querySelector('#d_speed').addEventListener('input', e => {
-      const speedKmh = Math.round(parseFloat(e.target.value));
+      const speedKmh = parseFloat(e.target.value);
       if (!Number.isFinite(speedKmh)) {
         return;
       }
-      e.target.value = String(speedKmh);
       onSpeedChange((speedKmh / 3.6).toFixed(2));
+    });
+    this.detailContent.querySelector('#d_speed').addEventListener('blur', e => {
+      const speedKmh = parseFloat(e.target.value);
+      if (!Number.isFinite(speedKmh)) {
+        return;
+      }
+      const rounded = Math.round(speedKmh);
+      const clamped = Math.max(4, Math.min(54, rounded));
+      e.target.value = String(clamped);
+      onSpeedChange((clamped / 3.6).toFixed(2));
     });
     this.detailContent.querySelector('#d_poi').addEventListener('change', e => {
       onPoiChange(e.target.value);
@@ -1267,7 +1276,7 @@ class PlannerUI {
       <div class="field-row"><label>Altitude</label>
         <input id="bulk_alt" type="number" min="1" max="500" step="1" placeholder="Leave blank to keep"/><span class="unit">m</span></div>
       <div class="field-row"><label>Speed</label>
-        <input id="bulk_speed" type="number" min="3.6" max="54" step="2" placeholder="Leave blank to keep"/><span class="unit">km/h</span></div>
+        <input id="bulk_speed" type="number" min="4" max="54" step="1" placeholder="Leave blank to keep"/><span class="unit">km/h</span></div>
       <div class="field-row" style="margin-bottom:10px"><label>Point of Interest</label>
         <select id="bulk_poi">
           <option value="__KEEP__">Keep current</option>
