@@ -517,10 +517,19 @@ class PlannerUI {
     const body = document.createElement('div');
     body.className = 'wp-options-body';
     body.innerHTML = `
-      <div class="wp-options-position">${positionText}</div>
       <div class="wp-options-title">${waypointLabel}</div>
-      <div class="wp-options-section">Altitude</div>
+      <div class="wp-options-position">${positionText}</div>
     `;
+
+    const altitudeEditRow = document.createElement('div');
+    altitudeEditRow.className = 'wp-options-edit-row';
+    altitudeEditRow.innerHTML = `
+      <label>Altitude</label>
+      <input type="number" min="-59" max="499" step="1" value="${Math.max(-59, Math.min(499, Math.round(initialAltitude)))}" />
+      <span>m</span>
+    `;
+    const altitudeInput = altitudeEditRow.querySelector('input');
+    body.appendChild(altitudeEditRow);
 
     const altitudeBlock = document.createElement('div');
     altitudeBlock.className = 'wp-options-altitude-block';
@@ -575,6 +584,9 @@ class PlannerUI {
     const updateAltitude = newValue => {
       const clamped = Math.max(-59, Math.min(499, Math.round(newValue)));
       slider.value = String(clamped);
+      if (altitudeInput && document.activeElement !== altitudeInput) {
+        altitudeInput.value = String(clamped);
+      }
       const valueLabel = valueRow.querySelector('#wpOptionsAltitudeValue');
       if (valueLabel) {
         valueLabel.textContent = formatAltitudeLabel(clamped);
@@ -585,6 +597,18 @@ class PlannerUI {
     slider.addEventListener('input', () => updateAltitude(parseFloat(slider.value)));
     minusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) - 1));
     plusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) + 1));
+    altitudeInput.addEventListener('input', () => {
+      const typed = parseFloat(altitudeInput.value);
+      if (!Number.isFinite(typed)) {
+        return;
+      }
+      updateAltitude(typed);
+    });
+    altitudeInput.addEventListener('blur', () => {
+      const typed = parseFloat(altitudeInput.value);
+      updateAltitude(Number.isFinite(typed) ? typed : parseFloat(slider.value));
+      altitudeInput.value = slider.value;
+    });
 
     controls.appendChild(minusButton);
     controls.appendChild(slider);
@@ -598,19 +622,35 @@ class PlannerUI {
     speedRow.className = 'wp-options-edit-row';
     speedRow.innerHTML = `
       <label>Speed</label>
-      <input type="number" min="1" max="15" step="0.5" value="${Number.isFinite(initialSpeed) ? initialSpeed : 8}" />
-      <span>m/s</span>
+      <input type="number" min="4" max="54" step="1" value="${Number.isFinite(initialSpeed) ? Math.round(initialSpeed * 3.6) : 29}" />
+      <span>km/h</span>
     `;
     const speedInput = speedRow.querySelector('input');
-    speedInput.addEventListener('input', () => onSpeedChange(speedInput.value));
+    speedInput.addEventListener('input', () => {
+      const speedKmh = parseFloat(speedInput.value);
+      if (!Number.isFinite(speedKmh)) {
+        return;
+      }
+      onSpeedChange(speedKmh);
+    });
+    speedInput.addEventListener('blur', () => {
+      const speedKmh = parseFloat(speedInput.value);
+      if (!Number.isFinite(speedKmh)) {
+        return;
+      }
+      const rounded = Math.round(speedKmh);
+      const clamped = Math.max(4, Math.min(54, rounded));
+      speedInput.value = String(clamped);
+      onSpeedChange(clamped);
+    });
     body.appendChild(speedRow);
 
     const poiRow = document.createElement('div');
     poiRow.className = 'wp-options-edit-row';
     const poiOptions = [
       '<option value="">- None -</option>',
-      ...(Array.isArray(pois) ? pois.map(poi =>
-        `<option value="${poi.id}" ${currentPoiId === poi.id ? 'selected' : ''}>${poi.name}</option>`
+      ...(Array.isArray(pois) ? pois.map((poi, index) =>
+        `<option value="${poi.id}" ${currentPoiId === poi.id ? 'selected' : ''}>${index + 1}</option>`
       ) : [])
     ].join('');
     poiRow.innerHTML = `
@@ -1023,6 +1063,7 @@ class PlannerUI {
     onEndWaypointTouchRange
   }) {
     this.wpList.innerHTML = '';
+    const poiIndexById = new Map(pois.map((poi, index) => [poi.id, index + 1]));
     const all = [
       ...waypoints.map((waypoint, index) => ({ ...waypoint, _type: 'wp', _idx: index + 1 })),
       ...pois.map(poi => ({ ...poi, _type: 'poi' }))
@@ -1051,7 +1092,9 @@ class PlannerUI {
       let coordExtra = '';
       if (item._type === 'wp') {
         badge = `<span class="wp-badge wp">WP${item._idx}</span>`;
-        const poiName = item.poiId ? resolvePoiName(item.poiId) : '—';
+        const poiNumber = item.poiId && poiIndexById.has(item.poiId)
+          ? String(poiIndexById.get(item.poiId))
+          : '—';
         const hagMeters = typeof resolveWaypointHeightAboveGround === 'function'
           ? resolveWaypointHeightAboveGround(item)
           : null;
@@ -1081,7 +1124,7 @@ class PlannerUI {
           </div>
           ${item.poiId ? `
           <div class="wp-meta-row">
-            <span class="wp-meta-tag">POI <span>${poiName}</span></span>
+            <span class="wp-meta-tag">POI <span>${poiNumber}</span></span>
           </div>
           ` : ''}
           <div class="wp-meta-row wp-meta-row-computed wp-meta-row-computed-headings">
@@ -1097,6 +1140,7 @@ class PlannerUI {
         </div>`;
       } else {
         badge = '<span class="wp-badge poi">POI</span>';
+        const poiNumber = poiIndexById.has(item.id) ? String(poiIndexById.get(item.id)) : '?';
         const takeoffAsl = typeof resolveTakeoffGroundElevation === 'function'
           ? resolveTakeoffGroundElevation()
           : null;
@@ -1107,7 +1151,7 @@ class PlannerUI {
         meta = `<div class="wp-meta">
         <div class="wp-meta-row">
           <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
-          <span class="wp-meta-tag">${item.name}</span>
+          <span class="wp-meta-tag">No <span>${poiNumber}</span></span>
           ${takeoffMeta}
         </div>
       </div>`;
@@ -1116,7 +1160,7 @@ class PlannerUI {
       div.innerHTML = `
       <div class="wp-item-header">
         ${badge}
-        <span class="wp-name">${item._type === 'poi' ? item.name : ('Waypoint ' + item._idx)}</span>
+        <span class="wp-name">${item._type === 'poi' ? (poiIndexById.has(item.id) ? poiIndexById.get(item.id) : '?') : ('Waypoint ' + item._idx)}</span>
         <button class="wp-del" data-id="${item.id}" data-type="${item._type}">✕</button>
       </div>
       <div class="wp-coords"><span>${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}</span>${coordExtra}</div>
@@ -1187,7 +1231,7 @@ class PlannerUI {
   }
 
   showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange }) {
-    const poiOptions = pois.map(poi => `<option value="${poi.id}" ${wp.poiId === poi.id ? 'selected' : ''}>${poi.name}</option>`).join('');
+    const poiOptions = pois.map((poi, index) => `<option value="${poi.id}" ${wp.poiId === poi.id ? 'selected' : ''}>${index + 1}</option>`).join('');
     let computed = '';
     if (wp.poiId) {
       computed = `<div class="computed-row">
@@ -1267,7 +1311,7 @@ class PlannerUI {
   }
 
   showBulkWaypointDetail({ selectedCount, pois, onApply, onClearSelection }) {
-    const poiOptions = pois.map(poi => `<option value="${poi.id}">${poi.name}</option>`).join('');
+    const poiOptions = pois.map((poi, index) => `<option value="${poi.id}">${index + 1}</option>`).join('');
     this.detailContent.innerHTML = `
       <div class="bulk-edit-header">
         <div class="bulk-edit-title">Bulk Waypoint Edit</div>

@@ -43,8 +43,20 @@ class FPVController {
     this._visible       = false;
     this._hfovDeg       = FPVController.DEFAULT_HFOV_DEG;
     this._sensorAspect  = FPVController.DEFAULT_ASPECT;
+    this._graphWaypoints = [];
+    this._graphMission = null;
+    this._graphCurrentTime = 0;
+    this._graphTotalTime = 0;
+    this._flightGraph = null;
 
     this.setDroneConfig(options.droneConfig || null);
+
+    if (typeof FlightGraph === 'function') {
+      this._flightGraph = new FlightGraph({
+        overlayElement: document.getElementById('ftGraphOverlay'),
+        canvasElement: document.getElementById('ftGraphCanvas')
+      });
+    }
 
     this._initThree();
     this._initHUD();
@@ -76,8 +88,18 @@ class FPVController {
    * Preload satellite tiles covering the mission waypoints.
    * Call whenever waypoints change (same pattern as FlythroughController).
    */
-  setMission(waypoints) {
-    if (!waypoints || waypoints.length < 1) return;
+  setMission(waypoints, mission = null) {
+    this._graphWaypoints = Array.isArray(waypoints) ? waypoints : [];
+    this._graphMission = mission;
+
+    if (!Array.isArray(waypoints) || waypoints.length < 1) {
+      this._missionCenter = null;
+      this._clearTiles();
+      if (this._flightGraph) {
+        this._flightGraph.hide();
+      }
+      return;
+    }
 
     const lats = waypoints.map(w => w.lat);
     const lngs = waypoints.map(w => w.lng);
@@ -91,6 +113,10 @@ class FPVController {
       Math.min(...lats), Math.max(...lats),
       Math.min(...lngs), Math.max(...lngs)
     );
+
+    if (this._visible) {
+      this._refreshGraph();
+    }
   }
 
   /**
@@ -121,14 +147,26 @@ class FPVController {
     this._container.style.display = 'block';
     this._visible = true;
     this._resize();
+    this._refreshGraph();
   }
 
   hide() {
     this._container.style.display = 'none';
     this._visible = false;
+    if (this._flightGraph) {
+      this._flightGraph.hide();
+    }
   }
 
   resize() { this._resize(); }
+
+  updateGraphCursor(currentTime, totalTime) {
+    this._graphCurrentTime = Number.isFinite(currentTime) ? currentTime : this._graphCurrentTime;
+    this._graphTotalTime = Number.isFinite(totalTime) ? totalTime : this._graphTotalTime;
+    if (this._flightGraph && this._flightGraph.isVisible) {
+      this._flightGraph.updateCursor(this._graphCurrentTime, this._graphTotalTime);
+    }
+  }
 
   destroy() {
     this._clearTiles();
@@ -380,5 +418,24 @@ class FPVController {
     this._renderer.setSize(w, h);
     this._hudCanvas.width  = w;
     this._hudCanvas.height = h;
+    this._refreshGraph();
+  }
+
+  _refreshGraph() {
+    if (!this._flightGraph) {
+      return;
+    }
+
+    if (!this._visible || !this._graphMission || this._graphWaypoints.length < 2) {
+      this._flightGraph.hide();
+      return;
+    }
+
+    this._flightGraph.show({
+      waypoints: this._graphWaypoints,
+      mission: this._graphMission,
+      cursorTime: this._graphCurrentTime
+    });
+    this._flightGraph.updateCursor(this._graphCurrentTime, this._graphTotalTime);
   }
 }

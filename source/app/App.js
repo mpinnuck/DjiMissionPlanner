@@ -37,12 +37,22 @@ class App {
     this.isFPVVisible = false;
     this.flythrough = typeof FlythroughController === 'function'
       ? new FlythroughController(this.mapController.map, {
-        onProgress: (t, total) => this.ui.updateFlythroughProgress(
-          t,
-          total,
-          total > 0 ? t / total : 0
-        ),
-        onComplete: () => this.ui.setFlythroughStopped(),
+        onProgress: (t, total) => {
+          this.ui.updateFlythroughProgress(
+            t,
+            total,
+            total > 0 ? t / total : 0
+          );
+          if (this.fpv) {
+            this.fpv.updateGraphCursor(t, total);
+          }
+        },
+        onComplete: () => {
+          this.ui.setFlythroughStopped();
+          if (this.flythrough && this.fpv) {
+            this.fpv.updateGraphCursor(this.flythrough.totalTime, this.flythrough.totalTime);
+          }
+        },
         onFrame: frame => {
           if (this.fpv) {
             this.fpv.updateFrame(frame);
@@ -279,7 +289,8 @@ class App {
       const segmentDistance = this.mission.haversine(prev.lat, prev.lng, curr.lat, curr.lng);
       cumulativeDistance += segmentDistance;
 
-      const segmentSpeed = Number.isFinite(prev.speed) && prev.speed > 0 ? prev.speed : 1;
+      const prevSpeed = Number(prev.speed);
+      const segmentSpeed = Number.isFinite(prevSpeed) && prevSpeed > 0 ? prevSpeed : 1;
       cumulativeTime += segmentDistance / segmentSpeed;
     }
 
@@ -319,15 +330,22 @@ class App {
       course = this.mission.bearing(wp.lat, wp.lng, next.lat, next.lng);
     }
 
-    const speedKmh = (Number.isFinite(wp.speed) ? wp.speed : 0) * 3.6;
+    const wpSpeed = Number(wp.speed);
+    const speedKmh = (Number.isFinite(wpSpeed) ? wpSpeed : 0) * 3.6;
     const hagMeters = this.heightAboveGroundByWaypointId.get(wp.id);
     const hagLabel = Number.isFinite(hagMeters) ? ` (${Math.round(hagMeters)})` : '';
+    const assignedPoi = wp.poiId ? this.mission.findPOI(wp.poiId) : null;
+    const assignedPoiIndex = assignedPoi ? this.pois.indexOf(assignedPoi) : -1;
+    const poiLabel = assignedPoi
+      ? `${assignedPoiIndex >= 0 ? assignedPoiIndex + 1 : '?'}`
+      : 'None';
     const tooltipHtml = `
       <div class="wp-map-tooltip-content">
         <div class="wp-map-tooltip-title">Waypoint ${waypointIndex + 1}</div>
         <div>Position: ${(metrics.cumulativeDistance / 1000).toFixed(2)} km (${metrics.progressPercent}%)</div>
         <div>Time: ${this.formatWaypointTime(metrics.cumulativeTime)}</div>
         <div>Waypoint 1: ${Math.round(metrics.cumulativeDistance)} m</div>
+        <div>POI: ${poiLabel}</div>
         <div>Course: ${Math.round(course)}°</div>
         <div>Altitude: ${Math.round(wp.alt)} m${hagLabel}</div>
         <div>Speed: ${Math.round(speedKmh)} kmh</div>
@@ -434,7 +452,7 @@ class App {
       onSpeedChange: speedValue => {
         const speedKmh = parseFloat(speedValue);
         if (Number.isFinite(speedKmh) && speedKmh > 0) {
-          wp.speed = (speedKmh / 3.6).toFixed(2);
+          wp.speed = Number((speedKmh / 3.6).toFixed(2));
           this.syncFlythroughMission();
           this.renderList();
           this.showWaypointTooltip(wp.id);
@@ -566,7 +584,7 @@ class App {
 
     this.flythrough.setMission(this.waypoints);
     if (this.fpv) {
-      this.fpv.setMission(this.waypoints);
+      this.fpv.setMission(this.waypoints, this.mission);
     }
     this.ui.updateFlythroughProgress(
       this.flythrough.currentTime,
@@ -792,7 +810,7 @@ class App {
         wp.alt = altitude;
       }
       if (applySpeed) {
-        wp.speed = (speedKmh / 3.6).toFixed(2);
+        wp.speed = Number((speedKmh / 3.6).toFixed(2));
       }
       if (applyPoi) {
         wp.poiId = poiValue === '__NONE__' ? null : poiValue;
@@ -1341,6 +1359,22 @@ class App {
     }
   }
 
+  deleteSelectionFromKeyboard() {
+    if (this.selectedWaypointIds.size > 1) {
+      const waypointIds = [...this.selectedWaypointIds];
+      waypointIds.forEach(waypointId => this.deleteItem(waypointId, 'wp'));
+      this.showStatus(`Deleted ${waypointIds.length} waypoints.`);
+      return true;
+    }
+
+    if (this.selectedId && this.selectedType) {
+      this.deleteItem(this.selectedId, this.selectedType);
+      return true;
+    }
+
+    return false;
+  }
+
   async openLoadMissionDialog() {
     try {
       const tree = await this.storage.listTree();
@@ -1473,15 +1507,29 @@ class App {
 
     window.addEventListener('keydown', async event => {
       const isCopyShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'c';
-      if (!isCopyShortcut) {
-        return;
-      }
-      if (this.selectedWaypointIds.size < 2 || this.isTypingInEditableControl()) {
+      const isDeleteShortcut = !event.metaKey && !event.ctrlKey && !event.altKey
+        && (event.key === 'Delete' || event.key === 'Backspace');
+      const isEditingInput = this.isTypingInEditableControl();
+
+      if (isCopyShortcut) {
+        if (this.selectedWaypointIds.size < 2 || isEditingInput) {
+          return;
+        }
+
+        event.preventDefault();
+        await this.copySelectedWaypointsToClipboard();
         return;
       }
 
-      event.preventDefault();
-      await this.copySelectedWaypointsToClipboard();
+      if (isDeleteShortcut) {
+        if (isEditingInput) {
+          return;
+        }
+        const deleted = this.deleteSelectionFromKeyboard();
+        if (deleted) {
+          event.preventDefault();
+        }
+      }
     });
 
     window.addEventListener('resize', () => {

@@ -79,6 +79,10 @@
 
   <div id="map"></div>
 
+  <div id="ftGraphOverlay" aria-hidden="true">
+    <canvas id="ftGraphCanvas"></canvas>
+  </div>
+
   <div id="fpv-panel" style="
     display:none; position:absolute; bottom:20px; right:320px;
     width:800px; height:450px;
@@ -176,7 +180,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v3.3';
+  const APP_VERSION = 'v3.4';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -203,6 +207,7 @@
 <script src="../source/storage/PersistentStorage.js"></script>
 <script src="../source/virtualflight/FPVController.js"></script>
 <script src="../source/virtualflight/FlythroughController.js"></script>
+<script src="../source/virtualflight/FlightGraph.js"></script>
 <script src="../source/app/App.js"></script>
 <script src="../source/app/dji_mission_planner.js"></script>
 </body>

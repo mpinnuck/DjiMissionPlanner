@@ -179,6 +179,27 @@ button.active-mode-poi {
   aspect-ratio: 16 / 9;
 }
 
+#ftGraphOverlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 720px;
+  height: 180px;
+  z-index: 420;
+  display: none;
+  pointer-events: none;
+  background: rgba(10, 12, 16, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+#ftGraphCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 @media (max-width: 1200px) {
   #fpv-panel {
     right: 20px !important;
@@ -843,7 +864,7 @@ button.active-mode-poi {
 }
 
 .wp-options-modal {
-  width: min(360px, 82vw);
+  width: min(203px, 46.125vw);
   max-height: 72vh;
   background: rgba(10, 12, 16, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.2);
