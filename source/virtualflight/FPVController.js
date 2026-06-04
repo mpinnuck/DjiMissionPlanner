@@ -53,8 +53,8 @@ class FPVController {
 
     if (typeof FlightGraph === 'function') {
       this._flightGraph = new FlightGraph({
-        overlayElement: document.getElementById('ftGraphOverlay'),
-        canvasElement: document.getElementById('ftGraphCanvas')
+        overlayElement: options.graphOverlay || null,
+        canvasElement: options.graphCanvas || null
       });
     }
 

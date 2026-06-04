@@ -28,11 +28,17 @@ class App {
     this.onError = options.onError || (message => alert(message));
     this.waypointMarkers = new Map();
     this.poiMarkers = new Map();
+    this.currentMissionDefaultSpeedMps = this.ui.getDefaultSpeed();
 
     this.mapController = new MapController(options.mapElementId || 'map');
     const fpvPanel = document.getElementById('fpv-panel');
+    const graphOverlay = document.getElementById('ftGraphOverlay');
+    const graphCanvas = document.getElementById('ftGraphCanvas');
     this.fpv = (typeof FPVController === 'function' && fpvPanel)
-      ? new FPVController(fpvPanel)
+      ? new FPVController(fpvPanel, {
+        graphOverlay,
+        graphCanvas
+      })
       : null;
     this.isFPVVisible = false;
     this.flythrough = typeof FlythroughController === 'function'
@@ -167,6 +173,58 @@ class App {
       const droneName = this.activeDroneConfig.label || 'DJI Air 3S';
       this.showStatus(`Drone profile set: ${droneName}`);
     }
+  }
+
+  handleDefaultSpeedChange() {
+    const previousDefaultSpeed = this.currentMissionDefaultSpeedMps;
+    const nextDefaultSpeed = this.ui.getDefaultSpeed();
+    if (!Number.isFinite(nextDefaultSpeed)) {
+      return;
+    }
+
+    const speedChanged = !Number.isFinite(previousDefaultSpeed)
+      || Math.abs(nextDefaultSpeed - previousDefaultSpeed) > 0.0001;
+
+    if (speedChanged && Number.isFinite(previousDefaultSpeed)) {
+      this.waypoints.forEach(waypoint => {
+        if (Math.abs(waypoint.speed - previousDefaultSpeed) <= 0.01) {
+          waypoint.speed = nextDefaultSpeed;
+        }
+      });
+
+      this.syncFlythroughMission();
+      this.renderList();
+      if (this.selectedId && this.selectedType) {
+        this.showDetail(this.selectedId, this.selectedType);
+      }
+    }
+
+    this.currentMissionDefaultSpeedMps = nextDefaultSpeed;
+  }
+
+  applyDefaultSpeedToAllWaypoints() {
+    if (this.waypoints.length === 0) {
+      this.showStatus('No waypoints to update.');
+      return;
+    }
+
+    const speed = this.ui.getDefaultSpeed();
+    if (!Number.isFinite(speed) || speed <= 0) {
+      this.showStatus('Enter a valid default speed in km/h.');
+      return;
+    }
+
+    this.waypoints.forEach(waypoint => {
+      waypoint.speed = speed;
+    });
+
+    this.syncFlythroughMission();
+    this.renderList();
+    this.updateStats();
+    if (this.selectedId && this.selectedType) {
+      this.showDetail(this.selectedId, this.selectedType);
+    }
+    this.showStatus(`Applied ${Math.round(speed * 3.6)} km/h speed to ${this.waypoints.length} waypoints.`);
   }
 
   updateStats() {
@@ -335,9 +393,8 @@ class App {
     const hagMeters = this.heightAboveGroundByWaypointId.get(wp.id);
     const hagLabel = Number.isFinite(hagMeters) ? ` (${Math.round(hagMeters)})` : '';
     const assignedPoi = wp.poiId ? this.mission.findPOI(wp.poiId) : null;
-    const assignedPoiIndex = assignedPoi ? this.pois.indexOf(assignedPoi) : -1;
     const poiLabel = assignedPoi
-      ? `${assignedPoiIndex >= 0 ? assignedPoiIndex + 1 : '?'}`
+      ? Mission.formatPoiDisplayName(assignedPoi.name, '?')
       : 'None';
     const tooltipHtml = `
       <div class="wp-map-tooltip-content">
@@ -516,7 +573,7 @@ class App {
     }
 
     this.ui.showPOIOptionsDialog({
-      poiLabel: `POI ${poiIndex + 1}`,
+      poiLabel: Mission.formatPoiDisplayName(poi.name, String(poiIndex + 1)),
       positionText: `${poi.lat.toFixed(6)}, ${poi.lng.toFixed(6)}`,
       initialName: poi.name,
       initialAltitude: poi.alt,
@@ -869,7 +926,9 @@ class App {
       return poi1;
     }
 
-    const namedPoi1 = this.pois.find(poi => typeof poi.name === 'string' && poi.name.trim().toLowerCase() === 'poi 1');
+    const namedPoi1 = this.pois.find(poi => {
+      return Mission.formatPoiDisplayName(poi.name, '') === '1';
+    });
     if (namedPoi1) {
       return namedPoi1;
     }
@@ -1130,6 +1189,7 @@ class App {
 
     this.clearAllWithoutPrompt();
     this.ui.applyMissionSettings(state.settings);
+    this.currentMissionDefaultSpeedMps = this.ui.getDefaultSpeed();
     this.applyDroneConfiguration(false);
 
     state.pois.forEach(poi => {
@@ -1257,7 +1317,7 @@ class App {
 
     const takeoffPoi = this.getTakeoffPoi();
     if (!takeoffPoi) {
-      this.showStatus('Add POI 1 (takeoff reference) before applying constant HAG.');
+      this.showStatus('Add POI "1" (takeoff reference) before applying constant HAG.');
       return;
     }
 
@@ -1459,8 +1519,10 @@ class App {
       onExportChangeFolder: () => this.changeExportFolder(),
       onToggleFPV: () => this.toggleFPV(),
       onApplyDefaultAltitude: () => this.applyDefaultAltitudeToAllWaypoints(),
+      onApplyDefaultSpeed: () => this.applyDefaultSpeedToAllWaypoints(),
       onApplyConstantHag: () => this.applyConstantHeightAboveGround(),
-      onDroneConfigChange: () => this.applyDroneConfiguration()
+      onDroneConfigChange: () => this.applyDroneConfiguration(),
+      onDefaultSpeedChange: () => this.handleDefaultSpeedChange()
     });
 
     this.ui.bindFlythroughEvents({

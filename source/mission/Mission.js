@@ -46,6 +46,16 @@ class Mission {
     return d;
   }
 
+  static formatPoiDisplayName(name, fallback = '?') {
+    const raw = typeof name === 'string' ? name.trim() : '';
+    if (!raw) {
+      return String(fallback ?? '?');
+    }
+
+    const legacyMatch = raw.match(/^poi\s*(\d+)$/i);
+    return legacyMatch ? legacyMatch[1] : raw;
+  }
+
   createWaypoint(lat, lng, options = {}) {
     const altitude = Number.isFinite(options.altitude) ? options.altitude : 50;
     const speed = Number.isFinite(options.speed) ? options.speed : 8;
@@ -62,12 +72,13 @@ class Mission {
   }
 
   createPOI(lat, lng) {
+    const poiNumber = ++this.poiCounter;
     return {
-      id: 'poi_' + (++this.poiCounter),
+      id: 'poi_' + poiNumber,
       lat,
       lng,
       alt: 0,
-      name: 'POI ' + this.poiCounter
+      name: String(poiNumber)
     };
   }
 

@@ -31,6 +31,7 @@ class PlannerUI {
     this.defaultAltitudeInput = document.getElementById('defAlt');
     this.btnApplyDefaultAlt = document.getElementById('btnApplyDefaultAlt');
     this.defaultSpeedInput = document.getElementById('defSpeed');
+    this.btnApplyDefaultSpeed = document.getElementById('btnApplyDefaultSpeed');
     this.droneProfileSelect = document.getElementById('defDrone');
     this.cameraHfovInput = document.getElementById('defHfov');
     this.defaultConstHagInput = document.getElementById('defConstHag');
@@ -53,7 +54,7 @@ class PlannerUI {
 
   getDefaultSpeed() {
     const speedKmh = parseFloat(this.defaultSpeedInput.value);
-    return Number.isFinite(speedKmh) ? (speedKmh / 3.6).toFixed(2) : 8;
+    return Number.isFinite(speedKmh) ? Number((speedKmh / 3.6).toFixed(2)) : 8;
   }
 
   getConstantHeightAboveGround() {
@@ -153,6 +154,9 @@ class PlannerUI {
     if (this.btnApplyDefaultAlt && typeof handlers.onApplyDefaultAltitude === 'function') {
       this.btnApplyDefaultAlt.addEventListener('click', handlers.onApplyDefaultAltitude);
     }
+    if (this.btnApplyDefaultSpeed && typeof handlers.onApplyDefaultSpeed === 'function') {
+      this.btnApplyDefaultSpeed.addEventListener('click', handlers.onApplyDefaultSpeed);
+    }
     if (typeof handlers.onDroneConfigChange === 'function') {
       if (this.droneProfileSelect) {
         this.droneProfileSelect.addEventListener('change', () => {
@@ -163,6 +167,9 @@ class PlannerUI {
       if (this.cameraHfovInput) {
         this.cameraHfovInput.addEventListener('change', () => handlers.onDroneConfigChange());
       }
+    }
+    if (typeof handlers.onDefaultSpeedChange === 'function' && this.defaultSpeedInput) {
+      this.defaultSpeedInput.addEventListener('blur', () => handlers.onDefaultSpeedChange());
     }
     
     // Right-click or long-press to change export folder
@@ -277,7 +284,7 @@ class PlannerUI {
     body.className = 'wp-options-body';
     body.innerHTML = `
       <div class="wp-options-position">${positionText}</div>
-      <div class="wp-options-title">${poiLabel}</div>
+      <div class="wp-options-title">POI ${poiLabel}</div>
       <div class="wp-options-section">Height</div>
     `;
 
@@ -649,9 +656,10 @@ class PlannerUI {
     poiRow.className = 'wp-options-edit-row';
     const poiOptions = [
       '<option value="">- None -</option>',
-      ...(Array.isArray(pois) ? pois.map((poi, index) =>
-        `<option value="${poi.id}" ${currentPoiId === poi.id ? 'selected' : ''}>${index + 1}</option>`
-      ) : [])
+      ...(Array.isArray(pois) ? pois.map((poi, index) => {
+        const displayName = Mission.formatPoiDisplayName(poi.name, index + 1);
+        return `<option value="${poi.id}" ${currentPoiId === poi.id ? 'selected' : ''}>${displayName}</option>`;
+      }) : [])
     ].join('');
     poiRow.innerHTML = `
       <label>Point of Interest</label>
@@ -1064,6 +1072,10 @@ class PlannerUI {
   }) {
     this.wpList.innerHTML = '';
     const poiIndexById = new Map(pois.map((poi, index) => [poi.id, index + 1]));
+    const getPoiDisplayName = poi => {
+      const index = poiIndexById.get(poi?.id);
+      return Mission.formatPoiDisplayName(poi?.name, index);
+    };
     const all = [
       ...waypoints.map((waypoint, index) => ({ ...waypoint, _type: 'wp', _idx: index + 1 })),
       ...pois.map(poi => ({ ...poi, _type: 'poi' }))
@@ -1086,6 +1098,7 @@ class PlannerUI {
       if (item._type === 'wp' && selectedWaypointIds.has(item.id)) {
         div.classList.add('multi-selected');
       }
+      const poiDisplayName = item._type === 'poi' ? getPoiDisplayName(item) : null;
 
       let badge;
       let meta = '';
@@ -1140,7 +1153,6 @@ class PlannerUI {
         </div>`;
       } else {
         badge = '<span class="wp-badge poi">POI</span>';
-        const poiNumber = poiIndexById.has(item.id) ? String(poiIndexById.get(item.id)) : '?';
         const takeoffAsl = typeof resolveTakeoffGroundElevation === 'function'
           ? resolveTakeoffGroundElevation()
           : null;
@@ -1151,7 +1163,7 @@ class PlannerUI {
         meta = `<div class="wp-meta">
         <div class="wp-meta-row">
           <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
-          <span class="wp-meta-tag">No <span>${poiNumber}</span></span>
+          <span class="wp-meta-tag">POI <span>${poiDisplayName}</span></span>
           ${takeoffMeta}
         </div>
       </div>`;
@@ -1160,7 +1172,7 @@ class PlannerUI {
       div.innerHTML = `
       <div class="wp-item-header">
         ${badge}
-        <span class="wp-name">${item._type === 'poi' ? (poiIndexById.has(item.id) ? poiIndexById.get(item.id) : '?') : ('Waypoint ' + item._idx)}</span>
+        <span class="wp-name">${item._type === 'poi' ? poiDisplayName : ('Waypoint ' + item._idx)}</span>
         <button class="wp-del" data-id="${item.id}" data-type="${item._type}">✕</button>
       </div>
       <div class="wp-coords"><span>${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}</span>${coordExtra}</div>
@@ -1231,7 +1243,10 @@ class PlannerUI {
   }
 
   showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange }) {
-    const poiOptions = pois.map((poi, index) => `<option value="${poi.id}" ${wp.poiId === poi.id ? 'selected' : ''}>${index + 1}</option>`).join('');
+    const poiOptions = pois.map((poi, index) => {
+      const displayName = Mission.formatPoiDisplayName(poi.name, index + 1);
+      return `<option value="${poi.id}" ${wp.poiId === poi.id ? 'selected' : ''}>${displayName}</option>`;
+    }).join('');
     let computed = '';
     if (wp.poiId) {
       computed = `<div class="computed-row">
@@ -1283,11 +1298,10 @@ class PlannerUI {
   }
 
   showPOIDetail({ poi, onNameChange, onAltitudeChange }) {
-    const isTakeoffPoi = poi.id === 'poi_1'
-      || (typeof poi.name === 'string' && poi.name.trim().toLowerCase() === 'poi 1');
+    const isTakeoffPoi = poi.id === 'poi_1' || Mission.formatPoiDisplayName(poi.name, '') === '1';
     const takeoffNote = isTakeoffPoi
       ? 'This POI is currently used as the takeoff reference for terrain HAG calculations.'
-      : 'POI named "POI 1" is used as the takeoff reference for terrain HAG calculations.';
+      : 'POI named "1" is used as the takeoff reference for terrain HAG calculations.';
 
     this.detailContent.innerHTML = `
       <div class="field-row"><label>POI Name</label>
@@ -1311,7 +1325,10 @@ class PlannerUI {
   }
 
   showBulkWaypointDetail({ selectedCount, pois, onApply, onClearSelection }) {
-    const poiOptions = pois.map((poi, index) => `<option value="${poi.id}">${index + 1}</option>`).join('');
+    const poiOptions = pois.map((poi, index) => {
+      const displayName = Mission.formatPoiDisplayName(poi.name, index + 1);
+      return `<option value="${poi.id}">${displayName}</option>`;
+    }).join('');
     this.detailContent.innerHTML = `
       <div class="bulk-edit-header">
         <div class="bulk-edit-title">Bulk Waypoint Edit</div>

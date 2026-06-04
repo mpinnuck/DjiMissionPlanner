@@ -105,8 +105,9 @@
       </div>
       <div class="field-row">
         <label>Default Speed</label>
-        <input id="defSpeed" type="number" value="29" min="4" max="54" step="1"/>
+        <input id="defSpeed" type="number" value="43" min="4" max="54" step="1"/>
         <span class="unit">km/h</span>
+        <button class="ghost small-apply" id="btnApplyDefaultSpeed" title="Apply default speed to all waypoints">Apply all</button>
       </div>
       <div class="field-row">
         <label>Drone</label>
@@ -180,7 +181,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v3.4';
+  const APP_VERSION = 'v3.5';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {

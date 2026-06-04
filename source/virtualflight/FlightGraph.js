@@ -90,6 +90,8 @@ class FlightGraph {
       return;
     }
 
+    // Keep cursor scale aligned to the flythrough runtime timeline. Segment-based
+    // totals from buildData can differ slightly due to interpolation/rounding.
     if (Number.isFinite(totalTime) && totalTime > 0) {
       this._data.totalTime = totalTime;
     }

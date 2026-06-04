@@ -115,12 +115,13 @@ class MissionSerializer {
       .filter(item => item && typeof item === 'object')
       .map((poi, index) => {
         const id = typeof poi.id === 'string' && poi.id ? poi.id : `poi_${index + 1}`;
+        const normalizedName = Mission.formatPoiDisplayName(poi.name, index + 1);
         return {
           id,
           lat: Number.isFinite(poi.lat) ? poi.lat : 0,
           lng: Number.isFinite(poi.lng) ? poi.lng : 0,
           alt: Number.isFinite(poi.alt) ? poi.alt : 0,
-          name: typeof poi.name === 'string' && poi.name.trim() ? poi.name : `POI ${index + 1}`
+          name: normalizedName
         };
       });
   }
