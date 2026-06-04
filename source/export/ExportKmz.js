@@ -57,7 +57,7 @@ class ExportKmz {
     }
   }
 
-  export({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed }) {
+  export({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed, droneConfig = null }) {
     if (waypoints.length < 1) {
       this.onError('Add at least one waypoint before exporting.');
       return;
@@ -69,6 +69,12 @@ class ExportKmz {
     const hdgMode   = headingMode;
     const now       = Date.now();
     const lastIndex = waypoints.length - 1;
+    const droneEnumValue = Number.isInteger(droneConfig && droneConfig.droneEnumValue)
+      ? droneConfig.droneEnumValue
+      : 68;
+    const droneSubEnumValue = Number.isInteger(droneConfig && droneConfig.droneSubEnumValue)
+      ? droneConfig.droneSubEnumValue
+      : 0;
 
     // FIX 3: globalTransitionalSpeed must be >= every waypointSpeed.
     // Also guard against invalid values so NaN is never emitted into KMZ.
@@ -96,8 +102,8 @@ class ExportKmz {
       <wpml:executeRCLostAction>${rcLost}</wpml:executeRCLostAction>
       <wpml:globalTransitionalSpeed>${globalSpeed}</wpml:globalTransitionalSpeed>
       <wpml:droneInfo>
-        <wpml:droneEnumValue>68</wpml:droneEnumValue>
-        <wpml:droneSubEnumValue>0</wpml:droneSubEnumValue>
+        <wpml:droneEnumValue>${droneEnumValue}</wpml:droneEnumValue>
+        <wpml:droneSubEnumValue>${droneSubEnumValue}</wpml:droneSubEnumValue>
       </wpml:droneInfo>
     </wpml:missionConfig>`;
 

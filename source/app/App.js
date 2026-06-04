@@ -12,6 +12,17 @@ class App {
     this.activeWaypointPopup = null;
     this.mission = new Mission();
     this.ui = new PlannerUI({ mapElementId: options.mapElementId || 'map' });
+    this.droneProfiles = {
+      air3s: {
+        id: 'air3s',
+        label: 'DJI Air 3S',
+        hfovDeg: 82,
+        aspect: 16 / 9,
+        droneEnumValue: 68,
+        droneSubEnumValue: 0
+      }
+    };
+    this.activeDroneConfig = null;
 
     this.onStatus = options.onStatus || null;
     this.onError = options.onError || (message => alert(message));
@@ -19,6 +30,11 @@ class App {
     this.poiMarkers = new Map();
 
     this.mapController = new MapController(options.mapElementId || 'map');
+    const fpvPanel = document.getElementById('fpv-panel');
+    this.fpv = (typeof FPVController === 'function' && fpvPanel)
+      ? new FPVController(fpvPanel)
+      : null;
+    this.isFPVVisible = false;
     this.flythrough = typeof FlythroughController === 'function'
       ? new FlythroughController(this.mapController.map, {
         onProgress: (t, total) => this.ui.updateFlythroughProgress(
@@ -26,9 +42,15 @@ class App {
           total,
           total > 0 ? t / total : 0
         ),
-        onComplete: () => this.ui.setFlythroughStopped()
+        onComplete: () => this.ui.setFlythroughStopped(),
+        onFrame: frame => {
+          if (this.fpv) {
+            this.fpv.updateFrame(frame);
+          }
+        }
       })
       : null;
+    this.applyDroneConfiguration(false);
 
     this.locationService = new LocationService({
       onStatus: message => this.showStatus(message),
@@ -62,6 +84,8 @@ class App {
       ? new ElevationService({ onError: () => {} })
       : null;
     this.heightAboveGroundByWaypointId = new Map();
+    this.waypointGroundElevationById = new Map();
+    this.takeoffGroundElevation = null;
     this.hagRefreshTimer = null;
     this.hagRefreshToken = 0;
     this.storage = new PersistentStorage({
@@ -91,6 +115,47 @@ class App {
     this.ui.setStatus(message);
     if (this.onStatus) {
       this.onStatus(message);
+    }
+  }
+
+  getActiveDroneConfig() {
+    const selectedProfileId = this.ui && typeof this.ui.getDroneProfileId === 'function'
+      ? this.ui.getDroneProfileId()
+      : 'air3s';
+
+    if (selectedProfileId === 'custom') {
+      const customHfov = this.ui && typeof this.ui.getCameraHfov === 'function'
+        ? this.ui.getCameraHfov()
+        : 82;
+      const safeHfov = Number.isFinite(customHfov)
+        ? Math.min(140, Math.max(30, customHfov))
+        : 82;
+      return {
+        id: 'custom',
+        label: 'Custom Camera',
+        hfovDeg: safeHfov,
+        aspect: 16 / 9,
+        droneEnumValue: 68,
+        droneSubEnumValue: 0
+      };
+    }
+
+    return this.droneProfiles[selectedProfileId] || this.droneProfiles.air3s;
+  }
+
+  applyDroneConfiguration(showFeedback = true) {
+    this.activeDroneConfig = this.getActiveDroneConfig();
+
+    if (this.fpv && typeof this.fpv.setDroneConfig === 'function') {
+      this.fpv.setDroneConfig(this.activeDroneConfig);
+    }
+    if (this.flythrough && typeof this.flythrough.setDroneConfig === 'function') {
+      this.flythrough.setDroneConfig(this.activeDroneConfig);
+    }
+
+    if (showFeedback && this.activeDroneConfig) {
+      const droneName = this.activeDroneConfig.label || 'DJI Air 3S';
+      this.showStatus(`Drone profile set: ${droneName}`);
     }
   }
 
@@ -145,6 +210,7 @@ class App {
   }
 
   onWaypointMarkerClick(waypointId) {
+    this.ui.closePOIOptionsDialog();
     if (this.selectedType === 'poi') {
       this.selectedId = null;
       this.selectedType = null;
@@ -389,7 +455,10 @@ class App {
     const m = this.mapController.addPOIMarker(poi, {
       index: poiIndex >= 0 ? poiIndex + 1 : (this.pois.length + 1)
     });
-    m.on('click', () => this.selectItem(poi.id, 'poi'));
+    m.on('click', () => {
+      this.selectItem(poi.id, 'poi');
+      this.openPOIOptionsDialog(poi.id);
+    });
     m.on('dragend', e => {
       poi.lat = e.target.getLatLng().lat;
       poi.lng = e.target.getLatLng().lng;
@@ -402,6 +471,76 @@ class App {
       }
     });
     return m;
+  }
+
+  openPOIOptionsDialog(poiId) {
+    const poi = this.mission.findPOI(poiId);
+    if (!poi) {
+      return;
+    }
+
+    const poiIndex = this.pois.indexOf(poi);
+    if (poiIndex === -1) {
+      return;
+    }
+
+    const marker = this.poiMarkers.get(poiId);
+    let initialDialogPosition = null;
+    if (marker && typeof marker.getElement === 'function') {
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        const markerRect = markerElement.getBoundingClientRect();
+        initialDialogPosition = {
+          left: markerRect.right + 10,
+          top: markerRect.top
+        };
+      }
+    }
+
+    this.ui.showPOIOptionsDialog({
+      poiLabel: `POI ${poiIndex + 1}`,
+      positionText: `${poi.lat.toFixed(6)}, ${poi.lng.toFixed(6)}`,
+      initialName: poi.name,
+      initialAltitude: poi.alt,
+      initialPosition: initialDialogPosition,
+      onClose: () => this.ui.closePOIOptionsDialog(),
+      onDelete: () => {
+        this.ui.closePOIOptionsDialog();
+        this.deleteItem(poiId, 'poi');
+      },
+      onPrevious: () => {
+        const prev = this.pois[poiIndex - 1];
+        if (!prev) {
+          return;
+        }
+        this.selectItem(prev.id, 'poi');
+        this.openPOIOptionsDialog(prev.id);
+      },
+      onNext: () => {
+        const next = this.pois[poiIndex + 1];
+        if (!next) {
+          return;
+        }
+        this.selectItem(next.id, 'poi');
+        this.openPOIOptionsDialog(next.id);
+      },
+      onNameChange: nameValue => {
+        poi.name = nameValue;
+        this.renderList();
+        if (this.selectedId === poi.id) {
+          this.showDetail(poi.id, 'poi');
+        }
+      },
+      onAltitudeChange: altitudeValue => {
+        poi.alt = Number.isFinite(altitudeValue) ? altitudeValue : poi.alt;
+        this.recomputeAllPOI();
+        this.syncFlythroughMission();
+        this.renderList();
+        if (this.selectedId === poi.id) {
+          this.showDetail(poi.id, 'poi');
+        }
+      }
+    });
   }
 
   recomputePOI(wp) {
@@ -425,6 +564,9 @@ class App {
     }
 
     this.flythrough.setMission(this.waypoints);
+    if (this.fpv) {
+      this.fpv.setMission(this.waypoints);
+    }
     this.ui.updateFlythroughProgress(
       this.flythrough.currentTime,
       this.flythrough.totalTime,
@@ -479,6 +621,7 @@ class App {
         if (hasSelection) {
           this.closeWaypointTooltip();
           this.ui.closeWaypointOptionsDialog();
+          this.ui.closePOIOptionsDialog();
           this.clearSelection(true);
         }
       }
@@ -507,6 +650,9 @@ class App {
     if (type !== 'wp') {
       this.closeWaypointTooltip();
       this.ui.closeWaypointOptionsDialog();
+    }
+    if (type !== 'poi') {
+      this.ui.closePOIOptionsDialog();
     }
     if (type === 'wp') {
       this.lastWaypointAnchorId = id;
@@ -668,6 +814,8 @@ class App {
       selectedWaypointIds: this.selectedWaypointIds,
       resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
       resolveWaypointHeightAboveGround: waypoint => this.heightAboveGroundByWaypointId.get(waypoint.id),
+      resolveWaypointGroundElevation: waypoint => this.waypointGroundElevationById.get(waypoint.id),
+      resolveTakeoffGroundElevation: () => this.takeoffGroundElevation,
       resolveWaypointLegDistance: (waypoint, index) => {
         if (index <= 0) {
           return 0;
@@ -752,6 +900,12 @@ class App {
     }
 
     let updated = false;
+
+    if (!Number.isFinite(this.takeoffGroundElevation) || Math.abs(this.takeoffGroundElevation - takeoffGround) > 0.05) {
+      this.takeoffGroundElevation = takeoffGround;
+      updated = true;
+    }
+
     this.waypoints.forEach(waypoint => {
       const waypointKey = this.elevationService._key(waypoint.lat, waypoint.lng);
       const waypointGround = elevations.get(waypointKey);
@@ -759,12 +913,17 @@ class App {
         return;
       }
 
-      // HOG formula requested by user:
-      // Hog = Hw + HASw - HASpoi1
-      // Hw: waypoint height above takeoff (wp.alt)
-      // HASw: waypoint ground height above sea level (terrain at waypoint)
-      // HASpoi1: POI1 ground height above sea level (terrain at takeoff)
-      const groundRelativeToTakeoff = waypoint.alt + waypointGround - takeoffGround;
+      const previousGround = this.waypointGroundElevationById.get(waypoint.id);
+      if (!Number.isFinite(previousGround) || Math.abs(previousGround - waypointGround) > 0.05) {
+        this.waypointGroundElevationById.set(waypoint.id, waypointGround);
+        updated = true;
+      }
+
+      // Height above local ground (HAG):
+      // HAG = (takeoffGround + wp.alt) - waypointGround
+      //     = wp.alt + takeoffGround - waypointGround
+      // wp.alt is relative-to-start-point height used by mission execution.
+      const groundRelativeToTakeoff = waypoint.alt + takeoffGround - waypointGround;
       const previous = this.heightAboveGroundByWaypointId.get(waypoint.id);
       if (!Number.isFinite(previous) || Math.abs(previous - groundRelativeToTakeoff) > 0.05) {
         this.heightAboveGroundByWaypointId.set(waypoint.id, groundRelativeToTakeoff);
@@ -780,6 +939,8 @@ class App {
         selectedWaypointIds: this.selectedWaypointIds,
         resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
         resolveWaypointHeightAboveGround: waypoint => this.heightAboveGroundByWaypointId.get(waypoint.id),
+        resolveWaypointGroundElevation: waypoint => this.waypointGroundElevationById.get(waypoint.id),
+        resolveTakeoffGroundElevation: () => this.takeoffGroundElevation,
         resolveWaypointLegDistance: (waypoint, index) => {
           if (index <= 0) {
             return 0;
@@ -923,6 +1084,9 @@ class App {
     this.poiMarkers.forEach(marker => this.mapController.removeLayer(marker));
     this.waypointMarkers.clear();
     this.poiMarkers.clear();
+    this.heightAboveGroundByWaypointId.clear();
+    this.waypointGroundElevationById.clear();
+    this.takeoffGroundElevation = null;
     this.mission.clear();
     this.mapController.clearRoute();
     this.syncFlythroughMission();
@@ -948,6 +1112,7 @@ class App {
 
     this.clearAllWithoutPrompt();
     this.ui.applyMissionSettings(state.settings);
+    this.applyDroneConfiguration(false);
 
     state.pois.forEach(poi => {
       const poiCopy = { ...poi };
@@ -982,7 +1147,8 @@ class App {
       finishAction: this.ui.getFinishAction(),
       rcLostAction: this.ui.getRcLostAction(),
       headingMode: this.ui.getHeadingMode(),
-      defaultSpeed: this.ui.getDefaultSpeed()
+      defaultSpeed: this.ui.getDefaultSpeed(),
+      droneConfig: this.activeDroneConfig
     });
   }
 
@@ -1004,6 +1170,7 @@ class App {
   clearSelection(silent = false) {
     this.closeWaypointTooltip();
     this.ui.closeWaypointOptionsDialog();
+    this.ui.closePOIOptionsDialog();
     this.selectedWaypointIds.clear();
     this.selectedId = null;
     this.selectedType = null;
@@ -1025,6 +1192,142 @@ class App {
     } catch (error) {
       this.onError(error.message || 'Failed to save mission file.');
       this.ui.showToast(error.message || 'Failed to save mission file.', 'error');
+    }
+  }
+
+  applyDefaultAltitudeToAllWaypoints() {
+    if (this.waypoints.length === 0) {
+      this.showStatus('No waypoints to update.');
+      return;
+    }
+
+    const altitude = this.ui.getDefaultAltitude();
+    if (!Number.isFinite(altitude) || altitude <= 0) {
+      this.showStatus('Enter a valid default altitude in meters.');
+      return;
+    }
+
+    this.waypoints.forEach(waypoint => {
+      waypoint.alt = altitude;
+      this.recomputePOI(waypoint);
+    });
+
+    this.syncFlythroughMission();
+    this.renderList();
+    this.updateStats();
+    if (this.selectedId && this.selectedType) {
+      this.showDetail(this.selectedId, this.selectedType);
+    }
+    this.showStatus(`Applied ${Math.round(altitude)} m altitude to ${this.waypoints.length} waypoints.`);
+  }
+
+  async applyConstantHeightAboveGround() {
+    if (!this.elevationService) {
+      this.showStatus('Elevation service unavailable.');
+      return;
+    }
+    if (this.waypoints.length === 0) {
+      this.showStatus('No waypoints to update.');
+      return;
+    }
+
+    const targetHag = this.ui.getConstantHeightAboveGround();
+    if (!Number.isFinite(targetHag) || targetHag <= 0) {
+      this.showStatus('Enter a valid constant HAG value in meters.');
+      return;
+    }
+
+    const takeoffPoi = this.getTakeoffPoi();
+    if (!takeoffPoi) {
+      this.showStatus('Add POI 1 (takeoff reference) before applying constant HAG.');
+      return;
+    }
+
+    const points = [
+      { key: '__takeoff__', lat: takeoffPoi.lat, lng: takeoffPoi.lng },
+      ...this.waypoints.map(waypoint => ({ key: waypoint.id, lat: waypoint.lat, lng: waypoint.lng }))
+    ];
+
+    const elevations = await this.elevationService.getElevations(points);
+    const takeoffKey = this.elevationService._key(takeoffPoi.lat, takeoffPoi.lng);
+    const takeoffGround = elevations.get(takeoffKey);
+    if (!Number.isFinite(takeoffGround)) {
+      this.showStatus('Unable to resolve takeoff elevation.');
+      return;
+    }
+
+    let updatedCount = 0;
+    this.waypoints.forEach(waypoint => {
+      const waypointKey = this.elevationService._key(waypoint.lat, waypoint.lng);
+      const waypointGround = elevations.get(waypointKey);
+      if (!Number.isFinite(waypointGround)) {
+        return;
+      }
+
+      // Keep a constant height above ground:
+      // HAG = wp.alt + waypointGround - takeoffGround
+      // => wp.alt = targetHag + waypointGround - takeoffGround
+      waypoint.alt = Math.round((targetHag + waypointGround - takeoffGround) * 100) / 100;
+      this.recomputePOI(waypoint);
+      updatedCount += 1;
+    });
+
+    this.syncFlythroughMission();
+    this.renderList();
+    this.updateStats();
+    if (this.selectedId && this.selectedType) {
+      this.showDetail(this.selectedId, this.selectedType);
+    }
+    this.showStatus(`Applied ${targetHag} m HAG to ${updatedCount} waypoints.`);
+  }
+
+  isTypingInEditableControl() {
+    const active = document.activeElement;
+    if (!active) {
+      return false;
+    }
+
+    const tag = active.tagName ? active.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+      return true;
+    }
+
+    return !!active.isContentEditable;
+  }
+
+  async copySelectedWaypointsToClipboard() {
+    const selectedWaypoints = this.waypoints.filter(waypoint => this.selectedWaypointIds.has(waypoint.id));
+    if (selectedWaypoints.length < 2) {
+      return false;
+    }
+
+    const payload = JSON.stringify(selectedWaypoints, null, 2);
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(payload);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = payload;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (!copied) {
+          throw new Error('Clipboard copy command was rejected.');
+        }
+      }
+
+      this.showStatus(`Copied ${selectedWaypoints.length} waypoints to clipboard.`);
+      this.ui.showToast(`Copied ${selectedWaypoints.length} waypoints`, 'success');
+      return true;
+    } catch (error) {
+      this.showStatus(`Unable to copy waypoints: ${error.message}`);
+      this.ui.showToast('Unable to copy selected waypoints.', 'error');
+      return false;
     }
   }
 
@@ -1109,7 +1412,11 @@ class App {
       onSaveMission: () => this.doSaveMission(),
       onLoadMission: () => this.doLoadMission(),
       onExport: () => this.doExport(),
-      onExportChangeFolder: () => this.changeExportFolder()
+      onExportChangeFolder: () => this.changeExportFolder(),
+      onToggleFPV: () => this.toggleFPV(),
+      onApplyDefaultAltitude: () => this.applyDefaultAltitudeToAllWaypoints(),
+      onApplyConstantHag: () => this.applyConstantHeightAboveGround(),
+      onDroneConfigChange: () => this.applyDroneConfiguration()
     });
 
     this.ui.bindFlythroughEvents({
@@ -1153,5 +1460,40 @@ class App {
         this.flythrough.seekTo(fraction);
       }
     });
+
+    window.addEventListener('keydown', async event => {
+      const isCopyShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'c';
+      if (!isCopyShortcut) {
+        return;
+      }
+      if (this.selectedWaypointIds.size < 2 || this.isTypingInEditableControl()) {
+        return;
+      }
+
+      event.preventDefault();
+      await this.copySelectedWaypointsToClipboard();
+    });
+
+    window.addEventListener('resize', () => {
+      if (this.fpv && this.isFPVVisible) {
+        this.fpv.resize();
+      }
+    });
+  }
+
+  toggleFPV() {
+    if (!this.fpv) {
+      this.showStatus('FPV view unavailable (Three.js not loaded).');
+      return;
+    }
+
+    this.isFPVVisible = !this.isFPVVisible;
+    if (this.isFPVVisible) {
+      this.fpv.show();
+      this.showStatus('FPV view enabled.');
+    } else {
+      this.fpv.hide();
+      this.showStatus('FPV view hidden.');
+    }
   }
 }

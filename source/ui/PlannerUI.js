@@ -19,6 +19,7 @@ class PlannerUI {
     this.btnSaveMission = document.getElementById('btnSaveMission');
     this.btnLoadMission = document.getElementById('btnLoadMission');
     this.btnExport = document.getElementById('btnExport');
+    this.btnFPV = document.getElementById('btnFPV');
     this.btnFTPlay = document.getElementById('btnFTPlay');
     this.btnFTPause = document.getElementById('btnFTPause');
     this.btnFTStop = document.getElementById('btnFTStop');
@@ -28,11 +29,18 @@ class PlannerUI {
     this.ftProgress = document.getElementById('ftProgress');
     this.missionNameInput = document.getElementById('missionName');
     this.defaultAltitudeInput = document.getElementById('defAlt');
+    this.btnApplyDefaultAlt = document.getElementById('btnApplyDefaultAlt');
     this.defaultSpeedInput = document.getElementById('defSpeed');
+    this.droneProfileSelect = document.getElementById('defDrone');
+    this.cameraHfovInput = document.getElementById('defHfov');
+    this.defaultConstHagInput = document.getElementById('defConstHag');
+    this.btnApplyConstHag = document.getElementById('btnApplyConstHag');
     this.finishActionSelect = document.getElementById('defFinish');
     this.rcLostActionSelect = document.getElementById('defRCLost');
     this.headingModeSelect = document.getElementById('defHeading');
     this.touchRangeSelection = null;
+
+    this.updateDroneInputsState();
   }
 
   getMissionName() {
@@ -46,6 +54,30 @@ class PlannerUI {
   getDefaultSpeed() {
     const speedKmh = parseFloat(this.defaultSpeedInput.value);
     return Number.isFinite(speedKmh) ? (speedKmh / 3.6).toFixed(2) : 8;
+  }
+
+  getConstantHeightAboveGround() {
+    return parseFloat(this.defaultConstHagInput?.value);
+  }
+
+  getDroneProfileId() {
+    return this.droneProfileSelect ? this.droneProfileSelect.value : 'air3s';
+  }
+
+  getCameraHfov() {
+    const value = parseFloat(this.cameraHfovInput?.value);
+    return Number.isFinite(value) ? value : 82;
+  }
+
+  updateDroneInputsState() {
+    if (!this.cameraHfovInput) {
+      return;
+    }
+    const isCustom = this.getDroneProfileId() === 'custom';
+    this.cameraHfovInput.disabled = !isCustom;
+    if (!isCustom) {
+      this.cameraHfovInput.value = '82';
+    }
   }
 
   getFinishAction() {
@@ -65,6 +97,8 @@ class PlannerUI {
       missionName: this.getMissionName(),
       defaultAltitude: this.getDefaultAltitude(),
       defaultSpeed: this.getDefaultSpeed(),
+      droneProfile: this.getDroneProfileId(),
+      cameraHfov: this.getCameraHfov(),
       finishAction: this.getFinishAction(),
       rcLostAction: this.getRcLostAction(),
       headingMode: this.getHeadingMode()
@@ -81,6 +115,12 @@ class PlannerUI {
     if (Number.isFinite(settings.defaultSpeed)) {
       this.defaultSpeedInput.value = (settings.defaultSpeed * 3.6).toFixed(1);
     }
+    if (typeof settings.droneProfile === 'string' && this.droneProfileSelect) {
+      this.droneProfileSelect.value = settings.droneProfile;
+    }
+    if (Number.isFinite(settings.cameraHfov) && this.cameraHfovInput) {
+      this.cameraHfovInput.value = String(Math.round(settings.cameraHfov));
+    }
     if (typeof settings.finishAction === 'string') {
       this.finishActionSelect.value = settings.finishAction;
     }
@@ -90,6 +130,8 @@ class PlannerUI {
     if (typeof settings.headingMode === 'string') {
       this.headingModeSelect.value = settings.headingMode;
     }
+
+    this.updateDroneInputsState();
   }
 
   bindToolbarEvents(handlers) {
@@ -102,6 +144,26 @@ class PlannerUI {
     this.btnSaveMission.addEventListener('click', handlers.onSaveMission);
     this.btnLoadMission.addEventListener('click', handlers.onLoadMission);
     this.btnExport.addEventListener('click', handlers.onExport);
+    if (this.btnFPV && typeof handlers.onToggleFPV === 'function') {
+      this.btnFPV.addEventListener('click', handlers.onToggleFPV);
+    }
+    if (this.btnApplyConstHag && typeof handlers.onApplyConstantHag === 'function') {
+      this.btnApplyConstHag.addEventListener('click', handlers.onApplyConstantHag);
+    }
+    if (this.btnApplyDefaultAlt && typeof handlers.onApplyDefaultAltitude === 'function') {
+      this.btnApplyDefaultAlt.addEventListener('click', handlers.onApplyDefaultAltitude);
+    }
+    if (typeof handlers.onDroneConfigChange === 'function') {
+      if (this.droneProfileSelect) {
+        this.droneProfileSelect.addEventListener('change', () => {
+          this.updateDroneInputsState();
+          handlers.onDroneConfigChange();
+        });
+      }
+      if (this.cameraHfovInput) {
+        this.cameraHfovInput.addEventListener('change', () => handlers.onDroneConfigChange());
+      }
+    }
     
     // Right-click or long-press to change export folder
     if (typeof handlers.onExportChangeFolder === 'function') {
@@ -162,6 +224,250 @@ class PlannerUI {
     if (existing) {
       existing.remove();
     }
+  }
+
+  closePOIOptionsDialog() {
+    const existing = document.getElementById('poiOptionsModal');
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  showPOIOptionsDialog({
+    poiLabel,
+    positionText,
+    initialName,
+    initialAltitude,
+    initialPosition,
+    onClose,
+    onDelete,
+    onPrevious,
+    onNext,
+    onNameChange,
+    onAltitudeChange
+  }) {
+    this.closePOIOptionsDialog();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'poiOptionsModal';
+    overlay.className = 'wp-options-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'wp-options-modal poi-options-modal';
+
+    const header = document.createElement('div');
+    header.className = 'wp-options-header';
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'wp-options-delete';
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', () => onDelete());
+
+    const doneButton = document.createElement('button');
+    doneButton.type = 'button';
+    doneButton.className = 'wp-options-done';
+    doneButton.textContent = 'Done';
+    doneButton.addEventListener('click', () => onClose());
+
+    header.appendChild(deleteButton);
+    header.appendChild(doneButton);
+
+    const body = document.createElement('div');
+    body.className = 'wp-options-body';
+    body.innerHTML = `
+      <div class="wp-options-position">${positionText}</div>
+      <div class="wp-options-title">${poiLabel}</div>
+      <div class="wp-options-section">Height</div>
+    `;
+
+    const altitudeBlock = document.createElement('div');
+    altitudeBlock.className = 'wp-options-altitude-block';
+
+    const valueRow = document.createElement('div');
+    valueRow.className = 'wp-options-altitude-values';
+
+    const formatAltitudeLabel = altitudeMeters => {
+      if (!Number.isFinite(altitudeMeters)) {
+        return '0 m';
+      }
+      return `${Math.round(altitudeMeters)} m`;
+    };
+
+    valueRow.innerHTML = `
+      <span>-500 m</span>
+      <strong id="poiOptionsAltitudeValue">${formatAltitudeLabel(initialAltitude)}</strong>
+      <span>500 m</span>
+    `;
+
+    const controls = document.createElement('div');
+    controls.className = 'wp-options-altitude-controls';
+
+    const minusButton = document.createElement('button');
+    minusButton.type = 'button';
+    minusButton.className = 'wp-options-step';
+    minusButton.textContent = '−';
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '-500';
+    slider.max = '500';
+    slider.step = '1';
+    slider.value = String(Math.max(-500, Math.min(500, Math.round(initialAltitude))));
+
+    const plusButton = document.createElement('button');
+    plusButton.type = 'button';
+    plusButton.className = 'wp-options-step';
+    plusButton.textContent = '+';
+
+    const altitudeRow = document.createElement('div');
+    altitudeRow.className = 'wp-options-edit-row';
+    altitudeRow.innerHTML = `
+      <label>Height</label>
+      <input type="number" min="-500" max="500" step="1" value="${Math.max(-500, Math.min(500, Math.round(initialAltitude)))}" />
+      <span>m</span>
+    `;
+    const altitudeInput = altitudeRow.querySelector('input');
+
+    const updateAltitude = newValue => {
+      const clamped = Math.max(-500, Math.min(500, Math.round(newValue)));
+      slider.value = String(clamped);
+      if (altitudeInput && document.activeElement !== altitudeInput) {
+        altitudeInput.value = String(clamped);
+      }
+      const valueLabel = valueRow.querySelector('#poiOptionsAltitudeValue');
+      if (valueLabel) {
+        valueLabel.textContent = formatAltitudeLabel(clamped);
+      }
+      onAltitudeChange(clamped);
+    };
+
+    slider.addEventListener('input', () => updateAltitude(parseFloat(slider.value)));
+    minusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) - 1));
+    plusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) + 1));
+    altitudeInput.addEventListener('input', () => updateAltitude(parseFloat(altitudeInput.value)));
+
+    controls.appendChild(minusButton);
+    controls.appendChild(slider);
+    controls.appendChild(plusButton);
+
+    altitudeBlock.appendChild(valueRow);
+    altitudeBlock.appendChild(controls);
+    body.appendChild(altitudeBlock);
+    body.appendChild(altitudeRow);
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'wp-options-edit-row';
+    nameRow.innerHTML = `
+      <label>Name</label>
+      <input type="text" value="${initialName || ''}" />
+      <span></span>
+    `;
+    const nameInput = nameRow.querySelector('input');
+    nameInput.addEventListener('input', () => onNameChange(nameInput.value));
+    body.appendChild(nameRow);
+
+    const footer = document.createElement('div');
+    footer.className = 'wp-options-footer';
+
+    const prevButton = document.createElement('button');
+    prevButton.type = 'button';
+    prevButton.className = 'wp-options-nav';
+    prevButton.textContent = 'Previous';
+    prevButton.addEventListener('click', () => onPrevious());
+
+    const nextButton = document.createElement('button');
+    nextButton.type = 'button';
+    nextButton.className = 'wp-options-nav';
+    nextButton.textContent = 'Next';
+    nextButton.addEventListener('click', () => onNext());
+
+    footer.appendChild(prevButton);
+    footer.appendChild(nextButton);
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const dragPadding = 10;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const positionModalWithinViewport = (desiredLeft, desiredTop) => {
+      const rect = modal.getBoundingClientRect();
+      const maxLeft = Math.max(dragPadding, window.innerWidth - rect.width - dragPadding);
+      const maxTop = Math.max(dragPadding, window.innerHeight - rect.height - dragPadding);
+      modal.style.left = `${clamp(desiredLeft, dragPadding, maxLeft)}px`;
+      modal.style.top = `${clamp(desiredTop, dragPadding, maxTop)}px`;
+    };
+
+    const initialRect = modal.getBoundingClientRect();
+    const desiredInitialLeft = initialPosition && Number.isFinite(initialPosition.left)
+      ? initialPosition.left
+      : initialRect.left;
+    const desiredInitialTop = initialPosition && Number.isFinite(initialPosition.top)
+      ? initialPosition.top
+      : initialRect.top;
+    modal.style.position = 'fixed';
+    modal.style.margin = '0';
+    modal.style.left = `${desiredInitialLeft}px`;
+    modal.style.top = `${desiredInitialTop}px`;
+    positionModalWithinViewport(desiredInitialLeft, desiredInitialTop);
+
+    let dragState = null;
+
+    const stopDragging = event => {
+      if (!dragState) {
+        return;
+      }
+      if (event && typeof dragState.pointerId === 'number' && header.hasPointerCapture(dragState.pointerId)) {
+        header.releasePointerCapture(dragState.pointerId);
+      }
+      dragState = null;
+      header.classList.remove('is-dragging');
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', stopDragging, true);
+      document.removeEventListener('pointercancel', stopDragging, true);
+    };
+
+    const onPointerMove = event => {
+      if (!dragState || event.pointerId !== dragState.pointerId) {
+        return;
+      }
+      const nextLeft = event.clientX - dragState.offsetX;
+      const nextTop = event.clientY - dragState.offsetY;
+      positionModalWithinViewport(nextLeft, nextTop);
+    };
+
+    header.addEventListener('pointerdown', event => {
+      if (event.button !== 0) {
+        return;
+      }
+      if (event.target.closest('button, input, select, textarea, a, label')) {
+        return;
+      }
+
+      const rect = modal.getBoundingClientRect();
+      dragState = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top
+      };
+
+      header.classList.add('is-dragging');
+      header.setPointerCapture(event.pointerId);
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', stopDragging, true);
+      document.addEventListener('pointercancel', stopDragging, true);
+      event.preventDefault();
+    });
+
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) {
+        stopDragging();
+        onClose();
+      }
+    });
   }
 
   showWaypointOptionsDialog({
@@ -706,6 +1012,8 @@ class PlannerUI {
     selectedWaypointIds = new Set(),
     resolvePoiName,
     resolveWaypointHeightAboveGround,
+    resolveWaypointGroundElevation,
+    resolveTakeoffGroundElevation,
     resolveWaypointLegDistance,
     onSelect,
     onDelete,
@@ -747,7 +1055,16 @@ class PlannerUI {
         const hagMeters = typeof resolveWaypointHeightAboveGround === 'function'
           ? resolveWaypointHeightAboveGround(item)
           : null;
-        const hagLabel = Number.isFinite(hagMeters) ? `${Math.round(hagMeters)}` : '—';
+        const hagLabel = Number.isFinite(hagMeters) ? `${Math.round(hagMeters)}m` : '—';
+        const groundAsl = typeof resolveWaypointGroundElevation === 'function'
+          ? resolveWaypointGroundElevation(item)
+          : null;
+        const takeoffAsl = typeof resolveTakeoffGroundElevation === 'function'
+          ? resolveTakeoffGroundElevation()
+          : null;
+        const groundAslLabel = Number.isFinite(groundAsl) ? `${Math.round(groundAsl)}m` : '—';
+        const headingLabel = Number.isFinite(item.heading) ? `${item.heading.toFixed(1)}°` : '—';
+        const pitchLabel = Number.isFinite(item.gimbalPitch) ? `${item.gimbalPitch.toFixed(1)}°` : '—';
         const legDistanceMeters = typeof resolveWaypointLegDistance === 'function'
           ? resolveWaypointLegDistance(item, item._idx - 1)
           : null;
@@ -758,7 +1075,8 @@ class PlannerUI {
         meta = `
         <div class="wp-meta">
           <div class="wp-meta-row">
-            <span class="wp-meta-tag">Alt <span>${item.alt}m (${hagLabel})</span></span>
+            <span class="wp-meta-tag">Alt <span>${Math.round(item.alt)}m</span></span>
+            <span class="wp-meta-tag">HAG <span>${hagLabel}</span></span>
             <span class="wp-meta-tag">Speed <span>${(item.speed * 3.6).toFixed(1)}km/h</span></span>
           </div>
           ${item.poiId ? `
@@ -766,17 +1084,31 @@ class PlannerUI {
             <span class="wp-meta-tag">POI <span>${poiName}</span></span>
           </div>
           ` : ''}
-          <div class="wp-meta-row wp-meta-row-computed">
-            ${item.poiId ? `<span class="wp-meta-tag wp-meta-tag-computed">Hdg <span>${item.heading.toFixed(1)}°</span></span>` : ''}
-            ${item.poiId ? `<span class="wp-meta-tag wp-meta-tag-computed">Pitch <span>${item.gimbalPitch.toFixed(1)}°</span></span>` : ''}
+          <div class="wp-meta-row wp-meta-row-computed wp-meta-row-computed-headings">
+            <span class="wp-meta-tag wp-meta-tag-computed">Gnd ASL</span>
+            <span class="wp-meta-tag wp-meta-tag-computed">Hdg</span>
+            <span class="wp-meta-tag wp-meta-tag-computed">Pitch</span>
+          </div>
+          <div class="wp-meta-row wp-meta-row-computed wp-meta-row-computed-values">
+            <span class="wp-meta-tag wp-meta-tag-computed"><span>${groundAslLabel}</span></span>
+            <span class="wp-meta-tag wp-meta-tag-computed"><span>${headingLabel}</span></span>
+            <span class="wp-meta-tag wp-meta-tag-computed"><span>${pitchLabel}</span></span>
           </div>
         </div>`;
       } else {
         badge = '<span class="wp-badge poi">POI</span>';
+        const takeoffAsl = typeof resolveTakeoffGroundElevation === 'function'
+          ? resolveTakeoffGroundElevation()
+          : null;
+        const takeoffAslLabel = Number.isFinite(takeoffAsl) ? `${Math.round(takeoffAsl)}m` : '—';
+        const takeoffMeta = item.id === 'poi_1'
+          ? `<span class="wp-meta-tag wp-meta-tag-computed">Tko ASL <span>${takeoffAslLabel}</span></span>`
+          : '';
         meta = `<div class="wp-meta">
         <div class="wp-meta-row">
           <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
           <span class="wp-meta-tag">${item.name}</span>
+          ${takeoffMeta}
         </div>
       </div>`;
       }

@@ -25,15 +25,16 @@
  */
 class FlythroughController {
 
-  // ── Camera constants (DJI Air 3S, 16:9 video) ──────────────────────────
-  static HFOV_DEG = 82;
-  static VFOV_DEG = 52.1;   // 2 * atan(tan(41°) * 9/16)
+  // ── Default camera constants (Air 3S, 16:9 video) ──────────────────────
+  static DEFAULT_HFOV_DEG = 82;
+  static DEFAULT_ASPECT = 16 / 9;
   static EARTH_R  = 6371000;
 
   constructor(leafletMap, options = {}) {
     this._map       = leafletMap;
     this.onProgress = options.onProgress || null;  // fn(currentTimeSec, totalTimeSec)
     this.onComplete = options.onComplete  || null;
+    this.onFrame    = options.onFrame     || null;
 
     this._droneLayer = null;   // L.Marker
     this._telemetryPopup = null; // L.Popup
@@ -43,6 +44,13 @@ class FlythroughController {
     this._showFOV    = false;
     this._activeFrame = null;
     this._draggingDrone = false;
+    this._hfovDeg = FlythroughController.DEFAULT_HFOV_DEG;
+    this._vfovDeg = 2 * Math.atan(
+      Math.tan(FlythroughController.DEFAULT_HFOV_DEG * 0.5 * Math.PI / 180)
+      / FlythroughController.DEFAULT_ASPECT
+    ) * 180 / Math.PI;
+
+    this.setDroneConfig(options.droneConfig || null);
 
     this._timeline   = [];     // [{time, lat, lng, heading, alt, gimbalPitch}]
     this._totalTime  = 0;      // seconds
@@ -150,6 +158,26 @@ class FlythroughController {
     }
   }
 
+  setDroneConfig(droneConfig) {
+    const hfov = Number(droneConfig && droneConfig.hfovDeg);
+    const aspect = Number(droneConfig && droneConfig.aspect);
+    const safeHfov = Number.isFinite(hfov) && hfov > 10 && hfov < 170
+      ? hfov
+      : FlythroughController.DEFAULT_HFOV_DEG;
+    const safeAspect = Number.isFinite(aspect) && aspect > 0.2 && aspect < 5
+      ? aspect
+      : FlythroughController.DEFAULT_ASPECT;
+
+    this._hfovDeg = safeHfov;
+    this._vfovDeg = 2 * Math.atan(
+      Math.tan(safeHfov * 0.5 * Math.PI / 180) / safeAspect
+    ) * 180 / Math.PI;
+
+    if (Array.isArray(this._timeline) && this._timeline.length) {
+      this._updateDisplay(this._getFrame(this._missionTime));
+    }
+  }
+
   destroy() {
     this.stop();
     this._clearLayers();
@@ -165,7 +193,9 @@ class FlythroughController {
 
     if (this._missionTime >= this._totalTime) {
       this._missionTime = this._totalTime;
-      this._updateDisplay(this._getFrame(this._missionTime));
+      const frame = this._getFrame(this._missionTime);
+      this._updateDisplay(frame);
+      if (this.onFrame) this.onFrame(frame);
       this._playing = false;
       this._rafHandle = null;
       if (this.onProgress) this.onProgress(this._missionTime, this._totalTime);
@@ -173,7 +203,9 @@ class FlythroughController {
       return;
     }
 
-    this._updateDisplay(this._getFrame(this._missionTime));
+    const frame = this._getFrame(this._missionTime);
+    this._updateDisplay(frame);
+    if (this.onFrame) this.onFrame(frame);
     if (this.onProgress) this.onProgress(this._missionTime, this._totalTime);
 
     this._rafHandle = requestAnimationFrame(ts => this._tick(ts));
@@ -505,8 +537,8 @@ class FlythroughController {
     const h     = altM;
     const ψ     = headingDeg    * Math.PI / 180;  // yaw
     const γ     = effectivePitchDeg * Math.PI / 180;  // pitch (negative = down)
-    const tanH  = Math.tan((FlythroughController.HFOV_DEG / 2) * Math.PI / 180);
-    const tanV  = Math.tan((FlythroughController.VFOV_DEG / 2) * Math.PI / 180);
+    const tanH  = Math.tan((this._hfovDeg / 2) * Math.PI / 180);
+    const tanV  = Math.tan((this._vfovDeg / 2) * Math.PI / 180);
     const maxT  = h * 60; // cap projection at 60× altitude
 
     // Camera basis vectors in ENU (East, North, Up)

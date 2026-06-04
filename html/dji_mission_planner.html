@@ -65,6 +65,10 @@
     <input id="ftSeek" type="range" min="0" max="1000" value="0" title="Seek flythrough timeline" />
     <span id="ftProgress">00:00 / 00:00</span>
   </div>
+  <div class="sep"></div>
+  <div class="tb-group">
+    <button id="btnFPV" class="ghost" title="Toggle FPV camera panel">📷 FPV</button>
+  </div>
   <div id="stats">
     WP: <span id="statWP">0</span> &nbsp; POI: <span id="statPOI">0</span> &nbsp; Dist: <span id="statDist">0 m</span>
   </div>
@@ -74,6 +78,13 @@
 <div id="main">
 
   <div id="map"></div>
+
+  <div id="fpv-panel" style="
+    display:none; position:absolute; bottom:20px; right:320px;
+    width:800px; height:450px;
+    border:1px solid #30363d; border-radius:8px; overflow:hidden;
+    box-shadow:0 4px 20px rgba(0,0,0,0.5); z-index:500;">
+  </div>
 
   <div id="sidebar">
     <div class="panel-title">Mission Settings</div>
@@ -86,11 +97,30 @@
         <label>Default Alt.</label>
         <input id="defAlt" type="number" value="50" min="1" max="500" step="1"/>
         <span class="unit">m</span>
+        <button class="ghost small-apply" id="btnApplyDefaultAlt" title="Apply default altitude to all waypoints">Apply all</button>
       </div>
       <div class="field-row">
         <label>Default Speed</label>
         <input id="defSpeed" type="number" value="28.8" min="3.6" max="54" step="2"/>
         <span class="unit">km/h</span>
+      </div>
+      <div class="field-row">
+        <label>Drone</label>
+        <select id="defDrone">
+          <option value="air3s" selected>DJI Air 3S</option>
+          <option value="custom">Custom Camera</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Cam HFOV</label>
+        <input id="defHfov" type="number" value="82" min="30" max="140" step="1"/>
+        <span class="unit">deg</span>
+      </div>
+      <div class="field-row">
+        <label>Const. HAG</label>
+        <input id="defConstHag" type="number" value="50" min="1" max="500" step="1"/>
+        <span class="unit">m</span>
+        <button class="ghost small-apply" id="btnApplyConstHag" title="Set all waypoints to a constant height above ground">Apply all</button>
       </div>
       <div class="field-row">
         <label>Finish Action</label>
@@ -146,7 +176,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v2.0';
+  const APP_VERSION = 'v3.0';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -160,6 +190,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.383.0/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../source/map/MapController.js"></script>
 <script src="../source/services/LocationService.js"></script>
 <script src="../source/services/ElevationService.js"></script>
@@ -170,6 +201,7 @@
 <script src="../source/storage/LocalStorageBackend.js"></script>
 <script src="../source/storage/FileSystemBackend.js"></script>
 <script src="../source/storage/PersistentStorage.js"></script>
+<script src="../source/virtualflight/FPVController.js"></script>
 <script src="../source/virtualflight/FlythroughController.js"></script>
 <script src="../source/app/App.js"></script>
 <script src="../source/app/dji_mission_planner.js"></script>

@@ -66,6 +66,8 @@ class MissionSerializer {
       missionName: typeof source.missionName === 'string' && source.missionName.trim() ? source.missionName : 'Mission',
       defaultAltitude: Number.isFinite(source.defaultAltitude) ? source.defaultAltitude : 50,
       defaultSpeed: Number.isFinite(source.defaultSpeed) ? source.defaultSpeed : 8,
+      droneProfile: typeof source.droneProfile === 'string' && source.droneProfile.trim() ? source.droneProfile : 'air3s',
+      cameraHfov: Number.isFinite(source.cameraHfov) ? source.cameraHfov : 82,
       finishAction: typeof source.finishAction === 'string' && source.finishAction ? source.finishAction : 'goHome',
       rcLostAction: typeof source.rcLostAction === 'string' && validRcLostActions.has(source.rcLostAction)
         ? source.rcLostAction
