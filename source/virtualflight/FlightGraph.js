@@ -15,6 +15,10 @@ class FlightGraph {
     return this._visible;
   }
 
+  get overlayElement() {
+    return this._overlay;
+  }
+
   buildData({ waypoints, mission }) {
     if (!Array.isArray(waypoints) || waypoints.length < 2 || !mission || typeof mission.haversine !== 'function') {
       return null;

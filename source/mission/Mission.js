@@ -58,6 +58,17 @@ class Mission {
     return legacyMatch ? legacyMatch[1] : raw;
   }
 
+  static isAutoPoiName(name) {
+    const raw = typeof name === 'string' ? name.trim() : '';
+    if (!raw) {
+      return true;
+    }
+    if (/^poi\s*\d+$/i.test(raw)) {
+      return true;
+    }
+    return /^\d+$/.test(raw);
+  }
+
   createWaypoint(lat, lng, options = {}) {
     const altitude = Number.isFinite(options.altitude) ? options.altitude : 50;
     const speed = Number.isFinite(options.speed) ? options.speed : 8;
@@ -106,7 +117,11 @@ class Mission {
   }
 
   addPOI(poi) {
+    const shouldRenumber = Mission.isAutoPoiName(poi && poi.name);
     this.pois.push(poi);
+    if (shouldRenumber) {
+      poi.name = String(this.pois.length);
+    }
     return poi;
   }
 
@@ -136,6 +151,11 @@ class Mission {
   deletePOI(id) {
     const poi = this.findPOI(id);
     this.pois = this.pois.filter(item => item.id !== id);
+    this.pois.forEach((item, index) => {
+      if (Mission.isAutoPoiName(item.name)) {
+        item.name = String(index + 1);
+      }
+    });
     this.waypoints.forEach(wp => {
       if (wp.poiId === id) {
         wp.poiId = null;

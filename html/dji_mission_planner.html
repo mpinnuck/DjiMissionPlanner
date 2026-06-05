@@ -2,12 +2,34 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DJI Mission Planner</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link rel="stylesheet" href="../css/dji_mission_planner.css"/>
+<script>
+  // Run synchronously before first paint so --browser-ui-top is correct
+  // at the CSS cascade and the topbar never flashes in the wrong position.
+  (function () {
+    var vv = window.visualViewport;
+    var inset = 0;
+    if (vv && typeof vv.offsetTop === 'number' && isFinite(vv.offsetTop)) {
+      var scale = (typeof vv.scale === 'number' && isFinite(vv.scale)) ? vv.scale : 1;
+      if (scale <= 1.01) {
+        inset = Math.max(0, Math.min(96, Math.round(vv.offsetTop)));
+      }
+    }
+    document.documentElement.style.setProperty('--browser-ui-top', inset + 'px');
+
+    var ua = navigator.userAgent || '';
+    var isAppleMobile = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+    if (isAppleMobile && isSafari) {
+      document.documentElement.classList.add('mobile-safari-pre');
+    }
+  }());
+</script>
 </head>
 <body>
 
@@ -47,6 +69,10 @@
     <button class="accent2" id="btnExport">⬇ Export KMZ</button>
   </div>
   <div class="sep"></div>
+  <div class="tb-group">
+    <button id="btnFPV" class="ghost" title="Toggle FPV camera panel">📷 FPV</button>
+  </div>
+  <div class="sep"></div>
   <div class="tb-group flythrough-controls" id="flythroughControls">
     <button class="ghost" id="btnFTPlay" title="Start virtual flythrough">▶ Play</button>
     <button class="ghost" id="btnFTPause" title="Pause virtual flythrough">⏸ Pause</button>
@@ -64,10 +90,6 @@
     </label>
     <input id="ftSeek" type="range" min="0" max="1000" value="0" title="Seek flythrough timeline" />
     <span id="ftProgress">00:00 / 00:00</span>
-  </div>
-  <div class="sep"></div>
-  <div class="tb-group">
-    <button id="btnFPV" class="ghost" title="Toggle FPV camera panel">📷 FPV</button>
   </div>
   <div id="stats">
     WP: <span id="statWP">0</span> &nbsp; POI: <span id="statPOI">0</span> &nbsp; Dist: <span id="statDist">0 m</span>
@@ -181,13 +203,113 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v3.8';
+  const APP_VERSION = 'v4.0';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
+    // mobile-safari-pre was set synchronously in <head> to avoid flash on refresh.
+    if (document.documentElement.classList.contains('mobile-safari-pre')) {
+      document.body.classList.add('mobile-safari');
+    }
+    const isMobileSafari = document.documentElement.classList.contains('mobile-safari-pre');
+
     const versionEl = document.getElementById('appVersion');
     if (versionEl) {
       versionEl.textContent = `(${APP_VERSION})`;
+    }
+
+    let lastStableTopInset = 0;
+    let lastStableAppHeight = Number.isFinite(window.innerHeight) ? Math.round(window.innerHeight) : 0;
+    const statusbarEl = document.getElementById('statusbar');
+
+    const updateLayoutMetrics = () => {
+      const vv = window.visualViewport;
+      const fallbackHeight = Number.isFinite(window.innerHeight) ? window.innerHeight : 0;
+      const viewportHeightRaw = vv && Number.isFinite(vv.height) ? Math.round(vv.height) : Math.round(fallbackHeight);
+
+      if (!isMobileSafari) {
+        let topInset = lastStableTopInset;
+        if (vv) {
+          const scale = Number.isFinite(vv.scale) ? vv.scale : 1;
+          const rawOffsetTop = Number.isFinite(vv.offsetTop) ? vv.offsetTop : 0;
+
+          // Ignore panned/zoomed viewport offsets and outliers that can hide controls.
+          if (scale <= 1.01) {
+            topInset = Math.max(0, Math.min(96, Math.round(rawOffsetTop)));
+            lastStableTopInset = topInset;
+          }
+        }
+
+        document.documentElement.style.setProperty('--browser-ui-top', `${lastStableTopInset}px`);
+      }
+
+      const safeAppHeight = Number.isFinite(viewportHeightRaw) && viewportHeightRaw > 320
+        ? viewportHeightRaw
+        : (Number.isFinite(fallbackHeight) && fallbackHeight > 320 ? Math.round(fallbackHeight) : lastStableAppHeight);
+
+      if (Number.isFinite(safeAppHeight) && safeAppHeight > 320) {
+        lastStableAppHeight = safeAppHeight;
+      }
+
+      document.documentElement.style.setProperty('--app-height', `${lastStableAppHeight}px`);
+
+      if (statusbarEl) {
+        const measuredStatusbarHeight = Math.ceil(statusbarEl.getBoundingClientRect().height);
+        if (Number.isFinite(measuredStatusbarHeight) && measuredStatusbarHeight > 0) {
+          document.documentElement.style.setProperty('--statusbar-height', `${measuredStatusbarHeight}px`);
+        }
+      }
+    };
+
+    updateLayoutMetrics();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateLayoutMetrics);
+      if (!isMobileSafari) {
+        window.visualViewport.addEventListener('scroll', updateLayoutMetrics);
+      }
+    }
+    window.addEventListener('resize', updateLayoutMetrics);
+    window.addEventListener('orientationchange', () => {
+      updateLayoutMetrics();
+      requestAnimationFrame(updateLayoutMetrics);
+      setTimeout(updateLayoutMetrics, 180);
+    });
+
+    const toolbarLabelMap = {
+      btnAddWP: '📍 Add WP',
+      btnAddPOI: '🎯 Add POI',
+      btnSelect: '🖱 Select',
+      btnUnselectAll: '✖ Clear Sel',
+      btnClear: '🗑 Clear',
+      btnLocate: '📡 Locate',
+      btnSaveMission: '💾 Save',
+      btnLoadMission: '📂 Load',
+      btnExport: '⬇ Export'
+    };
+
+    const compactTopbarQuery = window.matchMedia('(pointer: coarse) and (max-width: 1700px)');
+
+    const applyCompactToolbarLabels = () => {
+      const useCompact = compactTopbarQuery.matches;
+      Object.entries(toolbarLabelMap).forEach(([id, shortLabel]) => {
+        const button = document.getElementById(id);
+        if (!button) {
+          return;
+        }
+
+        if (!button.dataset.fullLabel) {
+          button.dataset.fullLabel = button.textContent.trim();
+        }
+
+        button.textContent = useCompact ? shortLabel : button.dataset.fullLabel;
+      });
+    };
+
+    applyCompactToolbarLabels();
+    if (typeof compactTopbarQuery.addEventListener === 'function') {
+      compactTopbarQuery.addEventListener('change', applyCompactToolbarLabels);
+    } else if (typeof compactTopbarQuery.addListener === 'function') {
+      compactTopbarQuery.addListener(applyCompactToolbarLabels);
     }
   });
 </script>

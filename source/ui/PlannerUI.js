@@ -1052,7 +1052,24 @@ class PlannerUI {
       return;
     }
 
-    row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    // Avoid scrollIntoView() — on iOS Safari it can scroll the layout viewport
+    // even when the element is inside an overflow:auto container, causing the
+    // topbar to scroll off screen. Manually scroll only within #wp-list-wrap.
+    const container = this.wpList.parentElement;
+    if (!container) {
+      return;
+    }
+
+    const rowTop = row.offsetTop;
+    const rowBottom = rowTop + row.offsetHeight;
+    const containerTop = container.scrollTop;
+    const containerBottom = containerTop + container.clientHeight;
+
+    if (rowTop < containerTop) {
+      container.scrollTop = rowTop;
+    } else if (rowBottom > containerBottom) {
+      container.scrollTop = rowBottom - container.clientHeight;
+    }
   }
 
   renderList({

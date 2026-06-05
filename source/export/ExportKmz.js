@@ -27,6 +27,12 @@ class ExportKmz {
   async promptForFolder() {
     try {
       const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      if (typeof dirHandle?.requestPermission === 'function') {
+        const permission = await dirHandle.requestPermission({ mode: 'readwrite' });
+        if (permission !== 'granted') {
+          return null;
+        }
+      }
       localStorage.setItem(this.folderHandleKey, 'true');
       this.folderHandle = dirHandle;
       return dirHandle;
@@ -44,19 +50,29 @@ class ExportKmz {
   }
 
   async getExportFolder() {
+    if (this.folderHandle) {
+      try {
+        let granted = true;
+        if (typeof this.folderHandle.queryPermission === 'function') {
+          granted = (await this.folderHandle.queryPermission({ mode: 'readwrite' })) === 'granted';
+        }
+        if (!granted && typeof this.folderHandle.requestPermission === 'function') {
+          granted = (await this.folderHandle.requestPermission({ mode: 'readwrite' })) === 'granted';
+        }
+        if (granted) {
+          return this.folderHandle;
+        }
+      } catch (err) {
+        this.folderHandle = null;
+      }
+    }
+
     if (!this.hasSavedFolder()) {
       return await this.promptForFolder();
     }
-    try {
-      const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      return dirHandle;
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        this.clearSavedFolder();
-        return await this.promptForFolder();
-      }
-      return null;
-    }
+
+    this.clearSavedFolder();
+    return await this.promptForFolder();
   }
 
   export({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed, droneConfig = null }) {
@@ -293,7 +309,7 @@ class ExportKmz {
             await writable.write(blob);
             await writable.close();
             if (this.onStatus) {
-              this.onStatus(`Exported: ${filename}  (${waypoints.length} WPs)`);
+              this.onStatus(`Saved KMZ to selected folder: ${filename} (${waypoints.length} WPs)`);
             }
             return;
           }
@@ -303,7 +319,36 @@ class ExportKmz {
         }
       }
 
-      // Fallback: trigger browser download
+      // Fallback: iOS/iPadOS works best via Share Sheet; otherwise use browser download.
+      const kmzFile = new File([blob], filename, { type: 'application/vnd.google-earth.kmz' });
+      let canShareFile = false;
+      try {
+        canShareFile = typeof navigator !== 'undefined'
+          && typeof navigator.share === 'function'
+          && typeof navigator.canShare === 'function'
+          && navigator.canShare({ files: [kmzFile] });
+      } catch (shareCheckError) {
+        console.warn('navigator.canShare check failed, falling back to download flow:', shareCheckError);
+      }
+
+      if (canShareFile) {
+        try {
+          await navigator.share({
+            files: [kmzFile],
+            title: filename,
+            text: 'KMZ generated locally on this device.'
+          });
+          if (this.onStatus) {
+            this.onStatus(`KMZ ready on this device via Share Sheet: ${filename} (${waypoints.length} WPs)`);
+          }
+          return;
+        } catch (shareErr) {
+          if (shareErr && shareErr.name !== 'AbortError') {
+            console.warn('Share failed, falling back to browser download:', shareErr);
+          }
+        }
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -313,7 +358,7 @@ class ExportKmz {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       if (this.onStatus) {
-        this.onStatus(`Exported: ${filename}  (${waypoints.length} WPs)`);
+        this.onStatus(`Browser download started (generated locally on this device): ${filename} (${waypoints.length} WPs)`);
       }
     });
   }

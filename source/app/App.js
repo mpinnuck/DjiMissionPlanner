@@ -642,6 +642,9 @@ class App {
     }
 
     this.flythrough.setMission(this.waypoints);
+    if (this.isFPVVisible && typeof this.flythrough.showAtCurrentTime === 'function') {
+      this.flythrough.showAtCurrentTime();
+    }
     if (this.fpv) {
       this.fpv.setMission(this.waypoints, this.mission);
     }
@@ -1139,6 +1142,8 @@ class App {
       this.selectedId = onlyId;
       this.selectedType = 'wp';
       this.showDetail(onlyId, 'wp');
+    } else if (this.selectedId && this.selectedType) {
+      this.showDetail(this.selectedId, this.selectedType);
     }
   }
 
@@ -1591,6 +1596,9 @@ class App {
     this.isFPVVisible = !this.isFPVVisible;
     if (this.isFPVVisible) {
       this.fpv.show();
+      if (this.flythrough) {
+        this.syncFlythroughMission();
+      }
       this.showStatus('FPV view enabled.');
     } else {
       this.fpv.hide();

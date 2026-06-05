@@ -146,6 +146,7 @@ class FPVController {
   show() {
     this._container.style.display = 'block';
     this._visible = true;
+    document.body.classList.add('fpv-visible');
     this._resize();
     this._refreshGraph();
   }
@@ -153,6 +154,8 @@ class FPVController {
   hide() {
     this._container.style.display = 'none';
     this._visible = false;
+    document.body.classList.remove('fpv-visible');
+    document.body.classList.remove('fpv-graph-active');
     if (this._flightGraph) {
       this._flightGraph.hide();
     }
@@ -421,15 +424,18 @@ class FPVController {
     this._hudCanvas.width  = w;
     this._hudCanvas.height = h;
     this._refreshGraph();
+    this._syncGraphOverlapClass();
   }
 
   _refreshGraph() {
     if (!this._flightGraph) {
+      document.body.classList.remove('fpv-graph-active');
       return;
     }
 
     if (!this._visible || !this._graphMission || this._graphWaypoints.length < 2) {
       this._flightGraph.hide();
+      document.body.classList.remove('fpv-graph-active');
       return;
     }
 
@@ -439,5 +445,61 @@ class FPVController {
       cursorTime: this._graphCurrentTime
     });
     this._flightGraph.updateCursor(this._graphCurrentTime, this._graphTotalTime);
+    this._syncGraphOverlapClass();
+    requestAnimationFrame(() => this._syncGraphOverlapClass());
+  }
+
+  _syncGraphOverlapClass() {
+    const graphOverlay = this._flightGraph && this._flightGraph.overlayElement;
+
+    if (!this._visible) {
+      document.body.classList.remove('fpv-graph-active');
+      if (graphOverlay) {
+        graphOverlay.style.right = '';
+        graphOverlay.style.width = '';
+        graphOverlay.style.maxWidth = '';
+      }
+      return;
+    }
+
+    const graphVisible = this._flightGraph
+      && this._flightGraph.isVisible
+      && graphOverlay
+      && graphOverlay.style.display !== 'none';
+
+    if (!graphVisible) {
+      document.body.classList.remove('fpv-graph-active');
+      if (graphOverlay) {
+        graphOverlay.style.right = '';
+        graphOverlay.style.width = '';
+        graphOverlay.style.maxWidth = '';
+      }
+      return;
+    }
+
+    const panelRect = this._container.getBoundingClientRect();
+    graphOverlay.style.right = '';
+    graphOverlay.style.width = '';
+    graphOverlay.style.maxWidth = '';
+    const graphRect = graphOverlay.getBoundingClientRect();
+    const overlaps = !(
+      panelRect.right <= graphRect.left
+      || panelRect.left >= graphRect.right
+      || panelRect.bottom <= graphRect.top
+      || panelRect.top >= graphRect.bottom
+    );
+
+    if (overlaps) {
+      const overlayLeft = parseFloat(window.getComputedStyle(graphOverlay).left) || 12;
+      const clearance = 12;
+      const availableWidth = Math.max(140, Math.floor(panelRect.left - overlayLeft - clearance));
+
+      // Use explicit width so the graph right axis always stays left of FPV.
+      graphOverlay.style.right = 'auto';
+      graphOverlay.style.maxWidth = 'none';
+      graphOverlay.style.width = `${availableWidth}px`;
+    }
+
+    document.body.classList.toggle('fpv-graph-active', overlaps);
   }
 }

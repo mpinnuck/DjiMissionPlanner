@@ -1,6 +1,6 @@
 class MapController {
   constructor(mapElementId) {
-    this.map = L.map(mapElementId, { zoomControl: true }).setView([-33.87, 151.21], 14);
+    this.map = L.map(mapElementId, { zoomControl: true, tap: false }).setView([-33.87, 151.21], 14);
     this.routeLine = null;
     this.routeMidpointMarkers = [];
     this.userLocationMarker = null;

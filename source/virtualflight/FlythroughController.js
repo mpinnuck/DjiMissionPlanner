@@ -78,12 +78,6 @@ class FlythroughController {
     this._totalTime = this._timeline.length
       ? this._timeline[this._timeline.length - 1].time
       : 0;
-
-    if (this._timeline.length) {
-      const frame = this._timeline[0];
-      this._updateDisplay(frame);
-      if (this.onFrame) this.onFrame(frame);
-    }
     return true;
   }
 
@@ -93,6 +87,7 @@ class FlythroughController {
 
   play() {
     if (!this._timeline.length || this._playing) return;
+    this.showAtCurrentTime();
     this._closeTelemetryPopup();
     if (this._totalTime <= 0) {
       this._missionTime = 0;
@@ -122,6 +117,18 @@ class FlythroughController {
     this.pause();
     this._missionTime = 0;
     this._clearLayers();
+  }
+
+  showAtCurrentTime() {
+    if (!this._timeline.length) {
+      return;
+    }
+
+    const frame = this._getFrame(this._missionTime);
+    this._updateDisplay(frame);
+    if (this.onFrame) {
+      this.onFrame(frame);
+    }
   }
 
   /** Seek to a fractional position in the mission (0.0 = start, 1.0 = end) */
