@@ -93,6 +93,7 @@ class App {
 
     this.kmzExporter = new ExportKmz({
       onStatus: message => this.showStatus(message),
+      onExported: message => this.ui.showToast(message, 'success'),
       onError: message => this.onError(message)
     });
     this.elevationService = typeof ElevationService === 'function'
@@ -131,6 +132,7 @@ class App {
 
   showStatus(message) {
     this.ui.setStatus(message);
+
     if (this.onStatus) {
       this.onStatus(message);
     }

@@ -1,38 +1,124 @@
 class ExportKmz {
   constructor(options) {
     this.onStatus = options.onStatus || null;
+    this.onExported = options.onExported || null;
     this.onError = options.onError || (message => alert(message));
     this.folderHandleKey = 'djiMissionPlanner:exportFolderHandle';
+    this.folderHandleStoreName = 'djiMissionPlannerFsHandles';
+    this.folderHandleStore = 'handles';
+    this.folderHandleDbKey = 'exportFolderHandle';
     this.folderHandle = null;
-    this.loadFolderHandle();
+    this.folderHandleRestorePromise = this.loadFolderHandle();
   }
 
   // Public methods
 
-  loadFolderHandle() {
-    const handleStr = localStorage.getItem(this.folderHandleKey);
-    if (handleStr) {
-      try {
-        this.folderHandle = 'saved';
-      } catch (e) {
-        this.folderHandle = null;
+  async openHandleDatabase() {
+    if (typeof indexedDB === 'undefined') {
+      return null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.folderHandleStoreName, 1);
+      request.onupgradeneeded = event => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.folderHandleStore)) {
+          db.createObjectStore(this.folderHandleStore);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Failed to open export handle database.'));
+    });
+  }
+
+  async persistFolderHandle(handle) {
+    if (!handle) {
+      return;
+    }
+
+    const db = await this.openHandleDatabase();
+    if (!db) {
+      return;
+    }
+
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(this.folderHandleStore, 'readwrite');
+      tx.objectStore(this.folderHandleStore).put(handle, this.folderHandleDbKey);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('Failed to persist export folder.'));
+    });
+    db.close();
+  }
+
+  async restoreFolderHandle() {
+    const db = await this.openHandleDatabase();
+    if (!db) {
+      return null;
+    }
+
+    const handle = await new Promise((resolve, reject) => {
+      const tx = db.transaction(this.folderHandleStore, 'readonly');
+      const request = tx.objectStore(this.folderHandleStore).get(this.folderHandleDbKey);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error('Failed to read saved export folder.'));
+    });
+    db.close();
+    return handle;
+  }
+
+  async clearPersistedFolderHandle() {
+    const db = await this.openHandleDatabase();
+    if (!db) {
+      return;
+    }
+
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(this.folderHandleStore, 'readwrite');
+      tx.objectStore(this.folderHandleStore).delete(this.folderHandleDbKey);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('Failed to clear saved export folder.'));
+    });
+    db.close();
+  }
+
+  async loadFolderHandle() {
+    try {
+      this.folderHandle = await this.restoreFolderHandle();
+    } catch (error) {
+      this.folderHandle = null;
+    }
+
+    return this.folderHandle;
+  }
+
+  async ensurePermission(handle) {
+    const options = { mode: 'readwrite' };
+    if (typeof handle?.queryPermission === 'function') {
+      const queried = await handle.queryPermission(options);
+      if (queried === 'granted') {
+        return true;
       }
     }
+    if (typeof handle?.requestPermission === 'function') {
+      const requested = await handle.requestPermission(options);
+      return requested === 'granted';
+    }
+    return !!handle;
   }
 
   hasSavedFolder() {
-    return localStorage.getItem(this.folderHandleKey) !== null;
+    return !!this.folderHandle || localStorage.getItem(this.folderHandleKey) !== null;
   }
 
   async promptForFolder() {
     try {
       const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      if (typeof dirHandle?.requestPermission === 'function') {
-        const permission = await dirHandle.requestPermission({ mode: 'readwrite' });
-        if (permission !== 'granted') {
-          return null;
-        }
+      const permissionGranted = await this.ensurePermission(dirHandle);
+      if (!permissionGranted) {
+        return null;
       }
+
+      await this.persistFolderHandle(dirHandle);
       localStorage.setItem(this.folderHandleKey, 'true');
       this.folderHandle = dirHandle;
       return dirHandle;
@@ -44,21 +130,25 @@ class ExportKmz {
     }
   }
 
-  clearSavedFolder() {
+  async clearSavedFolder() {
     localStorage.removeItem(this.folderHandleKey);
     this.folderHandle = null;
+    try {
+      await this.clearPersistedFolderHandle();
+    } catch (error) {
+      // Ignore IndexedDB cleanup failures and continue.
+    }
   }
 
   async getExportFolder() {
+    if (this.folderHandleRestorePromise) {
+      await this.folderHandleRestorePromise;
+      this.folderHandleRestorePromise = null;
+    }
+
     if (this.folderHandle) {
       try {
-        let granted = true;
-        if (typeof this.folderHandle.queryPermission === 'function') {
-          granted = (await this.folderHandle.queryPermission({ mode: 'readwrite' })) === 'granted';
-        }
-        if (!granted && typeof this.folderHandle.requestPermission === 'function') {
-          granted = (await this.folderHandle.requestPermission({ mode: 'readwrite' })) === 'granted';
-        }
+        const granted = await this.ensurePermission(this.folderHandle);
         if (granted) {
           return this.folderHandle;
         }
@@ -71,8 +161,37 @@ class ExportKmz {
       return await this.promptForFolder();
     }
 
-    this.clearSavedFolder();
+    await this.clearSavedFolder();
     return await this.promptForFolder();
+  }
+
+  async getSavedExportFolder() {
+    if (this.folderHandleRestorePromise) {
+      await this.folderHandleRestorePromise;
+      this.folderHandleRestorePromise = null;
+    }
+
+    const hadSavedMarker = localStorage.getItem(this.folderHandleKey) !== null;
+    if (!this.folderHandle && !hadSavedMarker) {
+      return null;
+    }
+
+    if (!this.folderHandle && hadSavedMarker) {
+      await this.clearSavedFolder();
+      return null;
+    }
+
+    try {
+      const granted = await this.ensurePermission(this.folderHandle);
+      if (granted) {
+        return this.folderHandle;
+      }
+    } catch (err) {
+      // Ignore and clear stale handles below.
+    }
+
+    await this.clearSavedFolder();
+    return null;
   }
 
   export({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed, droneConfig = null }) {
@@ -299,24 +418,28 @@ class ExportKmz {
     zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(async blob => {
       const filename = name.replace(/\s+/g, '_') + '.kmz';
 
-      // Try to save to folder if one is configured
-      if (this.hasSavedFolder()) {
-        try {
-          const dirHandle = await this.getExportFolder();
-          if (dirHandle) {
-            const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-            if (this.onStatus) {
-              this.onStatus(`Saved KMZ to selected folder: ${filename} (${waypoints.length} WPs)`);
-            }
-            return;
+      // Try to save to previously selected folder without prompting.
+      try {
+        const dirHandle = await this.getSavedExportFolder();
+        if (dirHandle) {
+          const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+
+          const folderName = dirHandle.name || 'selected folder';
+          const successMessage = `${filename} exported to folder ${folderName}`;
+          if (this.onExported) {
+            this.onExported(successMessage);
           }
-        } catch (err) {
-          // Fall back to download if folder writing fails
-          console.warn('Folder save failed, falling back to download:', err);
+          if (this.onStatus) {
+            this.onStatus(successMessage);
+          }
+          return;
         }
+      } catch (err) {
+        // Fall back to download if folder writing fails.
+        console.warn('Folder save failed, falling back to download:', err);
       }
 
       // Fallback: iOS/iPadOS works best via Share Sheet; otherwise use browser download.
@@ -338,6 +461,9 @@ class ExportKmz {
             title: filename,
             text: 'KMZ generated locally on this device.'
           });
+          if (this.onExported) {
+            this.onExported(`${filename} exported via Share Sheet`);
+          }
           if (this.onStatus) {
             this.onStatus(`KMZ ready on this device via Share Sheet: ${filename} (${waypoints.length} WPs)`);
           }
@@ -357,6 +483,9 @@ class ExportKmz {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      if (this.onExported) {
+        this.onExported(`${filename} exported via browser download`);
+      }
       if (this.onStatus) {
         this.onStatus(`Browser download started (generated locally on this device): ${filename} (${waypoints.length} WPs)`);
       }
