@@ -235,8 +235,8 @@ class MapController {
       : this.catmullRomSpline(points, 20);
 
     this.routeLine = L.polyline(latlngs, {
-      color: '#f0a500',
-      weight: 2,
+      color: '#00d4ff',
+      weight: 3,
       opacity: 0.7
     }).addTo(this.map);
 
