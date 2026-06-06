@@ -266,7 +266,32 @@ class App {
 
   addWaypointMarker(wp, idx) {
     const m = this.mapController.addWaypointMarker(wp, idx);
-    m.on('click', () => this.onWaypointMarkerClick(wp.id));
+    let singleClickTimer = null;
+    m.on('click', () => {
+      if (singleClickTimer) {
+        clearTimeout(singleClickTimer);
+      }
+
+      singleClickTimer = setTimeout(() => {
+        singleClickTimer = null;
+        this.onWaypointMarkerClick(wp.id);
+      }, 220);
+    });
+    m.on('dblclick', event => {
+      if (singleClickTimer) {
+        clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+      }
+
+      if (event && event.originalEvent) {
+        event.originalEvent.preventDefault();
+        event.originalEvent.stopPropagation();
+      }
+
+      this.selectItem(wp.id, 'wp');
+      this.showWaypointTooltip(wp.id);
+      this.openWaypointOptionsDialog(wp.id);
+    });
     m.on('dragend', e => {
       wp.lat = e.target.getLatLng().lat;
       wp.lng = e.target.getLatLng().lng;
@@ -535,6 +560,15 @@ class App {
       index: poiIndex >= 0 ? poiIndex + 1 : (this.pois.length + 1)
     });
     m.on('click', () => {
+      this.selectItem(poi.id, 'poi');
+      this.openPOIOptionsDialog(poi.id);
+    });
+    m.on('dblclick', event => {
+      if (event && event.originalEvent) {
+        event.originalEvent.preventDefault();
+        event.originalEvent.stopPropagation();
+      }
+
       this.selectItem(poi.id, 'poi');
       this.openPOIOptionsDialog(poi.id);
     });
