@@ -289,7 +289,6 @@ class App {
       }
 
       this.selectItem(wp.id, 'wp');
-      this.showWaypointTooltip(wp.id);
       this.openWaypointOptionsDialog(wp.id);
     });
     m.on('dragend', e => {
@@ -484,15 +483,27 @@ class App {
 
     const metrics = this.getWaypointMetrics(waypointIndex);
     let initialDialogPosition = null;
-    const popupElement = this.activeWaypointPopup && typeof this.activeWaypointPopup.getElement === 'function'
-      ? this.activeWaypointPopup.getElement()
-      : null;
-    if (popupElement) {
-      const popupRect = popupElement.getBoundingClientRect();
-      initialDialogPosition = {
-        left: popupRect.right + 10,
-        top: popupRect.top
-      };
+    const wpMarker = this.waypointMarkers.get(waypointId);
+    if (wpMarker && typeof wpMarker.getElement === 'function') {
+      const markerElement = wpMarker.getElement();
+      if (markerElement) {
+        const markerRect = markerElement.getBoundingClientRect();
+        initialDialogPosition = {
+          left: markerRect.right + 10,
+          top: markerRect.top
+        };
+      }
+    } else {
+      const popupElement = this.activeWaypointPopup && typeof this.activeWaypointPopup.getElement === 'function'
+        ? this.activeWaypointPopup.getElement()
+        : null;
+      if (popupElement) {
+        const popupRect = popupElement.getBoundingClientRect();
+        initialDialogPosition = {
+          left: popupRect.right + 10,
+          top: popupRect.top
+        };
+      }
     }
 
     this.ui.showWaypointOptionsDialog({
@@ -568,9 +579,6 @@ class App {
         event.originalEvent.preventDefault();
         event.originalEvent.stopPropagation();
       }
-
-      this.selectItem(poi.id, 'poi');
-      this.openPOIOptionsDialog(poi.id);
     });
     m.on('dragend', e => {
       poi.lat = e.target.getLatLng().lat;
@@ -997,7 +1005,7 @@ class App {
       return;
     }
 
-    const takeoffPoi = this.getTakeoffPoi();
+    const takeoffPoi = this.getTakeoffPoi() || this.waypoints[0];
     if (!takeoffPoi) {
       return;
     }
@@ -1337,10 +1345,15 @@ class App {
       return;
     }
 
-    const takeoffPoi = this.getTakeoffPoi();
+    const explicitTakeoffPoi = this.getTakeoffPoi();
+    const takeoffPoi = explicitTakeoffPoi || this.waypoints[0];
     if (!takeoffPoi) {
-      this.showStatus('Add POI "1" (takeoff reference) before applying constant HAG.');
+      this.showStatus('Add waypoints before applying constant HAG.');
       return;
+    }
+
+    if (!explicitTakeoffPoi) {
+      this.ui.showToast('No POI 1 found — using first waypoint as takeoff reference.', 'warning', { duration: 4000 });
     }
 
     const points = [

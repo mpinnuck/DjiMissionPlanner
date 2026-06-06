@@ -1039,7 +1039,14 @@ class PlannerUI {
       el.classList.toggle('multi-selected', isMultiSelected);
     });
 
-    this.scrollListItemIntoView(selectedId);
+    const scrollTargetId = selectedId || [...selectedWaypointIds].at(-1) || null;
+    if (this.selectedItemScrollFrame) {
+      window.cancelAnimationFrame(this.selectedItemScrollFrame);
+    }
+    this.selectedItemScrollFrame = window.requestAnimationFrame(() => {
+      this.selectedItemScrollFrame = null;
+      this.scrollListItemIntoView(scrollTargetId);
+    });
   }
 
   scrollListItemIntoView(itemId) {
@@ -1053,15 +1060,17 @@ class PlannerUI {
     }
 
     // Avoid scrollIntoView() — on iOS Safari it can scroll the layout viewport
-    // even when the element is inside an overflow:auto container, causing the
-    // topbar to scroll off screen. Manually scroll only within #wp-list-wrap.
-    const container = this.wpList.parentElement;
+    // even when the element is inside an overflow:auto container. Manually
+    // scroll only within the waypoint list wrapper.
+    const container = this.wpList.closest('#wp-list-wrap') || this.wpList.parentElement;
     if (!container) {
       return;
     }
 
-    const rowTop = row.offsetTop;
-    const rowBottom = rowTop + row.offsetHeight;
+    const rowRect = row.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const rowTop = rowRect.top - containerRect.top + container.scrollTop;
+    const rowBottom = rowTop + rowRect.height;
     const containerTop = container.scrollTop;
     const containerBottom = containerTop + container.clientHeight;
 
@@ -1258,7 +1267,8 @@ class PlannerUI {
       this.wpList.appendChild(div);
     });
 
-    this.scrollListItemIntoView(selectedId);
+    const scrollTargetId = selectedId || [...selectedWaypointIds].at(-1) || null;
+    this.scrollListItemIntoView(scrollTargetId);
   }
 
   showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange }) {
