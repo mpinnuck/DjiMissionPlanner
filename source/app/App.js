@@ -108,6 +108,14 @@ class App {
       onStatus: message => this.showStatus(message),
       onError: message => this.onError(message)
     });
+    this.lastLoadedMissionLocation = this.storage.getLastLoadedMissionLocation();
+    this.lastLoadedMissionFolder = this.lastLoadedMissionLocation.folderPath || '';
+    this.lastLoadedMissionRootLabel = this.lastLoadedMissionLocation.rootLabel || '';
+
+    if (typeof window !== 'undefined') {
+      window.__djiMissionPlannerDebug = window.__djiMissionPlannerDebug || {};
+      window.__djiMissionPlannerDebug.getStorageContext = async () => this.storage.getDebugContext();
+    }
 
     this.bindMapEvents();
     this.bindUIEvents();
@@ -1472,20 +1480,36 @@ class App {
 
   async openLoadMissionDialog() {
     try {
-      const tree = await this.storage.listTree();
+      if (!this.lastLoadedMissionFolder) {
+        this.lastLoadedMissionLocation = this.storage.getLastLoadedMissionLocation();
+        this.lastLoadedMissionFolder = this.lastLoadedMissionLocation.folderPath || '';
+        this.lastLoadedMissionRootLabel = this.lastLoadedMissionLocation.rootLabel || '';
+      }
+
+      const tree = await this.storage.listTree(this.lastLoadedMissionLocation.rootLabel || '');
+      const initialExpandedPath = tree.rootLabel === this.lastLoadedMissionRootLabel
+        ? this.lastLoadedMissionFolder
+        : '';
       this.ui.showMissionLoadDialog({
         rootLabel: tree.rootLabel,
         nodes: tree.nodes,
-        initialExpandedPath: this.lastLoadedMissionFolder,
+        initialExpandedPath,
         onCancel: () => this.ui.closeMissionLoadDialog(),
         onSelectFile: async node => {
           try {
             const jsonText = await this.storage.load(node.path);
             this.importMissionJson(jsonText);
-            this.lastLoadedMissionFolder = this.getMissionFolderPath(node.path, tree.rootLabel);
+            this.lastLoadedMissionLocation = {
+              rootLabel: tree.rootLabel,
+              folderPath: this.getMissionFolderPath(node.path, tree.rootLabel)
+            };
+            this.lastLoadedMissionFolder = this.lastLoadedMissionLocation.folderPath;
+            this.lastLoadedMissionRootLabel = this.lastLoadedMissionLocation.rootLabel;
+            this.storage.setLastLoadedMissionLocation(this.lastLoadedMissionLocation);
+            const loadedDisplayPath = this.getLoadedMissionDisplayPath(node.path, tree.rootLabel);
             this.ui.closeMissionLoadDialog();
-            this.showStatus(`Loaded mission file: ${node.path}`);
-            this.ui.showToast(`Loaded mission: ${node.path}`, 'success');
+            this.showStatus(`Loaded mission file: ${loadedDisplayPath}`);
+            this.ui.showToast(`Loaded mission: ${loadedDisplayPath}`, 'success', { id: 'missionLoadToast' });
           } catch (error) {
             this.onError(error.message || 'Failed to load mission file.');
             this.ui.showToast(error.message || 'Failed to load mission file.', 'error');
@@ -1517,14 +1541,64 @@ class App {
           } catch (error) {
             this.onError(error.message || 'Folder selection was cancelled.');
           }
-        } : null
+        } : null,
+        onOpenFromFiles: async file => {
+          try {
+            const jsonText = await file.text();
+            this.importMissionJson(jsonText);
+            this.ui.closeMissionLoadDialog();
+            this.showStatus(`Loaded mission file: ${file.name}`);
+            this.ui.showToast(`Loaded mission: ${file.name}`, 'success', { id: 'missionLoadToast' });
+          } catch (error) {
+            const message = error && error.message ? error.message : 'Failed to read mission file.';
+            this.onError(message);
+            this.ui.showToast(message, 'error');
+          }
+        }
       });
     } catch (error) {
       this.onError(error.message || 'Failed to open mission load dialog.');
     }
   }
 
-  doLoadMission() {
+  async doLoadMission() {
+    if (this.storage.canOpenMissionFileDialog()) {
+      try {
+        const selected = await this.storage.openMissionFileDialog();
+        this.importMissionJson(selected.jsonText);
+        const loadedPath = selected.path || selected.name || 'mission.json';
+        if (selected.rootLabel) {
+          this.lastLoadedMissionLocation = {
+            rootLabel: selected.rootLabel,
+            folderPath: selected.directoryPath || this.getMissionFolderPath(loadedPath, '')
+          };
+          this.lastLoadedMissionFolder = this.lastLoadedMissionLocation.folderPath;
+          this.lastLoadedMissionRootLabel = this.lastLoadedMissionLocation.rootLabel;
+          this.storage.setLastLoadedMissionLocation(this.lastLoadedMissionLocation);
+        }
+        let postLoadDebugContext = null;
+        try {
+          postLoadDebugContext = await this.storage.getDebugContext();
+        } catch (error) {
+          postLoadDebugContext = null;
+        }
+
+        const loadedDisplayPath = this.getLoadedMissionDisplayPathForPicker(selected, loadedPath, postLoadDebugContext);
+        this.showStatus(`Loaded mission file: ${loadedDisplayPath}`);
+        this.ui.showToast(`Loaded mission: ${loadedDisplayPath}`, 'success', { id: 'missionLoadToast' });
+        return;
+      } catch (error) {
+        const message = error && error.message ? error.message : 'Failed to load mission file.';
+        if (message === 'Mission file selection was cancelled.') {
+          return;
+        }
+
+        this.onError(message);
+        this.ui.showToast(message, 'error');
+        return;
+      }
+    }
+
     this.openLoadMissionDialog();
   }
 
@@ -1538,6 +1612,172 @@ class App {
     const parts = relative.split('/').filter(Boolean);
     parts.pop();
     return parts.join('/');
+  }
+
+  normalizeCloudDisplayPath(pathValue) {
+    const normalized = String(pathValue || '').replace(/\\/g, '/').trim();
+    if (!normalized) {
+      return '';
+    }
+
+    const iCloudPatterns = [
+      /^\/Users\/[^/]+\/Library\/Mobile Documents\/com~apple~CloudDocs\/?(.*)$/i,
+      /^\/Users\/[^/]+\/Library\/Mobile Documents\/comappleCloudDocs\/?(.*)$/i,
+      /^\/Users\/[^/]+\/Library\/Mobile Documents\/com\.apple\.CloudDocs\/?(.*)$/i
+    ];
+
+    for (const pattern of iCloudPatterns) {
+      const match = normalized.match(pattern);
+      if (match) {
+        const suffix = String(match[1] || '').replace(/^\/+|\/+$/g, '');
+        return suffix ? `iCloud/${suffix}` : 'iCloud';
+      }
+    }
+
+    const cloudStorageMatch = normalized.match(/^\/Users\/[^/]+\/Library\/CloudStorage\/([^/]+)\/?(.*)$/i);
+    if (cloudStorageMatch) {
+      const volumeName = String(cloudStorageMatch[1] || '');
+      const suffix = String(cloudStorageMatch[2] || '').replace(/^\/+|\/+$/g, '');
+      const lowerVolume = volumeName.toLowerCase();
+
+      let providerLabel = volumeName;
+      if (lowerVolume.startsWith('googledrive')) {
+        providerLabel = 'Google Drive';
+      } else if (lowerVolume.startsWith('onedrive')) {
+        providerLabel = 'OneDrive';
+      }
+
+      return suffix ? `${providerLabel}/${suffix}` : providerLabel;
+    }
+
+    return normalized;
+  }
+
+  getLoadedMissionDisplayPath(path, rootLabel) {
+    const normalizedPath = this.normalizeCloudDisplayPath(path).replace(/^\/+/, '');
+    const normalizedRoot = this.normalizeCloudDisplayPath(rootLabel).replace(/^\/+|\/+$/g, '');
+    if (!normalizedRoot) {
+      return normalizedPath || 'mission.json';
+    }
+
+    if (!normalizedPath) {
+      return normalizedRoot;
+    }
+
+    if (normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`)) {
+      return normalizedPath;
+    }
+
+    return `${normalizedRoot}/${normalizedPath}`;
+  }
+
+  getLoadedMissionDisplayPathForPicker(selected, fallbackPath, debugContext = null) {
+    const loadedPath = String(fallbackPath || selected?.path || selected?.name || 'mission.json');
+    const rootLabel = this.normalizeCloudDisplayPath(selected?.rootLabel || selected?.startRootLabel || '');
+    const directoryPath = String(selected?.directoryPath || selected?.startDirectoryPath || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '');
+    const fileName = String(selected?.name || loadedPath.split('/').pop() || 'mission.json');
+
+    if (rootLabel && directoryPath) {
+      return `${rootLabel}/${directoryPath}/${fileName}`;
+    }
+
+    if (rootLabel) {
+      return this.getLoadedMissionDisplayPath(loadedPath, rootLabel);
+    }
+
+    const savedLocation = debugContext && debugContext.savedLocation && typeof debugContext.savedLocation === 'object'
+      ? debugContext.savedLocation
+      : null;
+    const savedRoot = savedLocation && savedLocation.rootLabel
+      ? this.normalizeCloudDisplayPath(savedLocation.rootLabel)
+      : '';
+    const savedFolder = savedLocation && savedLocation.folderPath
+      ? String(savedLocation.folderPath).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+      : '';
+
+    if (savedRoot && savedFolder) {
+      return `${savedRoot}/${savedFolder}/${fileName}`;
+    }
+
+    if (savedRoot) {
+      return this.getLoadedMissionDisplayPath(loadedPath, savedRoot);
+    }
+
+    return loadedPath;
+  }
+
+  getLoadPickerContextText(debugContext) {
+    if (!debugContext || typeof debugContext !== 'object') {
+      return '';
+    }
+
+    const handles = debugContext.handles && typeof debugContext.handles === 'object'
+      ? debugContext.handles
+      : {};
+    const savedLocation = debugContext.savedLocation && typeof debugContext.savedLocation === 'object'
+      ? debugContext.savedLocation
+      : {};
+
+    const rootLabelRaw = handles.lastLoadedRootHandleName
+      || handles.preferredRootHandleName
+      || savedLocation.rootLabel
+      || handles.currentRootHandleName
+      || 'unknown root';
+    const rootLabel = this.normalizeCloudDisplayPath(rootLabelRaw);
+    const folderPath = savedLocation.folderPath || '/';
+    const lastFileName = handles.lastLoadedFileHandleName || 'none';
+
+    return `${rootLabel} | ${folderPath} | last file: ${lastFileName}`;
+  }
+
+  getLoadPickerContextSuffix(selected, debugContext = null) {
+    const source = selected && selected.startInSource ? String(selected.startInSource) : 'unknown';
+    const selectedRoot = this.normalizeCloudDisplayPath(selected?.rootLabel || selected?.startRootLabel || '');
+    const selectedFolder = String(selected?.directoryPath || selected?.startDirectoryPath || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '');
+    const relativePath = String(selected?.path || selected?.name || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '');
+
+    const savedLocation = debugContext && debugContext.savedLocation && typeof debugContext.savedLocation === 'object'
+      ? debugContext.savedLocation
+      : null;
+    const handles = debugContext && debugContext.handles && typeof debugContext.handles === 'object'
+      ? debugContext.handles
+      : {};
+
+    const savedRoot = savedLocation && savedLocation.rootLabel
+      ? this.normalizeCloudDisplayPath(savedLocation.rootLabel)
+      : '';
+    const savedFolder = savedLocation && savedLocation.folderPath
+      ? String(savedLocation.folderPath).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+      : '';
+    const handleRoot = this.normalizeCloudDisplayPath(
+      handles.lastLoadedRootHandleName || handles.preferredRootHandleName || handles.currentRootHandleName || ''
+    );
+    const lastFileName = String(handles.lastLoadedFileHandleName || selected?.name || '').trim();
+
+    const root = selectedRoot || savedRoot || handleRoot;
+    const folder = selectedFolder || savedFolder;
+
+    const parts = [`picker=${source}`];
+    if (root) {
+      parts.push(`root=${root}`);
+    }
+    if (folder) {
+      parts.push(`folder=${folder}`);
+    }
+    if (relativePath) {
+      parts.push(`relative=${relativePath}`);
+    }
+    if (lastFileName) {
+      parts.push(`file=${lastFileName}`);
+    }
+
+    return ` [${parts.join(' | ')}]`;
   }
 
   bindUIEvents() {

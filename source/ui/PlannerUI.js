@@ -775,7 +775,7 @@ class PlannerUI {
     });
   }
 
-  showMissionLoadDialog({ rootLabel, nodes, initialExpandedPath, onCancel, onSelectFile, onDeleteFile, onRefresh, onChooseFolder }) {
+  showMissionLoadDialog({ rootLabel, nodes, initialExpandedPath, onCancel, onSelectFile, onDeleteFile, onRefresh, onChooseFolder, onOpenFromFiles }) {
     this.closeMissionLoadDialog();
     const expandedSegments = typeof initialExpandedPath === 'string' && initialExpandedPath.trim()
       ? initialExpandedPath.split('/').filter(Boolean)
@@ -827,6 +827,29 @@ class PlannerUI {
       changeFolderButton.addEventListener('click', () => onChooseFolder());
       footer.appendChild(changeFolderButton);
     }
+
+    if (typeof onOpenFromFiles === 'function') {
+      const fileInputBtn = document.createElement('button');
+      fileInputBtn.className = 'ghost';
+      fileInputBtn.textContent = 'Open from Files...';
+      fileInputBtn.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        input.style.display = 'none';
+        input.addEventListener('change', () => {
+          const file = input.files && input.files[0];
+          if (file) {
+            onOpenFromFiles(file);
+          }
+          input.remove();
+        }, { once: true });
+        document.body.appendChild(input);
+        input.click();
+      });
+      footer.appendChild(fileInputBtn);
+    }
+
     footer.appendChild(refreshButton);
     footer.appendChild(closeButton);
 

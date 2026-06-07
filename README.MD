@@ -228,7 +228,27 @@ The app supports two storage modes depending on browser capabilities.
 - Preferred: File System Access API using a chosen local folder
 - Fallback: browser local storage
 
+On iOS/iPadOS Safari, `showOpenFilePicker` is not available. The mission load dialog includes an `Open from Files...` action that uses the native Files picker (`<input type="file">`) so you can load mission JSON from iCloud Drive or other Files providers.
+
 Saved missions use JSON so they can be reloaded and edited later.
+
+### Cloud-Based Workflow (iCloud, OneDrive, Google Drive)
+
+If you want one shared mission library across desktop and iPad, keep your mission JSON files in a cloud-synced folder and use that as your primary working location.
+
+Recommended pattern:
+
+1. Create a cloud folder for missions, for example `iCloud Drive/Drone/Missions/Planner/Home`.
+2. On desktop browsers with File System Access support, choose that folder as your mission root.
+3. Save mission JSON files into that folder from desktop.
+4. On iPad Safari, use `Load Mission` and then `Open from Files...` to open JSON files from the same cloud folder.
+5. Export KMZ as needed for your RC workflow.
+
+Notes:
+
+- The app can only display paths that browser APIs expose. Some dialogs show relative paths rather than full OS paths.
+- Load/save mission context and KMZ export folder context are tracked independently.
+- If cloud providers are available through the iOS Files app, they are usable via `Open from Files...`.
 
 ### Exporting DJI KMZ Missions
 

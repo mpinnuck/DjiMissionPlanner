@@ -123,11 +123,68 @@ class PersistentStorage {
     return typeof this.backend.canChooseRootDirectory === 'function' && this.backend.canChooseRootDirectory();
   }
 
+  canOpenMissionFileDialog() {
+    return typeof this.backend.canOpenMissionFileDialog === 'function' && this.backend.canOpenMissionFileDialog();
+  }
+
   chooseRootDirectory() {
     if (typeof this.backend.chooseRootDirectory !== 'function') {
       return Promise.resolve(null);
     }
     return this.backend.chooseRootDirectory();
+  }
+
+  openMissionFileDialog() {
+    if (typeof this.backend.openMissionFileDialog !== 'function') {
+      return Promise.reject(new Error('Mission file picker is not available with the current storage backend.'));
+    }
+    return this.backend.openMissionFileDialog();
+  }
+
+  getLastLoadedMissionFolder() {
+    if (typeof this.backend.getLastLoadedMissionFolder !== 'function') {
+      return '';
+    }
+    return this.backend.getLastLoadedMissionFolder();
+  }
+
+  setLastLoadedMissionFolder(path) {
+    if (typeof this.backend.setLastLoadedMissionFolder !== 'function') {
+      return;
+    }
+    this.backend.setLastLoadedMissionFolder(path);
+  }
+
+  getLastLoadedMissionLocation() {
+    if (typeof this.backend.getLastLoadedMissionLocation !== 'function') {
+      return { rootLabel: '', folderPath: '' };
+    }
+    return this.backend.getLastLoadedMissionLocation();
+  }
+
+  setLastLoadedMissionLocation(location) {
+    if (typeof this.backend.setLastLoadedMissionLocation !== 'function') {
+      return;
+    }
+    this.backend.setLastLoadedMissionLocation(location);
+  }
+
+  markCurrentRootAsLastLoadedRoot() {
+    if (typeof this.backend.markCurrentRootAsLastLoadedRoot !== 'function') {
+      return Promise.resolve();
+    }
+    return this.backend.markCurrentRootAsLastLoadedRoot();
+  }
+
+  async getDebugContext() {
+    if (typeof this.backend.getDebugContext === 'function') {
+      return this.backend.getDebugContext();
+    }
+
+    return {
+      backend: this.backendName,
+      savedLocation: this.getLastLoadedMissionLocation()
+    };
   }
 
   getDescription() {
@@ -152,7 +209,7 @@ class PersistentStorage {
     return this.backend.list();
   }
 
-  async listTree() {
-    return this.backend.listTree();
+  async listTree(preferredRootLabel = '') {
+    return this.backend.listTree(preferredRootLabel);
   }
 }
