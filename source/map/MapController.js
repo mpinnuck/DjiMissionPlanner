@@ -162,62 +162,6 @@ class MapController {
     this.routeMidpointMarkers = [];
   }
 
-  catmullRomSpline(points, samplesPerSegment = 20) {
-    if (!Array.isArray(points) || points.length < 2) {
-      return points || [];
-    }
-
-    const first = points[0];
-    const second = points[1];
-    const last = points[points.length - 1];
-    const penultimate = points[points.length - 2];
-
-    // Reflect first and last segments so the curve begins/ends at real waypoints.
-    const startGhost = [
-      (2 * first[0]) - second[0],
-      (2 * first[1]) - second[1]
-    ];
-    const endGhost = [
-      (2 * last[0]) - penultimate[0],
-      (2 * last[1]) - penultimate[1]
-    ];
-
-    const pts = [startGhost, ...points, endGhost];
-    const result = [];
-
-    for (let index = 1; index < pts.length - 2; index += 1) {
-      const p0 = pts[index - 1];
-      const p1 = pts[index];
-      const p2 = pts[index + 1];
-      const p3 = pts[index + 2];
-
-      const startSample = index === 1 ? 0 : 1;
-      for (let sample = startSample; sample <= samplesPerSegment; sample += 1) {
-        const t = sample / samplesPerSegment;
-        const t2 = t * t;
-        const t3 = t2 * t;
-
-        const lat = 0.5 * (
-          (2 * p1[0]) +
-          (-p0[0] + p2[0]) * t +
-          (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
-          (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3
-        );
-
-        const lng = 0.5 * (
-          (2 * p1[1]) +
-          (-p0[1] + p2[1]) * t +
-          (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
-          (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3
-        );
-
-        result.push([lat, lng]);
-      }
-    }
-
-    return result;
-  }
-
   updateRoute(waypoints, options = {}) {
     if (this.routeLine) {
       this.map.removeLayer(this.routeLine);
@@ -229,10 +173,10 @@ class MapController {
       return;
     }
 
-    const points = waypoints.map(wp => [wp.lat, wp.lng]);
+    const points = waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng }));
     const latlngs = waypoints.length === 2
       ? points
-      : this.catmullRomSpline(points, 20);
+      : CubicSplinePath.build(points, 20);
 
     this.routeLine = L.polyline(latlngs, {
       color: '#00d4ff',

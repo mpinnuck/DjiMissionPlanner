@@ -1210,10 +1210,19 @@ class App {
     this.ui.setMode(m);
   }
 
-  clearAll() {
-    if (!confirm('Clear all waypoints and POIs?')) {
+  async clearAll() {
+    const confirmed = await this.ui.showConfirmDialog({
+      title: 'Clear Mission?',
+      message: 'Clear all waypoints and POIs?',
+      confirmLabel: 'Clear All',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+
+    if (!confirmed) {
       return;
     }
+
     this._doClear();
   }
 
@@ -1522,7 +1531,13 @@ class App {
           }
         },
         onDeleteFile: async node => {
-          const confirmed = window.confirm(`Delete mission file?\n\n${node.path}`);
+          const confirmed = await this.ui.showConfirmDialog({
+            title: 'Delete Mission File?',
+            message: `Delete mission file?\n\n${node.path}`,
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            tone: 'danger'
+          });
           if (!confirmed) {
             return;
           }

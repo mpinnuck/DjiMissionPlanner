@@ -1294,6 +1294,41 @@ body.mobile-safari #main {
   background: var(--bg);
 }
 
+.confirm-modal {
+  width: min(420px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+}
+
+.confirm-modal-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--accent2);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.confirm-modal-body {
+  padding: 14px;
+  color: var(--text);
+  font-size: 13px;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.confirm-modal-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: var(--bg);
+}
+
 .app-toast-container {
   position: fixed;
   left: 50%;

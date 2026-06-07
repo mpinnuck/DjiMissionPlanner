@@ -602,8 +602,8 @@ class FlythroughController {
 
   _buildTimeline(waypoints) {
     const SAMPLES  = 20;
-    const pts      = waypoints.map(wp => [wp.lat, wp.lng]);
-    const spline   = this._catmullRomSpline(pts, SAMPLES);  // deduplicated
+    const pts      = waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng }));
+    const spline   = CubicSplinePath.build(pts, SAMPLES).map(p => [p.lat, p.lng]);
     const n        = waypoints.length;
     const timeline = [];
     let   mT       = 0;
@@ -658,32 +658,6 @@ class FlythroughController {
     });
 
     return timeline;
-  }
-
-  // ── Catmull-Rom spline (deduplicated — shared waypoints not repeated) ───
-
-  _catmullRomSpline(points, samples = 20) {
-    if (points.length < 2) return [...points];
-    const p0g = [2*points[0][0]-points[1][0], 2*points[0][1]-points[1][1]];
-    const pNg = [2*points[points.length-1][0]-points[points.length-2][0],
-                 2*points[points.length-1][1]-points[points.length-2][1]];
-    const pts    = [p0g, ...points, pNg];
-    const result = [];
-
-    for (let i = 1; i < pts.length - 2; i++) {
-      const [p0, p1, p2, p3] = [pts[i-1], pts[i], pts[i+1], pts[i+2]];
-      // Skip s=0 on segments after the first — that point is the last point
-      // of the previous segment (already added), avoiding duplicates.
-      const start = i === 1 ? 0 : 1;
-      for (let s = start; s <= samples; s++) {
-        const t = s / samples, t2 = t*t, t3 = t2*t;
-        result.push([
-          0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
-          0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3),
-        ]);
-      }
-    }
-    return result;
   }
 
   // ── Geometry helpers ────────────────────────────────────────────────────

@@ -242,6 +242,92 @@ class PlannerUI {
     }
   }
 
+  closeConfirmDialog() {
+    const existing = document.getElementById('confirmModal');
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  showConfirmDialog({
+    title = 'Confirm',
+    message = '',
+    confirmLabel = 'Confirm',
+    cancelLabel = 'Cancel',
+    tone = 'danger'
+  } = {}) {
+    this.closeConfirmDialog();
+
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.id = 'confirmModal';
+      overlay.className = 'mission-modal-overlay';
+
+      const modal = document.createElement('div');
+      modal.className = 'confirm-modal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+
+      const header = document.createElement('div');
+      header.className = 'confirm-modal-header';
+      header.textContent = title;
+
+      const body = document.createElement('div');
+      body.className = 'confirm-modal-body';
+      body.textContent = message;
+
+      const footer = document.createElement('div');
+      footer.className = 'confirm-modal-footer';
+
+      const cancelButton = document.createElement('button');
+      cancelButton.type = 'button';
+      cancelButton.className = 'ghost';
+      cancelButton.textContent = cancelLabel;
+
+      const confirmButton = document.createElement('button');
+      confirmButton.type = 'button';
+      confirmButton.className = tone === 'danger' ? 'danger' : 'accent2';
+      confirmButton.textContent = confirmLabel;
+
+      const finish = result => {
+        document.removeEventListener('keydown', onKeyDown, true);
+        overlay.remove();
+        resolve(result);
+      };
+
+      const onKeyDown = event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        } else if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(true);
+        }
+      };
+
+      cancelButton.addEventListener('click', () => finish(false));
+      confirmButton.addEventListener('click', () => finish(true));
+
+      overlay.addEventListener('click', event => {
+        if (event.target === overlay) {
+          finish(false);
+        }
+      });
+
+      footer.appendChild(cancelButton);
+      footer.appendChild(confirmButton);
+
+      modal.appendChild(header);
+      modal.appendChild(body);
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      document.addEventListener('keydown', onKeyDown, true);
+      cancelButton.focus();
+    });
+  }
+
   showPOIOptionsDialog({
     poiLabel,
     positionText,
