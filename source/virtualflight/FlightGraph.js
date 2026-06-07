@@ -19,10 +19,28 @@ class FlightGraph {
     return this._overlay;
   }
 
-  buildData({ waypoints, mission }) {
+  buildData({ waypoints, mission, heightAboveGroundByWaypointId = null }) {
     if (!Array.isArray(waypoints) || waypoints.length < 2 || !mission || typeof mission.haversine !== 'function') {
       return null;
     }
+
+    const resolveHag = waypoint => {
+      if (!waypoint) {
+        return null;
+      }
+
+      if (heightAboveGroundByWaypointId instanceof Map) {
+        const value = Number(heightAboveGroundByWaypointId.get(waypoint.id));
+        return Number.isFinite(value) ? value : null;
+      }
+
+      if (heightAboveGroundByWaypointId && typeof heightAboveGroundByWaypointId === 'object') {
+        const value = Number(heightAboveGroundByWaypointId[waypoint.id]);
+        return Number.isFinite(value) ? value : null;
+      }
+
+      return null;
+    };
 
     const points = [];
     let elapsed = 0;
@@ -31,6 +49,7 @@ class FlightGraph {
     points.push({
       t: 0,
       alt: Number.isFinite(Number(first.alt)) ? Number(first.alt) : 0,
+      hag: resolveHag(first),
       speedKmh: Math.round((Number.isFinite(Number(first.speed)) ? Number(first.speed) : 8) * 3.6)
     });
 
@@ -46,29 +65,37 @@ class FlightGraph {
       points.push({
         t: elapsed,
         alt: Number.isFinite(Number(curr.alt)) ? Number(curr.alt) : 0,
+        hag: resolveHag(curr),
         speedKmh: Math.round((Number.isFinite(speed) && speed > 0 ? speed : segmentSpeed) * 3.6)
       });
     }
 
     const alts = points.map(point => point.alt);
+    const hagValues = points
+      .map(point => Number(point.hag))
+      .filter(value => Number.isFinite(value));
+    const altitudeScaleValues = hagValues.length > 0
+      ? alts.concat(hagValues)
+      : alts;
     const speeds = points.map(point => point.speedKmh);
 
     return {
       points,
       totalTime: elapsed,
-      minAlt: Math.min(...alts),
-      maxAlt: Math.max(...alts),
+      minAlt: Math.min(...altitudeScaleValues),
+      maxAlt: Math.max(...altitudeScaleValues),
+      hasHag: hagValues.length > 0,
       minSpeed: Math.min(...speeds),
       maxSpeed: Math.max(...speeds)
     };
   }
 
-  show({ waypoints, mission, cursorTime = 0 }) {
+  show({ waypoints, mission, cursorTime = 0, heightAboveGroundByWaypointId = null }) {
     if (!this._overlay || !this._canvas) {
       return;
     }
 
-    const data = this.buildData({ waypoints, mission });
+    const data = this.buildData({ waypoints, mission, heightAboveGroundByWaypointId });
     if (!data) {
       return;
     }
@@ -282,6 +309,35 @@ class FlightGraph {
     ctx.stroke();
   }
 
+  _drawHagLine(ctx, scaleFns, data) {
+    if (!data.hasHag) {
+      return;
+    }
+
+    ctx.strokeStyle = 'rgba(46, 213, 115, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let hasSegment = false;
+
+    data.points.forEach(point => {
+      if (!Number.isFinite(point.hag)) {
+        hasSegment = false;
+        return;
+      }
+
+      const x = scaleFns.xAt(point.t);
+      const y = scaleFns.yAltAt(point.hag);
+      if (!hasSegment) {
+        ctx.moveTo(x, y);
+        hasSegment = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.stroke();
+  }
+
   _drawSpeedLine(ctx, scaleFns, data) {
     ctx.strokeStyle = 'rgba(240, 165, 0, 0.95)';
     ctx.lineWidth = 2;
@@ -336,12 +392,66 @@ class FlightGraph {
     ctx.fillText(this._formatTime(totalTime), layout.padLeft + layout.plotW - 36, layout.padTop + layout.plotH + 14);
   }
 
+  _drawLegend(ctx, layout, data) {
+    const items = [
+      { label: 'ALT', color: 'rgba(0, 212, 255, 0.95)' },
+      ...(data.hasHag ? [{ label: 'HAG', color: 'rgba(46, 213, 115, 0.95)' }] : []),
+      { label: 'SPD', color: 'rgba(240, 165, 0, 0.95)' }
+    ];
+
+    ctx.font = '10px Barlow, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    const itemGap = 8;
+    const colorBox = 8;
+    const labelGap = 4;
+    const horizontalPadding = 8;
+    const legendHeight = 16;
+    const legendY = layout.cursorRailTop + 10;
+
+    let contentWidth = 0;
+    items.forEach((item, index) => {
+      const itemWidth = colorBox + labelGap + ctx.measureText(item.label).width;
+      contentWidth += itemWidth;
+      if (index < items.length - 1) {
+        contentWidth += itemGap;
+      }
+    });
+
+    const legendWidth = contentWidth + (horizontalPadding * 2);
+    const legendX = Math.max(layout.padLeft, layout.padLeft + layout.plotW - legendWidth);
+
+    ctx.fillStyle = 'rgba(5, 18, 28, 0.72)';
+    ctx.fillRect(legendX, legendY - (legendHeight / 2), legendWidth, legendHeight);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(legendX, legendY - (legendHeight / 2), legendWidth, legendHeight);
+
+    let cursorX = legendX + horizontalPadding;
+    items.forEach((item, index) => {
+      ctx.fillStyle = item.color;
+      ctx.fillRect(cursorX, legendY - (colorBox / 2), colorBox, colorBox);
+      cursorX += colorBox + labelGap;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillText(item.label, cursorX, legendY);
+      cursorX += ctx.measureText(item.label).width;
+
+      if (index < items.length - 1) {
+        cursorX += itemGap;
+      }
+    });
+  }
+
   _drawStaticGraph(ctx, layout, scaleFns, data, totalTime) {
     this._drawGrid(ctx, layout, data);
     this._drawAxes(ctx, layout);
     this._drawAltitudeLine(ctx, scaleFns, data);
+    this._drawHagLine(ctx, scaleFns, data);
     this._drawSpeedLine(ctx, scaleFns, data);
     this._drawXAxis(ctx, layout, scaleFns, totalTime);
+    this._drawLegend(ctx, layout, data);
   }
 
   _formatTime(seconds) {
@@ -363,6 +473,7 @@ class FlightGraph {
     if (data.points.length === 1) {
       return {
         alt: data.points[0].alt,
+        hag: data.points[0].hag,
         speedKmh: data.points[0].speedKmh,
         time: clampedT
       };
@@ -385,13 +496,35 @@ class FlightGraph {
     const right = data.points[rightIndex];
 
     if (clampedT >= right.t) {
-      return { alt: right.alt, speedKmh: right.speedKmh, time: clampedT };
+      return {
+        alt: right.alt,
+        hag: right.hag,
+        speedKmh: right.speedKmh,
+        time: clampedT
+      };
     }
 
     const span = Math.max(0.000001, right.t - left.t);
     const alpha = Math.max(0, Math.min(1, (clampedT - left.t) / span));
+
+    const sampleHag = (() => {
+      const leftHag = Number(left.hag);
+      const rightHag = Number(right.hag);
+      if (Number.isFinite(leftHag) && Number.isFinite(rightHag)) {
+        return leftHag + (rightHag - leftHag) * alpha;
+      }
+      if (Number.isFinite(leftHag)) {
+        return leftHag;
+      }
+      if (Number.isFinite(rightHag)) {
+        return rightHag;
+      }
+      return null;
+    })();
+
     return {
       alt: left.alt + (right.alt - left.alt) * alpha,
+      hag: sampleHag,
       speedKmh: left.speedKmh + (right.speedKmh - left.speedKmh) * alpha,
       time: clampedT
     };
@@ -407,7 +540,10 @@ class FlightGraph {
     ctx.stroke();
 
     const sample = this._sampleAtTime(cursorTime);
-    const readout = `${Math.round(sample.alt)}m   ${Math.round(sample.speedKmh)}km/h   ${this._formatTime(sample.time)}`;
+    const hagReadout = Number.isFinite(sample.hag)
+      ? `   HAG ${Math.round(sample.hag)}m`
+      : '';
+    const readout = `${Math.round(sample.alt)}m${hagReadout}   ${Math.round(sample.speedKmh)}km/h   ${this._formatTime(sample.time)}`;
     ctx.font = '12px Barlow, sans-serif';
     const readoutPaddingX = 8;
     const readoutW = ctx.measureText(readout).width + (readoutPaddingX * 2);

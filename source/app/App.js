@@ -698,7 +698,9 @@ class App {
       this.flythrough.showAtCurrentTime();
     }
     if (this.fpv) {
-      this.fpv.setMission(this.waypoints, this.mission);
+      this.fpv.setMission(this.waypoints, this.mission, {
+        heightAboveGroundByWaypointId: this.heightAboveGroundByWaypointId
+      });
     }
     this.ui.updateFlythroughProgress(
       this.flythrough.currentTime,
@@ -1066,6 +1068,10 @@ class App {
     });
 
     if (updated) {
+      if (this.fpv && typeof this.fpv.setGraphHeightAboveGround === 'function') {
+        this.fpv.setGraphHeightAboveGround(this.heightAboveGroundByWaypointId);
+      }
+
       this.ui.renderList({
         waypoints: this.waypoints,
         pois: this.pois,

@@ -45,6 +45,7 @@ class FPVController {
     this._sensorAspect  = FPVController.DEFAULT_ASPECT;
     this._graphWaypoints = [];
     this._graphMission = null;
+    this._graphHeightAboveGroundByWaypointId = null;
     this._graphCurrentTime = 0;
     this._graphTotalTime = 0;
     this._flightGraph = null;
@@ -88,9 +89,12 @@ class FPVController {
    * Preload satellite tiles covering the mission waypoints.
    * Call whenever waypoints change (same pattern as FlythroughController).
    */
-  setMission(waypoints, mission = null) {
+  setMission(waypoints, mission = null, options = {}) {
     this._graphWaypoints = Array.isArray(waypoints) ? waypoints : [];
     this._graphMission = mission;
+    if (Object.prototype.hasOwnProperty.call(options, 'heightAboveGroundByWaypointId')) {
+      this._graphHeightAboveGroundByWaypointId = options.heightAboveGroundByWaypointId;
+    }
 
     if (!Array.isArray(waypoints) || waypoints.length < 1) {
       this._missionCenter = null;
@@ -114,6 +118,13 @@ class FPVController {
       Math.min(...lngs), Math.max(...lngs)
     );
 
+    if (this._visible) {
+      this._refreshGraph();
+    }
+  }
+
+  setGraphHeightAboveGround(heightAboveGroundByWaypointId) {
+    this._graphHeightAboveGroundByWaypointId = heightAboveGroundByWaypointId;
     if (this._visible) {
       this._refreshGraph();
     }
@@ -442,7 +453,8 @@ class FPVController {
     this._flightGraph.show({
       waypoints: this._graphWaypoints,
       mission: this._graphMission,
-      cursorTime: this._graphCurrentTime
+      cursorTime: this._graphCurrentTime,
+      heightAboveGroundByWaypointId: this._graphHeightAboveGroundByWaypointId
     });
     this._flightGraph.updateCursor(this._graphCurrentTime, this._graphTotalTime);
     this._syncGraphOverlapClass();
