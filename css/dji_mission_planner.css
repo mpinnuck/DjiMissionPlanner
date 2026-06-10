@@ -1813,6 +1813,32 @@ body.screen-sm .mission-modal-footer button:last-child {
   grid-column: 1 / -1;
 }
 
+body.screen-sm #mobileSheet .bulk-edit-title {
+  color: #7fe3ff;
+}
+
+body.screen-sm #mobileSheet .bulk-edit-subtitle {
+  color: rgba(232, 239, 250, 0.84);
+}
+
+body.screen-sm #mobileSheet .field-row label,
+body.screen-sm #mobileSheet .field-row .unit,
+body.screen-sm #mobileSheet .mission-name-row label {
+  color: rgba(232, 239, 250, 0.9);
+}
+
+body.screen-sm #mobileSheet .field-row input,
+body.screen-sm #mobileSheet .field-row select,
+body.screen-sm #mobileSheet .mission-name-row input {
+  color: #f7fbff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+body.screen-sm #mobileSheet .field-row input::placeholder {
+  color: rgba(232, 239, 250, 0.7);
+}
+
 body.screen-sm .mission-modal-title,
 body.screen-sm .confirm-modal-header,
 body.screen-sm .mission-tree-row,
