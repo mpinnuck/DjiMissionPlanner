@@ -110,6 +110,10 @@ class ExportKmz {
     return !!this.folderHandle || localStorage.getItem(this.folderHandleKey) !== null;
   }
 
+  canChooseFolder() {
+    return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
+  }
+
   async promptForFolder() {
     try {
       const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });

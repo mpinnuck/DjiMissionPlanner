@@ -955,7 +955,8 @@ class App {
     }
 
     const values = await this.ui.showBulkWaypointActionDialog({
-      selectedCount: selectedWaypoints.length
+      selectedCount: selectedWaypoints.length,
+      pois: this.pois
     });
     if (!values) {
       return;
@@ -964,15 +965,16 @@ class App {
     await this.applyBulkWaypointSettingsFromDialog(values, selectedWaypoints);
   }
 
-  async applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue }, selectedWaypoints) {
+  async applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue, poiValue }, selectedWaypoints) {
     const altitude = parseFloat(altitudeValue);
     const speedKmh = parseFloat(speedValue);
     const targetHag = parseFloat(hagValue);
     const applyAltitude = String(altitudeValue || '').trim() !== '' && Number.isFinite(altitude);
     const applySpeed = String(speedValue || '').trim() !== '' && Number.isFinite(speedKmh);
     const applyHag = String(hagValue || '').trim() !== '' && Number.isFinite(targetHag) && targetHag > 0;
+    const applyPoi = poiValue !== '__KEEP__';
 
-    if (!applyAltitude && !applySpeed && !applyHag) {
+    if (!applyAltitude && !applySpeed && !applyHag && !applyPoi) {
       this.showStatus('No bulk changes applied.');
       return;
     }
@@ -983,6 +985,9 @@ class App {
       }
       if (applySpeed) {
         waypoint.speed = Number((speedKmh / 3.6).toFixed(2));
+      }
+      if (applyPoi) {
+        waypoint.poiId = poiValue === '__NONE__' ? null : poiValue;
       }
       this.recomputePOI(waypoint);
     });
@@ -1450,6 +1455,23 @@ class App {
     });
   }
 
+  async doMobileExport() {
+    const canChooseFolder = typeof this.kmzExporter.canChooseFolder === 'function'
+      ? this.kmzExporter.canChooseFolder()
+      : false;
+    const action = await this.ui.showExportOptionsDialog({ canChooseFolder });
+    if (!action) {
+      return;
+    }
+
+    if (action === 'folder') {
+      await this.changeExportFolder();
+      return;
+    }
+
+    this.doExport();
+  }
+
   async changeExportFolder() {
     try {
       const dirHandle = await this.kmzExporter.promptForFolder();
@@ -1491,6 +1513,126 @@ class App {
     } catch (error) {
       this.onError(error.message || 'Failed to save mission file.');
       this.ui.showToast(error.message || 'Failed to save mission file.', 'error');
+    }
+  }
+
+  async doMobileSave() {
+    const action = await this.ui.showSaveOptionsDialog({
+      canChooseFolder: this.storage.canChooseRootDirectory(),
+      canSaveToFiles: true
+    });
+    if (!action) {
+      return;
+    }
+
+    if (action === 'folder') {
+      await this.changeSaveMissionFolder();
+      return;
+    }
+
+    if (action === 'files') {
+      await this.saveMissionToFiles();
+      return;
+    }
+
+    await this.doSaveMission();
+  }
+
+  async saveMissionToFiles() {
+    try {
+      const jsonText = this.exportMissionJson();
+      const safeBaseName = String(this.ui.getMissionName() || 'Mission')
+        .trim()
+        .replace(/[^a-zA-Z0-9._-]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'Mission';
+      const filename = safeBaseName.toLowerCase().endsWith('.json')
+        ? safeBaseName
+        : `${safeBaseName}.json`;
+
+      if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: 'Mission JSON',
+              accept: {
+                'application/json': ['.json']
+              }
+            }
+          ]
+        });
+        const writable = await fileHandle.createWritable();
+        await writable.write(jsonText);
+        await writable.close();
+        this.showStatus(`Saved mission file: ${filename}`);
+        this.ui.showToast(`Saved to Files: ${filename}`, 'success');
+        return;
+      }
+
+      const jsonFile = new File([jsonText], filename, { type: 'application/json' });
+      let canShareFile = false;
+      try {
+        canShareFile = typeof navigator !== 'undefined'
+          && typeof navigator.share === 'function'
+          && typeof navigator.canShare === 'function'
+          && navigator.canShare({ files: [jsonFile] });
+      } catch (error) {
+        canShareFile = false;
+      }
+
+      if (canShareFile) {
+        try {
+          await navigator.share({
+            files: [jsonFile],
+            title: filename,
+            text: 'Mission JSON generated locally on this device.'
+          });
+          this.showStatus(`Mission ready in Share Sheet: ${filename}`);
+          this.ui.showToast(`Mission ready: ${filename}`, 'success');
+          return;
+        } catch (error) {
+          if (!error || error.name !== 'AbortError') {
+            console.warn('Share failed, falling back to download flow:', error);
+          }
+        }
+      }
+
+      const url = URL.createObjectURL(new Blob([jsonText], { type: 'application/json' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+
+      this.showStatus(`Downloaded mission file: ${filename}`);
+      this.ui.showToast(`Downloaded mission: ${filename}`, 'success');
+    } catch (error) {
+      if (error && error.name === 'AbortError') {
+        return;
+      }
+      this.onError(error.message || 'Failed to save mission to files.');
+      this.ui.showToast(error.message || 'Failed to save mission to files.', 'error');
+    }
+  }
+
+  async changeSaveMissionFolder() {
+    if (!this.storage.canChooseRootDirectory()) {
+      this.showStatus('Folder selection is not available in this browser.');
+      return;
+    }
+
+    try {
+      await this.storage.chooseRootDirectory();
+      this.lastLoadedMissionLocation = this.storage.getLastLoadedMissionLocation();
+      this.lastLoadedMissionFolder = this.lastLoadedMissionLocation.folderPath || '';
+      this.lastLoadedMissionRootLabel = this.lastLoadedMissionLocation.rootLabel || '';
+      this.showStatus('Mission folder updated. Next save will use this location.');
+      this.ui.showToast('Mission save folder updated.', 'success');
+    } catch (error) {
+      this.showStatus(error.message || 'Folder selection was cancelled.');
     }
   }
 
@@ -1978,6 +2120,7 @@ class App {
       onLocate: () => this.locateUser(),
       onClearAll: () => this.clearAll(),
       onSaveMission: () => this.doSaveMission(),
+      onSaveMissionChangeFolder: () => this.changeSaveMissionFolder(),
       onLoadMission: () => this.doLoadMission(),
       onExport: () => this.doExport(),
       onExportChangeFolder: () => this.changeExportFolder(),
@@ -2072,8 +2215,8 @@ class App {
       onMobileMissionSettings: () => this.ui.toggleMobileMissionSettings(),
       onMobileMissionDone: () => this.ui.closeMobileMissionSettings(),
       onMobileLoad: () => this.doLoadMission(),
-      onMobileSave: () => this.doSaveMission(),
-      onMobileExport: () => this.doExport(),
+      onMobileSave: () => this.doMobileSave(),
+      onMobileExport: () => this.doMobileExport(),
       onMobilePlay: () => {
         if (!this.flythrough) {
           return;

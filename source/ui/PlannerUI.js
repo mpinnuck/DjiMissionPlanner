@@ -189,6 +189,24 @@ class PlannerUI {
     if (typeof handlers.onDefaultSpeedChange === 'function' && this.defaultSpeedInput) {
       this.defaultSpeedInput.addEventListener('blur', () => handlers.onDefaultSpeedChange());
     }
+
+    // Right-click or long-press to change save folder
+    if (typeof handlers.onSaveMissionChangeFolder === 'function') {
+      this.btnSaveMission.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        handlers.onSaveMissionChangeFolder();
+      });
+
+      let saveTouchStartTime = 0;
+      this.btnSaveMission.addEventListener('touchstart', () => {
+        saveTouchStartTime = Date.now();
+      });
+      this.btnSaveMission.addEventListener('touchend', () => {
+        if (Date.now() - saveTouchStartTime > 500) {
+          handlers.onSaveMissionChangeFolder();
+        }
+      });
+    }
     
     // Right-click or long-press to change export folder
     if (typeof handlers.onExportChangeFolder === 'function') {
@@ -277,6 +295,165 @@ class PlannerUI {
     if (existing) {
       existing.remove();
     }
+  }
+
+  closeExportOptionsDialog() {
+    const existing = document.getElementById('exportOptionsModal');
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  showExportOptionsDialog({ canChooseFolder = true } = {}) {
+    this.closeExportOptionsDialog();
+
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.id = 'exportOptionsModal';
+      overlay.className = 'mission-modal-overlay';
+
+      const modal = document.createElement('div');
+      modal.className = 'confirm-modal export-options-modal';
+
+      const header = document.createElement('div');
+      header.className = 'confirm-modal-header';
+      header.textContent = 'Export KMZ';
+
+      const body = document.createElement('div');
+      body.className = 'confirm-modal-body';
+      body.textContent = canChooseFolder
+        ? 'Choose where to export, or export now to the last selected folder.'
+        : 'Export now. Folder selection is not supported in this browser.';
+
+      const footer = document.createElement('div');
+      footer.className = 'confirm-modal-footer export-options-footer';
+
+      const cancelButton = document.createElement('button');
+      cancelButton.type = 'button';
+      cancelButton.className = 'ghost';
+      cancelButton.textContent = 'Cancel';
+
+      const exportButton = document.createElement('button');
+      exportButton.type = 'button';
+      exportButton.className = 'accent2';
+      exportButton.textContent = 'Export KMZ';
+
+      const finish = result => {
+        overlay.remove();
+        resolve(result);
+      };
+
+      cancelButton.addEventListener('click', () => finish(null));
+      exportButton.addEventListener('click', () => finish('export'));
+
+      if (canChooseFolder) {
+        const folderButton = document.createElement('button');
+        folderButton.type = 'button';
+        folderButton.className = 'ghost';
+        folderButton.textContent = 'Open Folder...';
+        folderButton.addEventListener('click', () => finish('folder'));
+        footer.appendChild(folderButton);
+      }
+
+      footer.appendChild(cancelButton);
+      footer.appendChild(exportButton);
+
+      overlay.addEventListener('click', event => {
+        if (event.target === overlay) {
+          finish(null);
+        }
+      });
+
+      modal.appendChild(header);
+      modal.appendChild(body);
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+    });
+  }
+
+  closeSaveOptionsDialog() {
+    const existing = document.getElementById('saveOptionsModal');
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  showSaveOptionsDialog({ canChooseFolder = true, canSaveToFiles = true } = {}) {
+    this.closeSaveOptionsDialog();
+
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.id = 'saveOptionsModal';
+      overlay.className = 'mission-modal-overlay';
+
+      const modal = document.createElement('div');
+      modal.className = 'confirm-modal export-options-modal';
+
+      const header = document.createElement('div');
+      header.className = 'confirm-modal-header';
+      header.textContent = 'Save Mission';
+
+      const body = document.createElement('div');
+      body.className = 'confirm-modal-body';
+      body.textContent = canChooseFolder
+        ? 'Save to the current folder, open a different folder first, or save to Files.'
+        : 'Folder selection is not supported in this browser. Use Save to Files or save to browser storage.';
+
+      const footer = document.createElement('div');
+      footer.className = 'confirm-modal-footer save-options-footer';
+
+      const cancelButton = document.createElement('button');
+      cancelButton.type = 'button';
+      cancelButton.className = 'ghost';
+      cancelButton.textContent = 'Cancel';
+
+      const saveButton = document.createElement('button');
+      saveButton.type = 'button';
+      saveButton.className = 'accent2';
+      saveButton.textContent = 'Save Mission';
+
+      const finish = result => {
+        overlay.remove();
+        resolve(result);
+      };
+
+      cancelButton.addEventListener('click', () => finish(null));
+      saveButton.addEventListener('click', () => finish('save'));
+
+      if (canSaveToFiles) {
+        const filesButton = document.createElement('button');
+        filesButton.type = 'button';
+        filesButton.className = 'ghost';
+        filesButton.textContent = 'Save to Files...';
+        filesButton.addEventListener('click', () => finish('files'));
+        footer.appendChild(filesButton);
+      }
+
+      if (canChooseFolder) {
+        const folderButton = document.createElement('button');
+        folderButton.type = 'button';
+        folderButton.className = 'ghost';
+        folderButton.textContent = 'Open Folder...';
+        folderButton.addEventListener('click', () => finish('folder'));
+        footer.appendChild(folderButton);
+      }
+
+      footer.appendChild(cancelButton);
+      footer.appendChild(saveButton);
+
+      overlay.addEventListener('click', event => {
+        if (event.target === overlay) {
+          finish(null);
+        }
+      });
+
+      modal.appendChild(header);
+      modal.appendChild(body);
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+    });
   }
 
   closeWaypointOptionsDialog() {
@@ -386,7 +563,7 @@ class PlannerUI {
     }
   }
 
-  showBulkWaypointActionDialog({ selectedCount }) {
+  showBulkWaypointActionDialog({ selectedCount, pois = [] }) {
     this.closeBulkWaypointActionDialog();
 
     return new Promise(resolve => {
@@ -421,6 +598,46 @@ class PlannerUI {
         </div>
       `;
 
+      const poiRow = document.createElement('div');
+      poiRow.className = 'field-row';
+      poiRow.style.marginTop = '8px';
+      poiRow.style.marginBottom = '0';
+
+      const poiLabel = document.createElement('label');
+      poiLabel.textContent = 'POI';
+
+      const poiSelect = document.createElement('select');
+      poiSelect.id = 'bulkDlgPoi';
+
+      const keepOption = document.createElement('option');
+      keepOption.value = '__KEEP__';
+      keepOption.textContent = 'Keep Existing';
+      poiSelect.appendChild(keepOption);
+
+      const noneOption = document.createElement('option');
+      noneOption.value = '__NONE__';
+      noneOption.textContent = 'None';
+      poiSelect.appendChild(noneOption);
+
+      pois.forEach(poi => {
+        if (!poi || !poi.id) {
+          return;
+        }
+        const option = document.createElement('option');
+        option.value = poi.id;
+        option.textContent = poi.name || poi.id;
+        poiSelect.appendChild(option);
+      });
+
+      const poiUnit = document.createElement('span');
+      poiUnit.className = 'unit';
+      poiUnit.textContent = '';
+
+      poiRow.appendChild(poiLabel);
+      poiRow.appendChild(poiSelect);
+      poiRow.appendChild(poiUnit);
+      body.appendChild(poiRow);
+
       const footer = document.createElement('div');
       footer.className = 'confirm-modal-footer';
 
@@ -444,7 +661,8 @@ class PlannerUI {
         finish({
           altitudeValue: body.querySelector('#bulkDlgAlt').value,
           speedValue: body.querySelector('#bulkDlgSpeed').value,
-          hagValue: body.querySelector('#bulkDlgHag').value
+          hagValue: body.querySelector('#bulkDlgHag').value,
+          poiValue: body.querySelector('#bulkDlgPoi').value
         });
       });
 
@@ -1002,6 +1220,60 @@ class PlannerUI {
     const expandedSegments = typeof initialExpandedPath === 'string' && initialExpandedPath.trim()
       ? initialExpandedPath.split('/').filter(Boolean)
       : [];
+    const expandedFolderKeys = new Set();
+    const normalizedRootLabel = String(rootLabel || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '');
+    if (expandedSegments.length) {
+      let folderPath = '';
+      expandedSegments.forEach(segment => {
+        folderPath = folderPath ? `${folderPath}/${segment}` : segment;
+        expandedFolderKeys.add(folderPath);
+        if (normalizedRootLabel) {
+          expandedFolderKeys.add(`${normalizedRootLabel}/${folderPath}`);
+        }
+      });
+    }
+
+    let searchTerm = '';
+
+    const countFiles = list => list.reduce((total, node) => {
+      if (node.type === 'file') {
+        return total + 1;
+      }
+      const children = Array.isArray(node.children) ? node.children : [];
+      return total + countFiles(children);
+    }, 0);
+
+    const totalMissionCount = countFiles(nodes);
+
+    const filterNodes = (list, term) => {
+      const normalizedTerm = term.trim().toLowerCase();
+      if (!normalizedTerm) {
+        return list;
+      }
+
+      const filtered = [];
+      list.forEach(node => {
+        if (node.type === 'file') {
+          if (node.name.toLowerCase().includes(normalizedTerm)) {
+            filtered.push(node);
+          }
+          return;
+        }
+
+        const children = Array.isArray(node.children) ? node.children : [];
+        const filteredChildren = filterNodes(children, normalizedTerm);
+        const folderMatches = node.name.toLowerCase().includes(normalizedTerm);
+        if (folderMatches || filteredChildren.length) {
+          filtered.push({
+            ...node,
+            children: filteredChildren
+          });
+        }
+      });
+      return filtered;
+    };
 
     const overlay = document.createElement('div');
     overlay.id = 'missionLoadModal';
@@ -1014,20 +1286,102 @@ class PlannerUI {
     header.className = 'mission-modal-header';
     header.innerHTML = `<div class="mission-modal-title">Load Mission</div><div class="mission-modal-subtitle">${rootLabel}</div>`;
 
+    const toolbar = document.createElement('div');
+    toolbar.className = 'mission-modal-toolbar';
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'search';
+    searchInput.className = 'mission-tree-search';
+    searchInput.placeholder = 'Search missions or folders...';
+    searchInput.setAttribute('aria-label', 'Search mission files and folders');
+
+    const stats = document.createElement('div');
+    stats.className = 'mission-tree-stats';
+
+    const expandAllButton = document.createElement('button');
+    expandAllButton.type = 'button';
+    expandAllButton.className = 'ghost mission-tree-toolbar-btn';
+    expandAllButton.textContent = 'Expand All';
+
+    const collapseAllButton = document.createElement('button');
+    collapseAllButton.type = 'button';
+    collapseAllButton.className = 'ghost mission-tree-toolbar-btn';
+    collapseAllButton.textContent = 'Collapse';
+
+    toolbar.appendChild(searchInput);
+    toolbar.appendChild(stats);
+    toolbar.appendChild(expandAllButton);
+    toolbar.appendChild(collapseAllButton);
+
     const treeWrap = document.createElement('div');
     treeWrap.className = 'mission-tree-wrap';
 
-    if (!nodes.length) {
-      const empty = document.createElement('div');
-      empty.className = 'mission-tree-empty';
-      empty.textContent = 'No mission JSON files found in this folder.';
-      treeWrap.appendChild(empty);
-    } else {
+    const collectDirectoryKeys = (list, keys = []) => {
+      list.forEach(node => {
+        if (node.type !== 'directory') {
+          return;
+        }
+        keys.push(node.path);
+        if (Array.isArray(node.children) && node.children.length) {
+          collectDirectoryKeys(node.children, keys);
+        }
+      });
+      return keys;
+    };
+
+    const renderTree = () => {
+      treeWrap.innerHTML = '';
+      const filteredNodes = filterNodes(nodes, searchTerm);
+      const visibleMissionCount = countFiles(filteredNodes);
+      const isSearching = searchTerm.trim().length > 0;
+      stats.textContent = isSearching
+        ? `${visibleMissionCount} of ${totalMissionCount} missions`
+        : `${totalMissionCount} missions`;
+
+      if (!totalMissionCount) {
+        const empty = document.createElement('div');
+        empty.className = 'mission-tree-empty';
+        empty.textContent = 'No mission JSON files found in this folder.';
+        treeWrap.appendChild(empty);
+        return;
+      }
+
+      if (!filteredNodes.length) {
+        const empty = document.createElement('div');
+        empty.className = 'mission-tree-empty';
+        empty.textContent = 'No missions match your search.';
+        treeWrap.appendChild(empty);
+        return;
+      }
+
       const rootList = document.createElement('ul');
       rootList.className = 'mission-tree';
-      nodes.forEach(node => rootList.appendChild(this.createMissionTreeNode(node, onSelectFile, onDeleteFile, expandedSegments)));
+      filteredNodes.forEach(node => rootList.appendChild(this.createMissionTreeNode(
+        node,
+        onSelectFile,
+        onDeleteFile,
+        expandedFolderKeys,
+        searchTerm.trim().length > 0
+      )));
       treeWrap.appendChild(rootList);
-    }
+    };
+
+    searchInput.addEventListener('input', () => {
+      searchTerm = searchInput.value || '';
+      renderTree();
+    });
+
+    expandAllButton.addEventListener('click', () => {
+      collectDirectoryKeys(nodes).forEach(key => expandedFolderKeys.add(key));
+      renderTree();
+    });
+
+    collapseAllButton.addEventListener('click', () => {
+      expandedFolderKeys.clear();
+      renderTree();
+    });
+
+    renderTree();
 
     const footer = document.createElement('div');
     footer.className = 'mission-modal-footer';
@@ -1076,6 +1430,7 @@ class PlannerUI {
     footer.appendChild(closeButton);
 
     modal.appendChild(header);
+    modal.appendChild(toolbar);
     modal.appendChild(treeWrap);
     modal.appendChild(footer);
     overlay.appendChild(modal);
@@ -1088,14 +1443,13 @@ class PlannerUI {
     });
   }
 
-  createMissionTreeNode(node, onSelectFile, onDeleteFile, expandedSegments = [], pathSegments = []) {
+  createMissionTreeNode(node, onSelectFile, onDeleteFile, expandedFolderKeys = new Set(), forceExpand = false) {
     const li = document.createElement('li');
     li.className = 'mission-tree-node';
 
     if (node.type === 'directory') {
-      const nextPathSegments = [...pathSegments, node.name];
-      const isExpanded = expandedSegments.length >= nextPathSegments.length
-        && nextPathSegments.every((segment, index) => expandedSegments[index] === segment);
+      const directoryPath = node.path || node.name;
+      const isExpanded = forceExpand || expandedFolderKeys.has(directoryPath);
 
       const row = document.createElement('button');
       row.type = 'button';
@@ -1109,13 +1463,18 @@ class PlannerUI {
         child,
         onSelectFile,
         onDeleteFile,
-        expandedSegments,
-        nextPathSegments
+        expandedFolderKeys,
+        forceExpand
       )));
 
       row.addEventListener('click', () => {
         const expanded = childList.style.display !== 'none';
         childList.style.display = expanded ? 'none' : 'block';
+        if (expanded) {
+          expandedFolderKeys.delete(directoryPath);
+        } else {
+          expandedFolderKeys.add(directoryPath);
+        }
         row.textContent = `${expanded ? '▸' : '▾'} ${node.name}`;
       });
 
