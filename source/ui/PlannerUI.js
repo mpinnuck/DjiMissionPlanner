@@ -7,6 +7,9 @@ class PlannerUI {
     this.statWP = document.getElementById('statWP');
     this.statPOI = document.getElementById('statPOI');
     this.statDist = document.getElementById('statDist');
+    this.mbStatWP = document.getElementById('mbStatWP');
+    this.mbStatDist = document.getElementById('mbStatDist');
+    this.mbStatTime = document.getElementById('mbStatTime');
     this.sbMode = document.getElementById('sbMode');
     this.sbCursor = document.getElementById('sbCursor');
     this.sbStatus = document.getElementById('sbStatus');
@@ -19,6 +22,16 @@ class PlannerUI {
     this.btnSaveMission = document.getElementById('btnSaveMission');
     this.btnLoadMission = document.getElementById('btnLoadMission');
     this.btnExport = document.getElementById('btnExport');
+    this.mbMission = document.getElementById('mbMission');
+    this.mbMissionDone = document.getElementById('mbMissionDone');
+    this.mbLoad = document.getElementById('mbLoad');
+    this.mbSave = document.getElementById('mbSave');
+    this.mbExport = document.getElementById('mbExport');
+    this.mbPlay = document.getElementById('mbPlay');
+    this.mbAddWp = document.getElementById('mbAddWp');
+    this.mbAddPoi = document.getElementById('mbAddPoi');
+    this.mbSelect = document.getElementById('mbSelect');
+    this.mbClearSel = document.getElementById('mbClearSel');
     this.btnFPV = document.getElementById('btnFPV');
     this.btnFTPlay = document.getElementById('btnFTPlay');
     this.btnFTPause = document.getElementById('btnFTPause');
@@ -39,6 +52,9 @@ class PlannerUI {
     this.finishActionSelect = document.getElementById('defFinish');
     this.rcLostActionSelect = document.getElementById('defRCLost');
     this.headingModeSelect = document.getElementById('defHeading');
+    this.mobileSheet = document.getElementById('mobileSheet');
+    this.mobileSheetBody = document.getElementById('mobileSheetBody');
+    this.mobileSheetOvl = document.getElementById('mobileSheetOverlay');
     this.touchRangeSelection = null;
 
     this.updateDroneInputsState();
@@ -51,7 +67,7 @@ class PlannerUI {
   }
 
   getDefaultAltitude() {
-    return parseFloat(this.defaultAltitudeInput.value) || 50;
+    return parseFloat(this.defaultAltitudeInput.value) || 80;
   }
 
   getDefaultSpeed() {
@@ -221,6 +237,41 @@ class PlannerUI {
     }
   }
 
+  bindMobileEvents(handlers = {}) {
+    const wire = (el, fn) => el && fn && el.addEventListener('click', fn);
+    wire(this.mbMission, handlers.onMobileMissionSettings);
+    wire(this.mbMissionDone, handlers.onMobileMissionDone);
+    wire(this.mbLoad, handlers.onMobileLoad);
+    wire(this.mbSave, handlers.onMobileSave);
+    wire(this.mbExport, handlers.onMobileExport);
+    wire(this.mbPlay, handlers.onMobilePlay);
+    wire(this.mbAddWp, handlers.onMobileAddWp);
+    wire(this.mbAddPoi, handlers.onMobileAddPoi);
+    wire(this.mbSelect, handlers.onMobileSelect);
+    wire(this.mbClearSel, handlers.onMobileClearSel);
+
+    if (this.mobileSheetOvl) {
+      this.mobileSheetOvl.addEventListener('click', () => this.hideMobileSheet());
+    }
+    if (this.mobileSheet) {
+      let startY = 0;
+      this.mobileSheet.addEventListener('touchstart', e => {
+        if (!e.touches || e.touches.length === 0) {
+          return;
+        }
+        startY = e.touches[0].clientY;
+      }, { passive: true });
+      this.mobileSheet.addEventListener('touchend', e => {
+        if (!e.changedTouches || e.changedTouches.length === 0) {
+          return;
+        }
+        if (e.changedTouches[0].clientY - startY > 60) {
+          this.hideMobileSheet();
+        }
+      }, { passive: true });
+    }
+  }
+
   closeMissionLoadDialog() {
     const existing = document.getElementById('missionLoadModal');
     if (existing) {
@@ -325,6 +376,91 @@ class PlannerUI {
 
       document.addEventListener('keydown', onKeyDown, true);
       cancelButton.focus();
+    });
+  }
+
+  closeBulkWaypointActionDialog() {
+    const existing = document.getElementById('bulkWaypointActionModal');
+    if (existing) {
+      existing.remove();
+    }
+  }
+
+  showBulkWaypointActionDialog({ selectedCount }) {
+    this.closeBulkWaypointActionDialog();
+
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.id = 'bulkWaypointActionModal';
+      overlay.className = 'mission-modal-overlay';
+
+      const modal = document.createElement('div');
+      modal.className = 'confirm-modal bulk-waypoint-modal';
+
+      const header = document.createElement('div');
+      header.className = 'confirm-modal-header';
+      header.textContent = `Bulk Waypoint Settings (${selectedCount})`;
+
+      const body = document.createElement('div');
+      body.className = 'confirm-modal-body';
+      body.innerHTML = `
+        <div class="field-row" style="margin-bottom:8px;">
+          <label>Altitude</label>
+          <input id="bulkDlgAlt" type="number" min="1" max="500" step="1" placeholder="Leave blank" />
+          <span class="unit">m</span>
+        </div>
+        <div class="field-row" style="margin-bottom:8px;">
+          <label>Speed</label>
+          <input id="bulkDlgSpeed" type="number" min="4" max="54" step="1" placeholder="Leave blank" />
+          <span class="unit">km/h</span>
+        </div>
+        <div class="field-row" style="margin-bottom:0;">
+          <label>HAG</label>
+          <input id="bulkDlgHag" type="number" min="1" max="500" step="1" placeholder="Leave blank" />
+          <span class="unit">m</span>
+        </div>
+      `;
+
+      const footer = document.createElement('div');
+      footer.className = 'confirm-modal-footer';
+
+      const cancelButton = document.createElement('button');
+      cancelButton.type = 'button';
+      cancelButton.className = 'ghost';
+      cancelButton.textContent = 'Cancel';
+
+      const applyButton = document.createElement('button');
+      applyButton.type = 'button';
+      applyButton.className = 'accent2';
+      applyButton.textContent = 'Apply';
+
+      const finish = result => {
+        overlay.remove();
+        resolve(result);
+      };
+
+      cancelButton.addEventListener('click', () => finish(null));
+      applyButton.addEventListener('click', () => {
+        finish({
+          altitudeValue: body.querySelector('#bulkDlgAlt').value,
+          speedValue: body.querySelector('#bulkDlgSpeed').value,
+          hagValue: body.querySelector('#bulkDlgHag').value
+        });
+      });
+
+      overlay.addEventListener('click', event => {
+        if (event.target === overlay) {
+          finish(null);
+        }
+      });
+
+      footer.appendChild(cancelButton);
+      footer.appendChild(applyButton);
+      modal.appendChild(header);
+      modal.appendChild(body);
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
     });
   }
 
@@ -1121,6 +1257,22 @@ class PlannerUI {
       : Math.round(distanceMeters) + ' m';
   }
 
+  updateMobileStats({ wpCount, distanceMeters, elapsedSeconds } = {}) {
+    if (this.mbStatWP && Number.isFinite(wpCount)) {
+      this.mbStatWP.textContent = `WP ${wpCount}`;
+    }
+    if (this.mbStatDist && Number.isFinite(distanceMeters)) {
+      this.mbStatDist.textContent = distanceMeters >= 1000
+        ? `${(distanceMeters / 1000).toFixed(1)} km`
+        : `${Math.round(distanceMeters)} m`;
+    }
+    if (this.mbStatTime && Number.isFinite(elapsedSeconds)) {
+      const mins = Math.floor(elapsedSeconds / 60);
+      const secs = Math.floor(elapsedSeconds % 60);
+      this.mbStatTime.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+    }
+  }
+
   setMode(mode) {
     this.mapElement.classList.toggle('placing-wp', mode === 'wp');
     this.mapElement.classList.toggle('placing-poi', mode === 'poi');
@@ -1133,12 +1285,227 @@ class PlannerUI {
     this.sbMode.className = classes[mode];
   }
 
+  setMobileModeActive(mode) {
+    const map = { wp: this.mbAddWp, poi: this.mbAddPoi, select: this.mbSelect };
+    [this.mbAddWp, this.mbAddPoi, this.mbSelect].forEach(button => {
+      if (button) {
+        button.classList.remove('mb-active');
+      }
+    });
+    if (map[mode]) {
+      map[mode].classList.add('mb-active');
+    }
+  }
+
+  setMobilePlayState(state) {
+    if (!this.mbPlay) {
+      return;
+    }
+
+    this.mbPlay.classList.remove('playing', 'paused');
+    if (state === 'playing') {
+      this.mbPlay.textContent = '⏸';
+      this.mbPlay.classList.add('playing');
+      return;
+    }
+    if (state === 'paused') {
+      this.mbPlay.textContent = '▶';
+      this.mbPlay.classList.add('paused');
+      return;
+    }
+    this.mbPlay.textContent = '▶';
+  }
+
+  showMobileWaypointSheet({ wp, waypointIndex, pois, onAltChange, onSpeedChange, onPoiChange, onDelete }) {
+    const body = this.mobileSheetBody;
+    if (!body) {
+      return;
+    }
+
+    body.innerHTML = '';
+    body.appendChild(this._mbsHeader(`Waypoint ${waypointIndex}`, onDelete));
+
+    body.appendChild(this._mbsNumberRow('Alt', wp.alt, 'm', 1, 500, value => {
+      if (onAltChange) {
+        onAltChange(value);
+      }
+    }));
+
+    const speedKmh = Math.round((wp.speed || 0) * 3.6);
+    body.appendChild(this._mbsNumberRow('Speed', speedKmh, 'km/h', 0, 54, value => {
+      if (onSpeedChange) {
+        onSpeedChange(value);
+      }
+    }));
+
+    const poiRow = document.createElement('div');
+    poiRow.className = 'mbs-row';
+    const poiLabel = document.createElement('span');
+    poiLabel.className = 'mbs-label';
+    poiLabel.textContent = 'POI';
+    const poiSelect = document.createElement('select');
+    poiSelect.className = 'mbs-select';
+    const noneOption = document.createElement('option');
+    noneOption.value = '';
+    noneOption.textContent = '— None —';
+    poiSelect.appendChild(noneOption);
+    pois.forEach(poi => {
+      const option = document.createElement('option');
+      option.value = poi.id;
+      option.textContent = Mission.formatPoiDisplayName(poi.name);
+      poiSelect.appendChild(option);
+    });
+    poiSelect.value = wp.poiId || '';
+    poiSelect.addEventListener('change', () => {
+      if (onPoiChange) {
+        onPoiChange(poiSelect.value || null);
+      }
+    });
+
+    poiRow.appendChild(poiLabel);
+    poiRow.appendChild(poiSelect);
+    body.appendChild(poiRow);
+
+    this._openMobileSheet();
+  }
+
+  showMobilePOISheet({ poi, onNameChange, onAltChange, onDelete }) {
+    const body = this.mobileSheetBody;
+    if (!body) {
+      return;
+    }
+
+    body.innerHTML = '';
+    body.appendChild(this._mbsHeader(`POI ${Mission.formatPoiDisplayName(poi.name)}`, onDelete));
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'mbs-row';
+    const nameLabel = document.createElement('span');
+    nameLabel.className = 'mbs-label';
+    nameLabel.textContent = 'Name';
+    const nameInput = document.createElement('input');
+    nameInput.className = 'mbs-input';
+    nameInput.style.textAlign = 'left';
+    nameInput.type = 'text';
+    nameInput.value = poi.name;
+    nameInput.addEventListener('blur', () => {
+      if (onNameChange) {
+        onNameChange(nameInput.value);
+      }
+    });
+    nameRow.appendChild(nameLabel);
+    nameRow.appendChild(nameInput);
+    body.appendChild(nameRow);
+
+    body.appendChild(this._mbsNumberRow('Alt', poi.alt, 'm', 0, 500, value => {
+      if (onAltChange) {
+        onAltChange(value);
+      }
+    }));
+
+    this._openMobileSheet();
+  }
+
+  hideMobileSheet() {
+    if (this.mobileSheet) {
+      this.mobileSheet.classList.remove('open');
+    }
+    if (this.mobileSheetOvl) {
+      this.mobileSheetOvl.classList.remove('open');
+    }
+  }
+
+  toggleMobileMissionSettings() {
+    document.body.classList.toggle('mobile-mission-open');
+  }
+
+  closeMobileMissionSettings() {
+    document.body.classList.remove('mobile-mission-open');
+  }
+
+  // Compatibility wrappers for earlier mobile draft usage.
+  showMobileDetailSheet() {
+    this._openMobileSheet();
+  }
+
+  hideMobileDetailSheet() {
+    this.hideMobileSheet();
+  }
+
+  _openMobileSheet() {
+    if (this.mobileSheet) {
+      this.mobileSheet.classList.add('open');
+    }
+    if (this.mobileSheetOvl) {
+      this.mobileSheetOvl.classList.add('open');
+    }
+  }
+
+  _mbsHeader(title, onDelete) {
+    const header = document.createElement('div');
+    header.className = 'mbs-hdr';
+
+    const titleElement = document.createElement('span');
+    titleElement.className = 'mbs-hdr-title';
+    titleElement.textContent = title;
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'mbs-hdr-del';
+    deleteButton.textContent = '🗑';
+    deleteButton.addEventListener('click', () => {
+      this.hideMobileSheet();
+      if (onDelete) {
+        onDelete();
+      }
+    });
+
+    header.appendChild(titleElement);
+    header.appendChild(deleteButton);
+    return header;
+  }
+
+  _mbsNumberRow(label, value, unit, min, max, onChange) {
+    const row = document.createElement('div');
+    row.className = 'mbs-row';
+
+    const labelElement = document.createElement('span');
+    labelElement.className = 'mbs-label';
+    labelElement.textContent = label;
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'mbs-input';
+    input.value = value;
+    input.min = min;
+    input.max = max;
+    input.addEventListener('blur', () => {
+      const parsed = parseFloat(input.value);
+      if (Number.isFinite(parsed)) {
+        onChange(parsed);
+      }
+    });
+
+    const unitElement = document.createElement('span');
+    unitElement.className = 'mbs-unit';
+    unitElement.textContent = unit;
+
+    row.appendChild(labelElement);
+    row.appendChild(input);
+    row.appendChild(unitElement);
+    return row;
+  }
+
+  resolveDetailContainer(targetElement) {
+    return targetElement || this.detailContent;
+  }
+
   setEmptyStateVisible(visible) {
     this.emptyState.style.display = visible ? 'block' : 'none';
   }
 
-  showNothingSelected() {
-    this.detailContent.innerHTML = '<div id="detail-placeholder">Nothing selected</div>';
+  showNothingSelected(targetElement = null) {
+    const detailTarget = this.resolveDetailContainer(targetElement);
+    detailTarget.innerHTML = '<div id="detail-placeholder">Nothing selected</div>';
   }
 
   highlightSelectedItem(selectedId, selectedWaypointIds = new Set()) {
@@ -1380,7 +1747,8 @@ class PlannerUI {
     this.scrollListItemIntoView(scrollTargetId);
   }
 
-  showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange }) {
+  showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange, targetElement = null }) {
+    const detailTarget = this.resolveDetailContainer(targetElement);
     const poiOptions = pois.map((poi, index) => {
       const displayName = Mission.formatPoiDisplayName(poi.name, index + 1);
       return `<option value="${poi.id}" ${wp.poiId === poi.id ? 'selected' : ''}>${displayName}</option>`;
@@ -1394,7 +1762,7 @@ class PlannerUI {
       </div>`;
     }
 
-    this.detailContent.innerHTML = `
+    detailTarget.innerHTML = `
       <div class="field-row"><label>WP ${waypointIndex} - Altitude</label>
         <input id="d_alt" type="number" value="${wp.alt}" min="1" max="500" step="1"/><span class="unit">m</span></div>
       <div class="field-row"><label>Speed</label>
@@ -1410,17 +1778,17 @@ class PlannerUI {
       </div>
     `;
 
-    this.detailContent.querySelector('#d_alt').addEventListener('input', e => {
+    detailTarget.querySelector('#d_alt').addEventListener('input', e => {
       onAltitudeChange(e.target.value);
     });
-    this.detailContent.querySelector('#d_speed').addEventListener('input', e => {
+    detailTarget.querySelector('#d_speed').addEventListener('input', e => {
       const speedKmh = parseFloat(e.target.value);
       if (!Number.isFinite(speedKmh)) {
         return;
       }
       onSpeedChange((speedKmh / 3.6).toFixed(2));
     });
-    this.detailContent.querySelector('#d_speed').addEventListener('blur', e => {
+    detailTarget.querySelector('#d_speed').addEventListener('blur', e => {
       const speedKmh = parseFloat(e.target.value);
       if (!Number.isFinite(speedKmh)) {
         return;
@@ -1430,18 +1798,19 @@ class PlannerUI {
       e.target.value = String(clamped);
       onSpeedChange((clamped / 3.6).toFixed(2));
     });
-    this.detailContent.querySelector('#d_poi').addEventListener('change', e => {
+    detailTarget.querySelector('#d_poi').addEventListener('change', e => {
       onPoiChange(e.target.value);
     });
   }
 
-  showPOIDetail({ poi, onNameChange, onAltitudeChange }) {
+  showPOIDetail({ poi, onNameChange, onAltitudeChange, targetElement = null }) {
+    const detailTarget = this.resolveDetailContainer(targetElement);
     const isTakeoffPoi = poi.id === 'poi_1' || Mission.formatPoiDisplayName(poi.name, '') === '1';
     const takeoffNote = isTakeoffPoi
       ? 'This POI is currently used as the takeoff reference for terrain HAG calculations.'
       : 'POI named "1" is used as the takeoff reference for terrain HAG calculations.';
 
-    this.detailContent.innerHTML = `
+    detailTarget.innerHTML = `
       <div class="field-row"><label>POI Name</label>
         <input id="d_pname" type="text" value="${poi.name}"/></div>
       <div class="field-row"><label>POI Altitude</label>
@@ -1454,20 +1823,21 @@ class PlannerUI {
       </div>
     `;
 
-    this.detailContent.querySelector('#d_pname').addEventListener('input', e => {
+    detailTarget.querySelector('#d_pname').addEventListener('input', e => {
       onNameChange(e.target.value);
     });
-    this.detailContent.querySelector('#d_palt').addEventListener('input', e => {
+    detailTarget.querySelector('#d_palt').addEventListener('input', e => {
       onAltitudeChange(e.target.value);
     });
   }
 
-  showBulkWaypointDetail({ selectedCount, pois, onApply, onClearSelection }) {
+  showBulkWaypointDetail({ selectedCount, pois, onApply, onClearSelection, targetElement = null }) {
+    const detailTarget = this.resolveDetailContainer(targetElement);
     const poiOptions = pois.map((poi, index) => {
       const displayName = Mission.formatPoiDisplayName(poi.name, index + 1);
       return `<option value="${poi.id}">${displayName}</option>`;
     }).join('');
-    this.detailContent.innerHTML = `
+    detailTarget.innerHTML = `
       <div class="bulk-edit-header">
         <div class="bulk-edit-title">Bulk Waypoint Edit</div>
         <div class="bulk-edit-subtitle">${selectedCount} waypoints selected</div>
@@ -1489,15 +1859,15 @@ class PlannerUI {
       </div>
     `;
 
-    this.detailContent.querySelector('#bulk_apply').addEventListener('click', () => {
+    detailTarget.querySelector('#bulk_apply').addEventListener('click', () => {
       onApply({
-        altitudeValue: this.detailContent.querySelector('#bulk_alt').value,
-        speedValue: this.detailContent.querySelector('#bulk_speed').value,
-        poiValue: this.detailContent.querySelector('#bulk_poi').value
+        altitudeValue: detailTarget.querySelector('#bulk_alt').value,
+        speedValue: detailTarget.querySelector('#bulk_speed').value,
+        poiValue: detailTarget.querySelector('#bulk_poi').value
       });
     });
 
-    this.detailContent.querySelector('#bulk_clear').addEventListener('click', () => {
+    detailTarget.querySelector('#bulk_clear').addEventListener('click', () => {
       onClearSelection();
     });
   }

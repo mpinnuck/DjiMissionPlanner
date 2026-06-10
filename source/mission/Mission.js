@@ -70,7 +70,7 @@ class Mission {
   }
 
   createWaypoint(lat, lng, options = {}) {
-    const altitude = Number.isFinite(options.altitude) ? options.altitude : 50;
+    const altitude = Number.isFinite(options.altitude) ? options.altitude : 80;
     const speed = Number.isFinite(options.speed) ? options.speed : 8;
     return {
       id: 'wp_' + (++this.wpCounter),

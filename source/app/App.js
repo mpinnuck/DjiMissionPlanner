@@ -138,6 +138,11 @@ class App {
     return this.mission.pois;
   }
 
+  get isMobileScreen() {
+    return typeof window !== 'undefined'
+      && window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))').matches;
+  }
+
   showStatus(message) {
     this.ui.setStatus(message);
 
@@ -245,6 +250,10 @@ class App {
       poiCount: this.pois.length,
       distanceMeters: this.mission.totalDistance()
     });
+    this.ui.updateMobileStats({
+      wpCount: this.waypoints.length,
+      distanceMeters: this.mission.totalDistance()
+    });
   }
 
   locateUser() {
@@ -314,6 +323,22 @@ class App {
   }
 
   onWaypointMarkerClick(waypointId) {
+    if (this.isMobileScreen && this.mode === 'select') {
+      this.selectedWaypointIds.add(waypointId);
+      this.selectedId = null;
+      this.selectedType = null;
+      this.lastWaypointAnchorId = waypointId;
+      this.renderList();
+      this.showStatus(`${this.selectedWaypointIds.size} waypoints selected.`);
+      return;
+    }
+
+    if (this.isMobileScreen) {
+      this.selectedWaypointIds.clear();
+      this.selectItem(waypointId, 'wp');
+      return;
+    }
+
     this.ui.closePOIOptionsDialog();
     if (this.selectedType === 'poi') {
       this.selectedId = null;
@@ -478,7 +503,7 @@ class App {
     });
   }
 
-  openWaypointOptionsDialog(waypointId) {
+  openWaypointOptionsDialog(waypointId, options = {}) {
     const wp = this.mission.findWaypoint(waypointId);
     if (!wp) {
       return;
@@ -492,7 +517,7 @@ class App {
     const metrics = this.getWaypointMetrics(waypointIndex);
     let initialDialogPosition = null;
     const wpMarker = this.waypointMarkers.get(waypointId);
-    if (wpMarker && typeof wpMarker.getElement === 'function') {
+    if (!options.centered && wpMarker && typeof wpMarker.getElement === 'function') {
       const markerElement = wpMarker.getElement();
       if (markerElement) {
         const markerRect = markerElement.getBoundingClientRect();
@@ -501,7 +526,7 @@ class App {
           top: markerRect.top
         };
       }
-    } else {
+    } else if (!options.centered) {
       const popupElement = this.activeWaypointPopup && typeof this.activeWaypointPopup.getElement === 'function'
         ? this.activeWaypointPopup.getElement()
         : null;
@@ -602,7 +627,7 @@ class App {
     return m;
   }
 
-  openPOIOptionsDialog(poiId) {
+  openPOIOptionsDialog(poiId, options = {}) {
     const poi = this.mission.findPOI(poiId);
     if (!poi) {
       return;
@@ -615,7 +640,7 @@ class App {
 
     const marker = this.poiMarkers.get(poiId);
     let initialDialogPosition = null;
-    if (marker && typeof marker.getElement === 'function') {
+    if (!options.centered && marker && typeof marker.getElement === 'function') {
       const markerElement = marker.getElement();
       if (markerElement) {
         const markerRect = markerElement.getBoundingClientRect();
@@ -743,7 +768,11 @@ class App {
         this.updateRoute();
         this.renderList();
         this.updateStats();
-        this.selectItem(wp.id, 'wp');
+        if (this.isMobileScreen) {
+          this.showStatus(`Waypoint ${this.waypoints.length} added.`);
+        } else {
+          this.selectItem(wp.id, 'wp');
+        }
       } else if (this.mode === 'poi') {
         const poi = this.mission.createPOI(e.latlng.lat, e.latlng.lng);
         const marker = this.addPOIMarker(poi);
@@ -751,7 +780,11 @@ class App {
         this.mission.addPOI(poi);
         this.renderList();
         this.updateStats();
-        this.selectItem(poi.id, 'poi');
+        if (this.isMobileScreen) {
+          this.showStatus(`POI ${this.pois.length} added.`);
+        } else {
+          this.selectItem(poi.id, 'poi');
+        }
       } else if (this.mode === 'select') {
         const hasSelection = this.selectedId || this.selectedWaypointIds.size > 0;
         if (hasSelection) {
@@ -880,6 +913,7 @@ class App {
     this.selectedType = null;
     this.renderList();
     this.ui.showNothingSelected();
+    this.ui.hideMobileSheet();
   }
 
   clearWaypointMultiSelection() {
@@ -900,12 +934,104 @@ class App {
       return;
     }
 
+    if (this.isMobileScreen) {
+      this.ui.showMobileDetailSheet('Bulk Edit');
+    }
+
     this.ui.showBulkWaypointDetail({
       selectedCount: selectedWaypoints.length,
       pois: this.pois,
+      targetElement: this.isMobileScreen ? this.ui.mobileSheetBody : null,
       onApply: values => this.applyBulkWaypointUpdate(values),
       onClearSelection: () => this.clearWaypointMultiSelection()
     });
+  }
+
+  async openBulkWaypointSettingsDialog() {
+    const selectedWaypoints = this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
+    if (selectedWaypoints.length === 0) {
+      this.showStatus('No waypoints selected.');
+      return;
+    }
+
+    const values = await this.ui.showBulkWaypointActionDialog({
+      selectedCount: selectedWaypoints.length
+    });
+    if (!values) {
+      return;
+    }
+
+    await this.applyBulkWaypointSettingsFromDialog(values, selectedWaypoints);
+  }
+
+  async applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue }, selectedWaypoints) {
+    const altitude = parseFloat(altitudeValue);
+    const speedKmh = parseFloat(speedValue);
+    const targetHag = parseFloat(hagValue);
+    const applyAltitude = String(altitudeValue || '').trim() !== '' && Number.isFinite(altitude);
+    const applySpeed = String(speedValue || '').trim() !== '' && Number.isFinite(speedKmh);
+    const applyHag = String(hagValue || '').trim() !== '' && Number.isFinite(targetHag) && targetHag > 0;
+
+    if (!applyAltitude && !applySpeed && !applyHag) {
+      this.showStatus('No bulk changes applied.');
+      return;
+    }
+
+    selectedWaypoints.forEach(waypoint => {
+      if (applyAltitude) {
+        waypoint.alt = altitude;
+      }
+      if (applySpeed) {
+        waypoint.speed = Number((speedKmh / 3.6).toFixed(2));
+      }
+      this.recomputePOI(waypoint);
+    });
+
+    if (applyHag && this.elevationService) {
+      const takeoffPoi = this.getTakeoffPoi() || this.waypoints[0];
+      if (takeoffPoi) {
+        const points = [
+          { key: '__takeoff__', lat: takeoffPoi.lat, lng: takeoffPoi.lng },
+          ...selectedWaypoints.map(waypoint => ({ key: waypoint.id, lat: waypoint.lat, lng: waypoint.lng }))
+        ];
+        const elevations = await this.elevationService.getElevations(points);
+        const takeoffGround = this.elevationService.getElevation(takeoffPoi.lat, takeoffPoi.lng, elevations);
+        if (Number.isFinite(takeoffGround)) {
+          selectedWaypoints.forEach(waypoint => {
+            const waypointGround = this.elevationService.getElevation(waypoint.lat, waypoint.lng, elevations);
+            if (!Number.isFinite(waypointGround)) {
+              return;
+            }
+            waypoint.alt = Math.round((targetHag + waypointGround - takeoffGround) * 100) / 100;
+            this.recomputePOI(waypoint);
+          });
+        }
+      }
+    }
+
+    this.syncFlythroughMission();
+    this.renderList();
+    this.updateStats();
+    this.showStatus(`Updated ${selectedWaypoints.length} waypoints.`);
+  }
+
+  handleSelectModeRequest() {
+    if (this.mode === 'select') {
+      if (this.selectedWaypointIds.size > 0) {
+        this.openBulkWaypointSettingsDialog();
+        return;
+      }
+      if (this.selectedType === 'wp' && this.selectedId) {
+        this.openWaypointOptionsDialog(this.selectedId, { centered: true });
+        return;
+      }
+      if (this.selectedType === 'poi' && this.selectedId) {
+        this.openPOIOptionsDialog(this.selectedId, { centered: true });
+        return;
+      }
+    }
+
+    this.setMode('select');
   }
 
   applyBulkWaypointUpdate({ altitudeValue, speedValue, poiValue }) {
@@ -943,6 +1069,7 @@ class App {
   }
 
   renderList() {
+    const allowWaypointMultiSelect = this.mode === 'select';
     this.ui.renderList({
       waypoints: this.waypoints,
       pois: this.pois,
@@ -970,10 +1097,18 @@ class App {
       },
       onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
       onDelete: (id, type) => this.deleteItem(id, type),
-      onToggleWaypointMultiSelect: (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options),
-      onRangeWaypointMultiSelect: (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected),
-      onStartWaypointTouchRange: anchorId => this.startWaypointTouchRange(anchorId),
-      onEndWaypointTouchRange: () => this.endWaypointTouchRange()
+      onToggleWaypointMultiSelect: allowWaypointMultiSelect
+        ? (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options)
+        : null,
+      onRangeWaypointMultiSelect: allowWaypointMultiSelect
+        ? (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected)
+        : null,
+      onStartWaypointTouchRange: allowWaypointMultiSelect
+        ? anchorId => this.startWaypointTouchRange(anchorId)
+        : null,
+      onEndWaypointTouchRange: allowWaypointMultiSelect
+        ? () => this.endWaypointTouchRange()
+        : null
     });
     this.refreshMarkerLabels();
     this.scheduleHeightAboveGroundRefresh();
@@ -1068,6 +1203,7 @@ class App {
     });
 
     if (updated) {
+      const allowWaypointMultiSelect = this.mode === 'select';
       if (this.fpv && typeof this.fpv.setGraphHeightAboveGround === 'function') {
         this.fpv.setGraphHeightAboveGround(this.heightAboveGroundByWaypointId);
       }
@@ -1099,16 +1235,33 @@ class App {
         },
         onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
         onDelete: (id, type) => this.deleteItem(id, type),
-        onToggleWaypointMultiSelect: (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options),
-        onRangeWaypointMultiSelect: (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected),
-        onStartWaypointTouchRange: anchorId => this.startWaypointTouchRange(anchorId),
-        onEndWaypointTouchRange: () => this.endWaypointTouchRange()
+        onToggleWaypointMultiSelect: allowWaypointMultiSelect
+          ? (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options)
+          : null,
+        onRangeWaypointMultiSelect: allowWaypointMultiSelect
+          ? (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected)
+          : null,
+        onStartWaypointTouchRange: allowWaypointMultiSelect
+          ? anchorId => this.startWaypointTouchRange(anchorId)
+          : null,
+        onEndWaypointTouchRange: allowWaypointMultiSelect
+          ? () => this.endWaypointTouchRange()
+          : null
       });
       this.refreshMarkerLabels();
     }
   }
 
-  showDetail(id, type) {
+  _showMobileDetail(id, type) {
+    this.ui.closeMobileMissionSettings();
+    if (type === 'wp') {
+      this.openWaypointOptionsDialog(id);
+      return;
+    }
+    this.openPOIOptionsDialog(id);
+  }
+
+  _renderDetail(id, type, targetElement = null) {
     if (type === 'wp') {
       const wp = this.mission.findWaypoint(id);
       if (!wp) {
@@ -1121,6 +1274,7 @@ class App {
         waypointIndex: this.waypoints.indexOf(wp) + 1,
         pois: this.pois,
         distanceText,
+        targetElement,
         onAltitudeChange: value => {
           wp.alt = parseFloat(value) || 50;
           this.recomputePOI(wp);
@@ -1143,25 +1297,37 @@ class App {
           this.showDetail(id, 'wp');
         }
       });
-    } else {
-      const poi = this.mission.findPOI(id);
-      if (!poi) {
-        return;
-      }
-      this.ui.showPOIDetail({
-        poi,
-        onNameChange: value => {
-          poi.name = value;
-          this.renderList();
-        },
-        onAltitudeChange: value => {
-          poi.alt = parseFloat(value) || 0;
-          this.recomputeAllPOI();
-          this.syncFlythroughMission();
-          this.renderList();
-        }
-      });
+      return;
     }
+
+    const poi = this.mission.findPOI(id);
+    if (!poi) {
+      return;
+    }
+    this.ui.showPOIDetail({
+      poi,
+      targetElement,
+      onNameChange: value => {
+        poi.name = value;
+        this.renderList();
+      },
+      onAltitudeChange: value => {
+        poi.alt = parseFloat(value) || 0;
+        this.recomputeAllPOI();
+        this.syncFlythroughMission();
+        this.renderList();
+      }
+    });
+  }
+
+  showDetail(id, type) {
+    if (this.isMobileScreen) {
+      this._showMobileDetail(id, type);
+      return;
+    }
+
+    this.ui.hideMobileSheet();
+    this._renderDetail(id, type);
   }
 
   deleteItem(id, type) {
@@ -1208,6 +1374,7 @@ class App {
   setMode(m) {
     this.mode = m;
     this.ui.setMode(m);
+    this.ui.setMobileModeActive(m);
   }
 
   async clearAll() {
@@ -1309,6 +1476,7 @@ class App {
     this.touchRangeAnchorId = null;
     this.renderList();
     this.ui.showNothingSelected();
+    this.ui.hideMobileSheet();
     if (!silent) {
       this.showStatus('Selection cleared.');
     }
@@ -1805,7 +1973,7 @@ class App {
     this.ui.bindToolbarEvents({
       onAddWaypoint: () => this.setMode('wp'),
       onAddPOI: () => this.setMode('poi'),
-      onSelectMode: () => this.setMode('select'),
+      onSelectMode: () => this.handleSelectModeRequest(),
       onUnselectAll: () => this.doUnselectAll(),
       onLocate: () => this.locateUser(),
       onClearAll: () => this.clearAll(),
@@ -1895,6 +2063,46 @@ class App {
         this.fpv.resize();
       }
     });
+
+    this.bindMobileUIEvents();
+  }
+
+  bindMobileUIEvents() {
+    this.ui.bindMobileEvents({
+      onMobileMissionSettings: () => this.ui.toggleMobileMissionSettings(),
+      onMobileMissionDone: () => this.ui.closeMobileMissionSettings(),
+      onMobileLoad: () => this.doLoadMission(),
+      onMobileSave: () => this.doSaveMission(),
+      onMobileExport: () => this.doExport(),
+      onMobilePlay: () => {
+        if (!this.flythrough) {
+          return;
+        }
+
+        if (this.flythrough.isPlaying) {
+          this.flythrough.pause();
+          this.ui.setMobilePlayState('paused');
+          return;
+        }
+
+        this.syncFlythroughMission();
+        this.flythrough.play();
+        this.ui.setMobilePlayState('playing');
+      },
+      onMobileAddWp: () => this.setMode('wp'),
+      onMobileAddPoi: () => this.setMode('poi'),
+      onMobileSelect: () => this.handleSelectModeRequest(),
+      onMobileClearSel: () => this.doUnselectAll()
+    });
+
+    const applyScreenSm = () => {
+      document.body.classList.toggle(
+        'screen-sm',
+        window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))').matches
+      );
+    };
+    applyScreenSm();
+    window.addEventListener('resize', applyScreenSm);
   }
 
   toggleFPV() {

@@ -25,6 +25,9 @@
     var ua = navigator.userAgent || '';
     var isAppleMobile = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+    var mobileLayoutQuery = '(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))';
+    document.body && document.body.classList.toggle('screen-sm', window.matchMedia(mobileLayoutQuery).matches);
+    document.documentElement.classList.toggle('screen-sm', window.matchMedia(mobileLayoutQuery).matches);
     if (isAppleMobile && isSafari) {
       document.documentElement.classList.add('mobile-safari-pre');
     }
@@ -113,7 +116,10 @@
   </div>
 
   <div id="sidebar">
-    <div class="panel-title">Mission Settings</div>
+    <div class="panel-title mission-settings-titlebar">
+      <span>Mission Settings</span>
+      <button id="mbMissionDone" class="ghost mission-settings-done" type="button">Done</button>
+    </div>
     <div id="defaults-panel">
       <div class="mission-name-row">
         <label>Mission Name</label>
@@ -121,7 +127,7 @@
       </div>
       <div class="field-row">
         <label>Default Alt.</label>
-        <input id="defAlt" type="number" value="50" min="1" max="500" step="1"/>
+        <input id="defAlt" type="number" value="80" min="1" max="500" step="1"/>
         <span class="unit">m</span>
         <button class="ghost small-apply" id="btnApplyDefaultAlt" title="Apply default altitude to all waypoints">Apply all</button>
       </div>
@@ -145,7 +151,7 @@
       </div>
       <div class="field-row">
         <label>Const. HAG</label>
-        <input id="defConstHag" type="number" value="50" min="1" max="500" step="1"/>
+        <input id="defConstHag" type="number" value="80" min="1" max="500" step="1"/>
         <span class="unit">m</span>
         <button class="ghost small-apply" id="btnApplyConstHag" title="Set all waypoints to a constant height above ground">Apply all</button>
       </div>
@@ -153,7 +159,7 @@
         <label>Finish Action</label>
         <select id="defFinish">
           <option value="goHome">Return to Home</option>
-          <option value="noAction">Hover</option>
+          <option value="noAction" selected>Hover</option>
           <option value="autoLand">Auto Land</option>
           <option value="gotoFirstWaypoint">Go to WP1</option>
         </select>
@@ -195,6 +201,39 @@
 
 </div>
 
+<!-- Left vertical toolbar -->
+<div id="mobileToolbar">
+  <button class="mb-btn" id="mbMission" title="Mission Settings">⚙</button>
+  <button class="mb-btn" id="mbLoad" title="Load Mission">📂</button>
+  <button class="mb-btn" id="mbSave" title="Save Mission">💾</button>
+  <button class="mb-btn" id="mbExport" title="Export KMZ">📤</button>
+  <button class="mb-btn" id="mbPlay" title="Play / Pause">▶</button>
+</div>
+
+<!-- Top-right action bar -->
+<div id="mobileActionBar">
+  <button class="mb-action mb-active" id="mbAddWp">+WP</button>
+  <button class="mb-action" id="mbAddPoi">+POI</button>
+  <button class="mb-action" id="mbSelect">Select</button>
+  <button class="mb-action" id="mbClearSel">✕ Sel</button>
+</div>
+
+<!-- Stats strip -->
+<div id="mobileStats">
+  <span class="mb-stat" id="mbStatWP">WP 0</span>
+  <span class="mb-stat" id="mbStatDist">0 m</span>
+  <span class="mb-stat" id="mbStatTime">0:00</span>
+</div>
+
+<!-- Bottom sheet overlay -->
+<div id="mobileSheetOverlay"></div>
+
+<!-- Bottom sheet -->
+<div id="mobileSheet">
+  <div class="mbs-handle"></div>
+  <div class="mbs-body" id="mobileSheetBody"></div>
+</div>
+
 <!-- ── Status Bar ── -->
 <div id="statusbar">
   <span id="sbMode" class="status-ok">MODE: SELECT</span>
@@ -203,7 +242,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v4.7';
+  const APP_VERSION = 'v4.8';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -216,6 +255,18 @@
     const versionEl = document.getElementById('appVersion');
     if (versionEl) {
       versionEl.textContent = `(${APP_VERSION})`;
+    }
+
+    const smallScreenQuery = window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))');
+    const applyScreenSmClass = () => {
+      document.body.classList.toggle('screen-sm', smallScreenQuery.matches);
+      document.documentElement.classList.toggle('screen-sm', smallScreenQuery.matches);
+    };
+    applyScreenSmClass();
+    if (typeof smallScreenQuery.addEventListener === 'function') {
+      smallScreenQuery.addEventListener('change', applyScreenSmClass);
+    } else if (typeof smallScreenQuery.addListener === 'function') {
+      smallScreenQuery.addListener(applyScreenSmClass);
     }
 
     let lastStableTopInset = 0;
