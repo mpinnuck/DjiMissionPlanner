@@ -32,11 +32,13 @@ class PlannerUI {
     this.mbAddPoi = document.getElementById('mbAddPoi');
     this.mbSelect = document.getElementById('mbSelect');
     this.mbClearSel = document.getElementById('mbClearSel');
+    this.mbFPV = document.getElementById('mbFPV');
     this.btnFPV = document.getElementById('btnFPV');
     this.btnFTPlay = document.getElementById('btnFTPlay');
     this.btnFTPause = document.getElementById('btnFTPause');
     this.btnFTStop = document.getElementById('btnFTStop');
     this.ftSpeedSelect = document.getElementById('ftSpeed');
+    this.mbftSpeedSelect = document.getElementById('mbftSpeed');
     this.ftFovCheckbox = document.getElementById('chkFTFov');
     this.ftSeekInput = document.getElementById('ftSeek');
     this.ftProgress = document.getElementById('ftProgress');
@@ -243,6 +245,11 @@ class PlannerUI {
         handlers.onFlythroughSpeedChange(event.target.value);
       });
     }
+    if (this.mbftSpeedSelect && typeof handlers.onFlythroughSpeedChange === 'function') {
+      this.mbftSpeedSelect.addEventListener('change', event => {
+        handlers.onFlythroughSpeedChange(event.target.value);
+      });
+    }
     if (this.ftFovCheckbox && typeof handlers.onFlythroughFovToggle === 'function') {
       this.ftFovCheckbox.addEventListener('change', event => {
         handlers.onFlythroughFovToggle(event.target.checked);
@@ -267,6 +274,7 @@ class PlannerUI {
     wire(this.mbAddPoi, handlers.onMobileAddPoi);
     wire(this.mbSelect, handlers.onMobileSelect);
     wire(this.mbClearSel, handlers.onMobileClearSel);
+    wire(this.mbFPV, handlers.onMobileFPV);
 
     if (this.mobileSheetOvl) {
       this.mobileSheetOvl.addEventListener('click', () => this.hideMobileSheet());

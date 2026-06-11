@@ -286,7 +286,17 @@ class App {
     let singleClickTimer = null;
     m.on('click', () => {
       if (singleClickTimer) {
+        // Second click within 220 ms — treat as double-tap on mobile
+        // (mobile browsers don't fire a native dblclick event when tap:false)
         clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+        if (this.isMobileScreen) {
+          this.selectItem(wp.id, 'wp');
+          this.showWaypointTooltip(wp.id);
+          this.openWaypointOptionsDialog(wp.id);
+        }
+        // On desktop the native dblclick event handles it below
+        return;
       }
 
       singleClickTimer = setTimeout(() => {
@@ -305,6 +315,7 @@ class App {
         event.originalEvent.stopPropagation();
       }
 
+      this.showWaypointTooltip(wp.id);
       this.selectItem(wp.id, 'wp');
       this.openWaypointOptionsDialog(wp.id);
     });
@@ -376,7 +387,7 @@ class App {
     this.selectedWaypointIds.add(waypointId);
     this.lastWaypointAnchorId = waypointId;
     this.applyWaypointSelectionState();
-    this.showWaypointTooltip(waypointId);
+    // Tooltip/options shown on double-click, not single-click
   }
 
   closeWaypointTooltip() {
@@ -548,7 +559,10 @@ class App {
       currentPoiId: wp.poiId,
       pois: this.pois,
       initialPosition: initialDialogPosition,
-      onClose: () => this.ui.closeWaypointOptionsDialog(),
+      onClose: () => {
+        this.closeWaypointTooltip();
+        this.ui.closeWaypointOptionsDialog();
+      },
       onDelete: () => {
         this.ui.closeWaypointOptionsDialog();
         this.closeWaypointTooltip();
@@ -2235,7 +2249,8 @@ class App {
       onMobileAddWp: () => this.setMode('wp'),
       onMobileAddPoi: () => this.setMode('poi'),
       onMobileSelect: () => this.handleSelectModeRequest(),
-      onMobileClearSel: () => this.doUnselectAll()
+      onMobileClearSel: () => this.doUnselectAll(),
+      onMobileFPV: () => this.toggleFPV()
     });
 
     const applyScreenSm = () => {

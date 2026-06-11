@@ -408,7 +408,7 @@ class FlightGraph {
     const labelGap = 4;
     const horizontalPadding = 8;
     const legendHeight = 16;
-    const legendY = layout.cursorRailTop + 10;
+    const legendY = layout.padTop + layout.plotH - (legendHeight / 2) - 4;
 
     let contentWidth = 0;
     items.forEach((item, index) => {

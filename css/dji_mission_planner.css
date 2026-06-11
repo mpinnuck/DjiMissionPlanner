@@ -1471,10 +1471,31 @@ body.screen-sm #map {
   height: 100% !important;
 }
 
-/* Graph overlay and FPV hidden on small screens */
-body.screen-sm #ftGraphOverlay,
+/* FPV panel on small screens (mobile): smaller floating window */
 body.screen-sm #fpv-panel {
-  display: none !important;
+  right: 10px !important;
+  bottom: 36px !important;
+  width: clamp(200px, 58vw, 340px) !important;
+  height: auto !important;
+  aspect-ratio: 16 / 9;
+  z-index: 500 !important;
+}
+
+/* Graph overlay immediately left of FPV panel on mobile */
+body.screen-sm #ftGraphOverlay {
+  position: fixed;
+  left: auto !important;
+  right: calc(clamp(200px, 58vw, 340px) + 18px) !important;
+  bottom: 36px !important;
+  width: clamp(260px, 72vw, 440px) !important;
+  max-width: none;
+  height: clamp(60px, 13vw, 100px);
+  aspect-ratio: unset;
+  z-index: 500;
+  background: rgba(10, 12, 16, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
 }
 
 /* Status bar pinned to very bottom */
@@ -1499,6 +1520,18 @@ body.screen-sm #statusbar {
 body.screen-sm #sbCursor,
 body.screen-sm #sbStatus {
   color: #eaf3ff;
+}
+
+#sbVersion {
+  display: none;
+}
+
+body.screen-sm #sbVersion {
+  display: block;
+  margin-left: auto;
+  color: rgba(234, 243, 255, 0.45);
+  font-size: 10px;
+  flex-shrink: 0;
 }
 
 body.screen-sm #sbMode.status-ok {
@@ -1571,6 +1604,30 @@ body.screen-sm #mobileActionBar { display: flex; }
 }
 .mb-action:active       { transform: scale(0.93); }
 .mb-action.mb-active    { background: var(--accent, #3b82f6); }
+
+/* Mobile flythrough speed selector */
+#mbSpeedWrap {
+  display: none;
+  position: fixed;
+  left: 70px;
+  bottom: 38px;
+  z-index: 710;
+}
+body.screen-sm #mbSpeedWrap { display: block; }
+
+#mbftSpeed {
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(14,14,24,0.88);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* Stats strip (sits just above the statusbar) */
 #mobileStats {
