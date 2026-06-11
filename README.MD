@@ -167,6 +167,7 @@ Mission Settings control default values and export behavior.
 - `Default Speed` is the default waypoint speed
 - `Drone` selects the camera/drone profile used for preview/export metadata
 - `Cam HFOV` sets the custom camera horizontal field of view when `Custom Camera` is selected
+- `Takeoff Elev.` is the height of the drone above the takeoff ground at the start of the mission. Set this if the drone launches from an elevated surface such as a rooftop or raised platform. Defaults to 0 for ground-level takeoff. This value is used to correctly compute height-above-ground across the mission
 - `Const. HAG` sets a target constant height above ground
 - `Apply all` next to HAG recalculates all waypoint altitudes to maintain that ground clearance
 - `Finish Action` controls the mission completion behavior in the export
@@ -202,10 +203,18 @@ You can:
 
 - create POIs on the map
 - rename them
-- set their altitude
+- set their altitude (relative to the takeoff point)
 - drag them to a new location
 
 Changing a POI can change the heading and gimbal pitch of waypoints that reference it.
+
+#### POI 1 — Takeoff Reference Convention
+
+By convention, **POI 1** should be placed at the takeoff location. The app uses POI 1's latitude and longitude to look up ground elevation and compute height-above-ground values for all waypoints.
+
+POI 1 is otherwise a completely normal POI. Its altitude is treated the same as any other POI — relative to the takeoff point. It can be assigned to waypoints like any other POI.
+
+The actual height of the drone above the ground at takeoff is set separately in the **Takeoff Elev.** field in Mission Settings. This value represents how far above the takeoff ground the drone is when it begins the mission (for example, when launching from a rooftop or elevated platform).
 
 ### Flythrough and FPV
 

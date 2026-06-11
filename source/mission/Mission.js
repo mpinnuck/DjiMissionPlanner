@@ -4,6 +4,7 @@ class Mission {
     this.pois = [];
     this.wpCounter = 0;
     this.poiCounter = 0;
+    this.takeoffElevation = 0; // drone height above takeoff ground at launch (m)
   }
 
   // Public methods

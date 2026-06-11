@@ -49,6 +49,7 @@ class PlannerUI {
     this.btnApplyDefaultSpeed = document.getElementById('btnApplyDefaultSpeed');
     this.droneProfileSelect = document.getElementById('defDrone');
     this.cameraHfovInput = document.getElementById('defHfov');
+    this.takeoffElevationInput = document.getElementById('defTakeoffElevation');
     this.defaultConstHagInput = document.getElementById('defConstHag');
     this.btnApplyConstHag = document.getElementById('btnApplyConstHag');
     this.finishActionSelect = document.getElementById('defFinish');
@@ -75,6 +76,11 @@ class PlannerUI {
   getDefaultSpeed() {
     const speedKmh = parseFloat(this.defaultSpeedInput.value);
     return Number.isFinite(speedKmh) ? Number((speedKmh / 3.6).toFixed(2)) : 8;
+  }
+
+  getTakeoffElevation() {
+    const v = parseFloat(this.takeoffElevationInput?.value);
+    return Number.isFinite(v) && v >= 0 ? v : 0;
   }
 
   getConstantHeightAboveGround() {
@@ -122,7 +128,8 @@ class PlannerUI {
       cameraHfov: this.getCameraHfov(),
       finishAction: this.getFinishAction(),
       rcLostAction: this.getRcLostAction(),
-      headingMode: this.getHeadingMode()
+      headingMode: this.getHeadingMode(),
+      takeoffElevation: this.getTakeoffElevation()
     };
   }
 
@@ -150,6 +157,9 @@ class PlannerUI {
     }
     if (typeof settings.headingMode === 'string') {
       this.headingModeSelect.value = settings.headingMode;
+    }
+    if (Number.isFinite(settings.takeoffElevation) && this.takeoffElevationInput) {
+      this.takeoffElevationInput.value = String(settings.takeoffElevation);
     }
 
     this.updateDroneInputsState();
@@ -979,7 +989,7 @@ class PlannerUI {
     `;
 
     const hasInitialHag = Number.isFinite(initialHeightAboveGround);
-    // hagOffset = takeoffGround + poi1Alt - waypointGround (constant for this waypoint opening)
+    // hagOffset = takeoffGround + takeoffElevation - waypointGround (constant for this waypoint opening)
     const hagOffset = hasInitialHag ? (initialHeightAboveGround - initialAltitude) : null;
     const altToHag = alt => Number.isFinite(hagOffset) ? alt + hagOffset : null;
     const hagToAlt = hag => Number.isFinite(hagOffset) ? hag - hagOffset : null;

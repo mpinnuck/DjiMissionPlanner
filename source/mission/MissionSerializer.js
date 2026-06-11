@@ -74,7 +74,8 @@ class MissionSerializer {
       rcLostAction: typeof source.rcLostAction === 'string' && validRcLostActions.has(source.rcLostAction)
         ? source.rcLostAction
         : 'goContinue',
-      headingMode: typeof source.headingMode === 'string' && source.headingMode ? source.headingMode : 'followWayline'
+      headingMode: typeof source.headingMode === 'string' && source.headingMode ? source.headingMode : 'followWayline',
+      takeoffElevation: Number.isFinite(source.takeoffElevation) && source.takeoffElevation >= 0 ? source.takeoffElevation : 0
     };
   }
 

@@ -1015,16 +1015,18 @@ class App {
         ];
         const elevations = await this.elevationService.getElevations(points);
         const takeoffGround = this.elevationService.getElevation(takeoffPoi.lat, takeoffPoi.lng, elevations);
-        const poi1Alt = Number.isFinite(takeoffPoi.alt) ? takeoffPoi.alt : 0;
+        const takeoffElevation = this.ui && typeof this.ui.getTakeoffElevation === 'function'
+          ? this.ui.getTakeoffElevation()
+          : 0;
         if (Number.isFinite(takeoffGround)) {
           selectedWaypoints.forEach(waypoint => {
             const waypointGround = this.elevationService.getElevation(waypoint.lat, waypoint.lng, elevations);
             if (!Number.isFinite(waypointGround)) {
               return;
             }
-            // WP HAG = wp.alt + takeoffGround + poi1Alt - waypointGround
-            // => wp.alt = targetHag + waypointGround - takeoffGround - poi1Alt
-            waypoint.alt = Math.round((targetHag + waypointGround - takeoffGround - poi1Alt) * 100) / 100;
+            // WP HAG = wp.alt + takeoffGround + takeoffElevation - waypointGround
+            // => wp.alt = targetHag + waypointGround - takeoffGround - takeoffElevation
+            waypoint.alt = Math.round((targetHag + waypointGround - takeoffGround - takeoffElevation) * 100) / 100;
             this.recomputePOI(waypoint);
           });
         }
@@ -1213,12 +1215,14 @@ class App {
       }
 
       // Height above local ground (HAG):
-      // Takeoff ASL = takeoffGround + poi1Alt  (poi1Alt = POI1.alt = height above ground at takeoff)
+      // Takeoff ASL = takeoffGround + takeoffElevation  (takeoffElevation = drone height above ground at takeoff)
       // WP ASL      = Takeoff ASL + wp.alt
       // WP HAG      = WP ASL - waypointGround
-      //             = wp.alt + takeoffGround + poi1Alt - waypointGround
-      const poi1Alt = Number.isFinite(takeoffPoi.alt) ? takeoffPoi.alt : 0;
-      const groundRelativeToTakeoff = waypoint.alt + takeoffGround + poi1Alt - waypointGround;
+      //             = wp.alt + takeoffGround + takeoffElevation - waypointGround
+      const takeoffElevation = this.ui && typeof this.ui.getTakeoffElevation === 'function'
+        ? this.ui.getTakeoffElevation()
+        : 0;
+      const groundRelativeToTakeoff = waypoint.alt + takeoffGround + takeoffElevation - waypointGround;
       const previous = this.heightAboveGroundByWaypointId.get(waypoint.id);
       if (!Number.isFinite(previous) || Math.abs(previous - groundRelativeToTakeoff) > 0.05) {
         this.heightAboveGroundByWaypointId.set(waypoint.id, groundRelativeToTakeoff);
@@ -1728,10 +1732,12 @@ class App {
       }
 
       // Keep a constant height above ground:
-      // HAG = wp.alt + takeoffGround + poi1Alt - waypointGround
-      // => wp.alt = targetHag + waypointGround - takeoffGround - poi1Alt
-      const poi1Alt = Number.isFinite(takeoffPoi.alt) ? takeoffPoi.alt : 0;
-      waypoint.alt = Math.round((targetHag + waypointGround - takeoffGround - poi1Alt) * 100) / 100;
+      // HAG = wp.alt + takeoffGround + takeoffElevation - waypointGround
+      // => wp.alt = targetHag + waypointGround - takeoffGround - takeoffElevation
+      const takeoffElevation = this.ui && typeof this.ui.getTakeoffElevation === 'function'
+        ? this.ui.getTakeoffElevation()
+        : 0;
+      waypoint.alt = Math.round((targetHag + waypointGround - takeoffGround - takeoffElevation) * 100) / 100;
       this.recomputePOI(waypoint);
       updatedCount += 1;
     });
