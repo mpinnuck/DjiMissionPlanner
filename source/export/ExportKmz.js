@@ -198,10 +198,10 @@ class ExportKmz {
     return null;
   }
 
-  export({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed, droneConfig = null }) {
+  _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed, droneConfig = null }) {
     if (waypoints.length < 1) {
       this.onError('Add at least one waypoint before exporting.');
-      return;
+      return null;
     }
 
     const name      = missionName;
@@ -418,11 +418,67 @@ class ExportKmz {
     const wpmz = zip.folder('wpmz');
     wpmz.file('template.kml', templateKml);
     wpmz.file('waylines.wpml', wpml);
+    const filename = name.replace(/\s+/g, '_') + '.kmz';
+    return { zip, filename };
+  }
+
+  async _shareOrDownloadBlob(blob, filename, waypointCount) {
+    const kmzFile = new File([blob], filename, { type: 'application/vnd.google-earth.kmz' });
+    let canShareFile = false;
+    try {
+      canShareFile = typeof navigator !== 'undefined'
+        && typeof navigator.share === 'function'
+        && typeof navigator.canShare === 'function'
+        && navigator.canShare({ files: [kmzFile] });
+    } catch (shareCheckError) {
+      console.warn('navigator.canShare check failed, falling back to download flow:', shareCheckError);
+    }
+
+    if (canShareFile) {
+      try {
+        await navigator.share({
+          files: [kmzFile],
+          title: filename,
+          text: 'KMZ generated locally on this device.'
+        });
+        if (this.onExported) {
+          this.onExported(`${filename} exported via Share Sheet`);
+        }
+        if (this.onStatus) {
+          this.onStatus(`KMZ ready on this device via Share Sheet: ${filename} (${waypointCount} WPs)`);
+        }
+        return;
+      } catch (shareErr) {
+        if (shareErr && shareErr.name === 'AbortError') {
+          return;
+        }
+        console.warn('Share failed, falling back to browser download:', shareErr);
+      }
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (this.onExported) {
+      this.onExported(`${filename} exported via browser download`);
+    }
+    if (this.onStatus) {
+      this.onStatus(`Browser download started (generated locally on this device): ${filename} (${waypointCount} WPs)`);
+    }
+  }
+
+  export(params) {
+    const built = this._buildKmzZip(params);
+    if (!built) return;
+    const { zip, filename } = built;
+    const { waypoints } = params;
 
     zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(async blob => {
-      const filename = name.replace(/\s+/g, '_') + '.kmz';
-
-      // Try to save to previously selected folder without prompting.
       try {
         const dirHandle = await this.getSavedExportFolder();
         if (dirHandle) {
@@ -442,57 +498,44 @@ class ExportKmz {
           return;
         }
       } catch (err) {
-        // Fall back to download if folder writing fails.
         console.warn('Folder save failed, falling back to download:', err);
       }
 
-      // Fallback: iOS/iPadOS works best via Share Sheet; otherwise use browser download.
-      const kmzFile = new File([blob], filename, { type: 'application/vnd.google-earth.kmz' });
-      let canShareFile = false;
-      try {
-        canShareFile = typeof navigator !== 'undefined'
-          && typeof navigator.share === 'function'
-          && typeof navigator.canShare === 'function'
-          && navigator.canShare({ files: [kmzFile] });
-      } catch (shareCheckError) {
-        console.warn('navigator.canShare check failed, falling back to download flow:', shareCheckError);
-      }
+      await this._shareOrDownloadBlob(blob, filename, waypoints.length);
+    });
+  }
 
-      if (canShareFile) {
+  exportAs(params) {
+    const built = this._buildKmzZip(params);
+    if (!built) return;
+    const { zip, filename } = built;
+    const { waypoints } = params;
+
+    zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(async blob => {
+      if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
         try {
-          await navigator.share({
-            files: [kmzFile],
-            title: filename,
-            text: 'KMZ generated locally on this device.'
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: 'KMZ Mission File', accept: { 'application/vnd.google-earth.kmz': ['.kmz'] } }]
           });
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          const successMessage = `${filename} saved`;
           if (this.onExported) {
-            this.onExported(`${filename} exported via Share Sheet`);
+            this.onExported(successMessage);
           }
           if (this.onStatus) {
-            this.onStatus(`KMZ ready on this device via Share Sheet: ${filename} (${waypoints.length} WPs)`);
+            this.onStatus(`${successMessage} (${waypoints.length} WPs)`);
           }
           return;
-        } catch (shareErr) {
-          if (shareErr && shareErr.name !== 'AbortError') {
-            console.warn('Share failed, falling back to browser download:', shareErr);
-          }
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          console.warn('showSaveFilePicker failed, falling back:', err);
         }
       }
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      if (this.onExported) {
-        this.onExported(`${filename} exported via browser download`);
-      }
-      if (this.onStatus) {
-        this.onStatus(`Browser download started (generated locally on this device): ${filename} (${waypoints.length} WPs)`);
-      }
+      await this._shareOrDownloadBlob(blob, filename, waypoints.length);
     });
   }
 }

@@ -202,40 +202,27 @@ class PlannerUI {
       this.defaultSpeedInput.addEventListener('blur', () => handlers.onDefaultSpeedChange());
     }
 
-    // Right-click or long-press to change save folder
-    if (typeof handlers.onSaveMissionChangeFolder === 'function') {
+    // Right-click or double-click on Save = Save As (pick a new location)
+    if (typeof handlers.onSaveMissionAs === 'function') {
       this.btnSaveMission.addEventListener('contextmenu', event => {
         event.preventDefault();
-        handlers.onSaveMissionChangeFolder();
+        handlers.onSaveMissionAs();
       });
-
-      let saveTouchStartTime = 0;
-      this.btnSaveMission.addEventListener('touchstart', () => {
-        saveTouchStartTime = Date.now();
-      });
-      this.btnSaveMission.addEventListener('touchend', () => {
-        if (Date.now() - saveTouchStartTime > 500) {
-          handlers.onSaveMissionChangeFolder();
-        }
+      this.btnSaveMission.addEventListener('dblclick', event => {
+        event.preventDefault();
+        handlers.onSaveMissionAs();
       });
     }
-    
-    // Right-click or long-press to change export folder
-    if (typeof handlers.onExportChangeFolder === 'function') {
-      this.btnExport.addEventListener('contextmenu', (e) => {
+
+    // Right-click or double-click on Export = Export As (pick a new location)
+    if (typeof handlers.onExportAs === 'function') {
+      this.btnExport.addEventListener('contextmenu', e => {
         e.preventDefault();
-        handlers.onExportChangeFolder();
+        handlers.onExportAs();
       });
-      
-      // Long-press support for touch devices
-      let touchStartTime = 0;
-      this.btnExport.addEventListener('touchstart', () => {
-        touchStartTime = Date.now();
-      });
-      this.btnExport.addEventListener('touchend', (e) => {
-        if (Date.now() - touchStartTime > 500) {
-          handlers.onExportChangeFolder();
-        }
+      this.btnExport.addEventListener('dblclick', e => {
+        e.preventDefault();
+        handlers.onExportAs();
       });
     }
   }
@@ -279,6 +266,18 @@ class PlannerUI {
     wire(this.mbLoad, handlers.onMobileLoad);
     wire(this.mbSave, handlers.onMobileSave);
     wire(this.mbExport, handlers.onMobileExport);
+
+    // Long-press on mobile Save / Export = Save As / Export As
+    const addLongPress = (el, fn) => {
+      if (!el || typeof fn !== 'function') return;
+      let timer = null;
+      el.addEventListener('touchstart', () => { timer = setTimeout(fn, 500); }, { passive: true });
+      el.addEventListener('touchend', () => { if (timer) { clearTimeout(timer); timer = null; } });
+      el.addEventListener('touchcancel', () => { if (timer) { clearTimeout(timer); timer = null; } });
+    };
+    addLongPress(this.mbSave, handlers.onMobileSaveAs);
+    addLongPress(this.mbExport, handlers.onMobileExportAs);
+
     wire(this.mbPlay, handlers.onMobilePlay);
     wire(this.mbAddWp, handlers.onMobileAddWp);
     wire(this.mbAddPoi, handlers.onMobileAddPoi);

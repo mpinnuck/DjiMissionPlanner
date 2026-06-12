@@ -1550,6 +1550,18 @@ class App {
     });
   }
 
+  exportKmzAs() {
+    this.kmzExporter.exportAs({
+      waypoints: this.waypoints,
+      missionName: this.ui.getMissionName(),
+      finishAction: this.ui.getFinishAction(),
+      rcLostAction: this.ui.getRcLostAction(),
+      headingMode: this.ui.getHeadingMode(),
+      defaultSpeed: this.ui.getDefaultSpeed(),
+      droneConfig: this.activeDroneConfig
+    });
+  }
+
   async doMobileExport() {
     const canChooseFolder = typeof this.kmzExporter.canChooseFolder === 'function'
       ? this.kmzExporter.canChooseFolder()
@@ -2218,10 +2230,10 @@ class App {
       onLocate: () => this.locateUser(),
       onClearAll: () => this.clearAll(),
       onSaveMission: () => this.doSaveMission(),
-      onSaveMissionChangeFolder: () => this.changeSaveMissionFolder(),
+      onSaveMissionAs: () => this.saveMissionToFiles(),
       onLoadMission: () => this.doLoadMission(),
       onExport: () => this.doExport(),
-      onExportChangeFolder: () => this.changeExportFolder(),
+      onExportAs: () => this.exportKmzAs(),
       onToggleFPV: () => this.toggleFPV(),
       onApplyDefaultAltitude: () => this.applyDefaultAltitudeToAllWaypoints(),
       onApplyDefaultSpeed: () => this.applyDefaultSpeedToAllWaypoints(),
@@ -2313,8 +2325,10 @@ class App {
       onMobileMissionSettings: () => this.ui.toggleMobileMissionSettings(),
       onMobileMissionDone: () => this.ui.closeMobileMissionSettings(),
       onMobileLoad: () => this.doLoadMission(),
-      onMobileSave: () => this.doMobileSave(),
-      onMobileExport: () => this.doMobileExport(),
+      onMobileSave: () => this.doSaveMission(),
+      onMobileExport: () => this.doExport(),
+      onMobileSaveAs: () => this.saveMissionToFiles(),
+      onMobileExportAs: () => this.exportKmzAs(),
       onMobilePlay: () => {
         if (!this.flythrough) {
           return;
