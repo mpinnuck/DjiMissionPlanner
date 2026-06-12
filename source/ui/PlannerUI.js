@@ -705,6 +705,7 @@ class PlannerUI {
     positionText,
     initialName,
     initialAltitude,
+    initialHeightAboveGround,
     initialPosition,
     onClose,
     onDelete,
@@ -748,6 +749,37 @@ class PlannerUI {
       <div class="wp-options-section">Height</div>
     `;
 
+    const hasInitialHag = Number.isFinite(initialHeightAboveGround);
+    // hagOffset = takeoffGround + takeoffElevation - poiGround (constant for this dialog opening)
+    const hagOffset = hasInitialHag ? (initialHeightAboveGround - initialAltitude) : null;
+    const altToHag = alt => Number.isFinite(hagOffset) ? alt + hagOffset : null;
+    const hagToAlt = hag => Number.isFinite(hagOffset) ? hag - hagOffset : null;
+
+    // Altitude row — always shown
+    const altitudeEditRow = document.createElement('div');
+    altitudeEditRow.className = 'wp-options-edit-row';
+    altitudeEditRow.innerHTML = `
+      <label>Altitude</label>
+      <input type="number" min="-500" max="500" step="1" value="${Math.max(-500, Math.min(500, Math.round(initialAltitude)))}" />
+      <span>m</span>
+    `;
+    const altitudeInput = altitudeEditRow.querySelector('input');
+    body.appendChild(altitudeEditRow);
+
+    // HAG row — shown disabled when no elevation data available
+    const hagEditRow = document.createElement('div');
+    hagEditRow.className = 'wp-options-edit-row';
+    const initialHagDisplay = hasInitialHag ? Math.round(initialHeightAboveGround) : '';
+    hagEditRow.innerHTML = `
+      <label>HAG</label>
+      <input type="number" min="-500" max="500" step="1"
+        value="${initialHagDisplay}"
+        ${hasInitialHag ? '' : 'disabled placeholder="No data"'} />
+      <span>m</span>
+    `;
+    const hagInput = hagEditRow.querySelector('input');
+    body.appendChild(hagEditRow);
+
     const altitudeBlock = document.createElement('div');
     altitudeBlock.className = 'wp-options-altitude-block';
 
@@ -787,32 +819,59 @@ class PlannerUI {
     plusButton.className = 'wp-options-step';
     plusButton.textContent = '+';
 
-    const altitudeRow = document.createElement('div');
-    altitudeRow.className = 'wp-options-edit-row';
-    altitudeRow.innerHTML = `
-      <label>Height</label>
-      <input type="number" min="-500" max="500" step="1" value="${Math.max(-500, Math.min(500, Math.round(initialAltitude)))}" />
-      <span>m</span>
-    `;
-    const altitudeInput = altitudeRow.querySelector('input');
-
-    const updateAltitude = newValue => {
-      const clamped = Math.max(-500, Math.min(500, Math.round(newValue)));
+    // Apply an altitude value: updates slider, altitude input, HAG input, and fires callback.
+    const applyAlt = alt => {
+      const clamped = Math.max(-500, Math.min(500, Math.round(alt)));
       slider.value = String(clamped);
-      if (altitudeInput && document.activeElement !== altitudeInput) {
+      if (document.activeElement !== altitudeInput) {
         altitudeInput.value = String(clamped);
       }
       const valueLabel = valueRow.querySelector('#poiOptionsAltitudeValue');
       if (valueLabel) {
         valueLabel.textContent = formatAltitudeLabel(clamped);
       }
+      if (Number.isFinite(hagOffset) && document.activeElement !== hagInput) {
+        const hag = altToHag(clamped);
+        hagInput.value = Number.isFinite(hag) ? String(Math.round(hag)) : '';
+      }
       onAltitudeChange(clamped);
     };
 
-    slider.addEventListener('input', () => updateAltitude(parseFloat(slider.value)));
-    minusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) - 1));
-    plusButton.addEventListener('click', () => updateAltitude(parseFloat(slider.value) + 1));
-    altitudeInput.addEventListener('input', () => updateAltitude(parseFloat(altitudeInput.value)));
+    // Apply a HAG value: converts to altitude then delegates to applyAlt.
+    const applyHag = hag => {
+      const alt = hagToAlt(hag);
+      if (!Number.isFinite(alt)) return;
+      applyAlt(alt);
+      if (document.activeElement !== hagInput) {
+        hagInput.value = String(Math.round(hag));
+      }
+    };
+
+    slider.addEventListener('input', () => applyAlt(parseFloat(slider.value)));
+    minusButton.addEventListener('click', () => applyAlt(parseFloat(slider.value) - 1));
+    plusButton.addEventListener('click', () => applyAlt(parseFloat(slider.value) + 1));
+
+    altitudeInput.addEventListener('input', () => {
+      const v = parseFloat(altitudeInput.value);
+      if (Number.isFinite(v)) applyAlt(v);
+    });
+    altitudeInput.addEventListener('blur', () => {
+      const v = parseFloat(altitudeInput.value);
+      applyAlt(Number.isFinite(v) ? v : parseFloat(slider.value));
+      altitudeInput.value = slider.value;
+    });
+
+    hagInput.addEventListener('input', () => {
+      const v = parseFloat(hagInput.value);
+      if (Number.isFinite(v)) applyHag(v);
+    });
+    hagInput.addEventListener('blur', () => {
+      const v = parseFloat(hagInput.value);
+      if (Number.isFinite(v)) {
+        applyHag(v);
+        hagInput.value = String(Math.round(v));
+      }
+    });
 
     controls.appendChild(minusButton);
     controls.appendChild(slider);
@@ -821,7 +880,6 @@ class PlannerUI {
     altitudeBlock.appendChild(valueRow);
     altitudeBlock.appendChild(controls);
     body.appendChild(altitudeBlock);
-    body.appendChild(altitudeRow);
 
     const nameRow = document.createElement('div');
     nameRow.className = 'wp-options-edit-row';
