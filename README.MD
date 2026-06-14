@@ -110,6 +110,18 @@ gimbalPitch = -atan((wp.alt - poi.alt) / horizDist)
 
 where `wp.alt` and `poi.alt` are both altitudes relative to the takeoff point. This is the angle written into the DJI KMZ export and is geometrically correct — the drone camera will point directly at the POI regardless of how much higher or lower the POI terrain is compared to the takeoff location.
 
+#### POI altitude initialisation
+
+When a new POI is placed on the map, the app automatically fetches the terrain elevation at the POI location and sets the POI altitude so that its **HAG = 0** — meaning the POI sits at ground level at its map position. The formula used is:
+
+```
+poi.alt = poiGround - takeoffGround - takeoffElevation
+```
+
+This means a POI placed on terrain that is 25 m higher than the takeoff point will have `poi.alt = 25`, and a POI placed in a valley 50 m below the takeoff point will have `poi.alt = -50`. The gimbal pitch calculation uses this value so the camera aims at the actual ground-level position of the POI.
+
+You can manually adjust a POI's altitude (or HAG) in the POI options dialog to aim the camera above or below ground level at that location.
+
 #### FPV simulation and the flat ground plane
 
 The FPV 3D scene renders satellite imagery on a flat plane at **y = 0**, which represents the takeoff ground elevation. The drone camera is positioned at `wp.alt` metres above that plane. The satellite tiles are a photograph of the actual terrain but they are pinned to this flat reference plane, not draped over real terrain.
@@ -202,9 +214,9 @@ Why use a local web server:
 - `Unselect All` clears the current selection
 - `Clear All` removes all waypoints and POIs
 - `Use My Location` centers the map on your current location when browser permissions allow it
-- `Save Mission` saves the editable JSON mission
-- `Load Mission` loads a previously saved JSON mission
-- `Export KMZ` generates the DJI waypoint package
+- `Save Mission` saves the editable JSON mission to the current save location. **Double-click or right-click** `Save Mission` to open a folder picker and choose a new save location (Save As)
+- `Load Mission` opens a file picker to load a previously saved JSON mission. The folder from the loaded file is remembered and used as the default location for subsequent saves and loads
+- `Export KMZ` generates the DJI waypoint package and saves it to the current export location. **Double-click or right-click** `Export KMZ` to open a folder picker and choose a new export location (Export As)
 - `Play`, `Pause`, `Stop` control the virtual flythrough
 - `FOV` toggles the camera field-of-view footprint on the map
 - `FPV` shows or hides the FPV preview panel
