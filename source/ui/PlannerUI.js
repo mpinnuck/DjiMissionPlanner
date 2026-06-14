@@ -668,20 +668,27 @@ class PlannerUI {
       applyButton.className = 'accent2';
       applyButton.textContent = 'Apply';
 
+      const applyAllButton = document.createElement('button');
+      applyAllButton.type = 'button';
+      applyAllButton.className = 'ghost';
+      applyAllButton.textContent = 'Apply all';
+
       const finish = result => {
         overlay.remove();
         resolve(result);
       };
 
-      cancelButton.addEventListener('click', () => finish(null));
-      applyButton.addEventListener('click', () => {
-        finish({
-          altitudeValue: body.querySelector('#bulkDlgAlt').value,
-          speedValue: body.querySelector('#bulkDlgSpeed').value,
-          hagValue: body.querySelector('#bulkDlgHag').value,
-          poiValue: body.querySelector('#bulkDlgPoi').value
-        });
+      const getValues = (applyAll = false) => ({
+        altitudeValue: body.querySelector('#bulkDlgAlt').value,
+        speedValue: body.querySelector('#bulkDlgSpeed').value,
+        hagValue: body.querySelector('#bulkDlgHag').value,
+        poiValue: body.querySelector('#bulkDlgPoi').value,
+        applyAll
       });
+
+      cancelButton.addEventListener('click', () => finish(null));
+      applyButton.addEventListener('click', () => finish(getValues(false)));
+      applyAllButton.addEventListener('click', () => finish(getValues(true)));
 
       overlay.addEventListener('click', event => {
         if (event.target === overlay) {
@@ -690,6 +697,7 @@ class PlannerUI {
       });
 
       footer.appendChild(cancelButton);
+      footer.appendChild(applyAllButton);
       footer.appendChild(applyButton);
       modal.appendChild(header);
       modal.appendChild(body);
@@ -2290,7 +2298,7 @@ class PlannerUI {
     });
   }
 
-  showBulkWaypointDetail({ selectedCount, pois, onApply, onClearSelection, targetElement = null }) {
+  showBulkWaypointDetail({ selectedCount, pois, onApply, onApplyAll, onClearSelection, targetElement = null }) {
     const detailTarget = this.resolveDetailContainer(targetElement);
     const poiOptions = pois.map((poi, index) => {
       const displayName = Mission.formatPoiDisplayName(poi.name, index + 1);
@@ -2314,12 +2322,21 @@ class PlannerUI {
       </div>
       <div class="bulk-edit-actions">
         <button id="bulk_apply" class="accent2">Apply to Selected</button>
+        <button id="bulk_apply_all" class="ghost">Apply all</button>
         <button id="bulk_clear" class="ghost">Clear Selection</button>
       </div>
     `;
 
     detailTarget.querySelector('#bulk_apply').addEventListener('click', () => {
       onApply({
+        altitudeValue: detailTarget.querySelector('#bulk_alt').value,
+        speedValue: detailTarget.querySelector('#bulk_speed').value,
+        poiValue: detailTarget.querySelector('#bulk_poi').value
+      });
+    });
+
+    detailTarget.querySelector('#bulk_apply_all').addEventListener('click', () => {
+      onApplyAll({
         altitudeValue: detailTarget.querySelector('#bulk_alt').value,
         speedValue: detailTarget.querySelector('#bulk_speed').value,
         poiValue: detailTarget.querySelector('#bulk_poi').value

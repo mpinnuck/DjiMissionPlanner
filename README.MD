@@ -58,10 +58,36 @@ This JSON is the editable working format for the planner. It is not the same as 
 
 The app can look up terrain elevation and use it to:
 
-- display height-above-ground information per waypoint
-- apply a constant HAG value across all waypoints
+- display height-above-ground (HAG) for every waypoint and POI in the list
+- apply a constant HAG value across all waypoints, recalculating each waypoint's altitude to account for the terrain beneath it
 
 This is useful when planning missions over sloping terrain where a constant altitude above takeoff does not correspond to a constant altitude above local ground.
+
+#### How HAG is calculated
+
+DJI missions store waypoint altitude as a value relative to the takeoff point, not relative to sea level or the ground beneath each waypoint. The HAG calculation converts that relative altitude into a meaningful terrain-clearance figure.
+
+The app uses the following reference values:
+
+- **Takeoff ground elevation** — the terrain elevation (metres above sea level, from the elevation service) at the takeoff location. The takeoff location is the position of POI 1 (see below).
+- **Takeoff elevation** — the height of the drone above the takeoff ground at the moment it starts the mission, set in the `Takeoff Elev.` field in Mission Settings. For a ground-level launch this is 0. For a rooftop or elevated platform launch this should be set to the platform height in metres.
+- **Waypoint ground elevation** — the terrain elevation at each waypoint's map position, also from the elevation service.
+
+The formula for waypoint HAG is:
+
+```
+Waypoint ASL = takeoffGround + takeoffElevation + wp.alt
+Waypoint HAG = Waypoint ASL - waypointGround
+             = wp.alt + takeoffGround + takeoffElevation - waypointGround
+```
+
+When you apply a target HAG to a waypoint, the inverse is used to compute the required `wp.alt`:
+
+```
+wp.alt = targetHAG + waypointGround - takeoffGround - takeoffElevation
+```
+
+This means every waypoint gets an individually adjusted altitude so that, regardless of the terrain beneath it, the drone will fly at the same height above local ground.
 
 ### 4. Virtual Flythrough and FPV Preview
 
@@ -210,11 +236,18 @@ Changing a POI can change the heading and gimbal pitch of waypoints that referen
 
 #### POI 1 — Takeoff Reference Convention
 
-By convention, **POI 1** should be placed at the takeoff location. The app uses POI 1's latitude and longitude to look up ground elevation and compute height-above-ground values for all waypoints.
+By convention, **POI 1** should be placed at the takeoff location. The app uses POI 1's latitude and longitude as the reference point for all terrain elevation lookups and HAG calculations across the entire mission.
 
-POI 1 is otherwise a completely normal POI. Its altitude is treated the same as any other POI — relative to the takeoff point. It can be assigned to waypoints like any other POI.
+The app identifies POI 1 in the following order of precedence:
+1. The POI whose internal ID is `poi_1` (the first POI created in the mission).
+2. Any POI whose display name resolves to `1`.
+3. If neither exists, the first POI in the list is used as a fallback.
 
-The actual height of the drone above the ground at takeoff is set separately in the **Takeoff Elev.** field in Mission Settings. This value represents how far above the takeoff ground the drone is when it begins the mission (for example, when launching from a rooftop or elevated platform).
+When a new POI is created, its altitude is automatically initialised to its height above ground relative to the current takeoff reference, so POIs start at a sensible terrain-relative altitude rather than zero.
+
+POI 1 is otherwise a completely normal POI. It can be renamed, moved, and assigned to waypoints like any other POI. Moving POI 1 changes the takeoff reference location and triggers a recalculation of HAG values for all waypoints.
+
+The actual height of the drone above the ground at the takeoff location is set separately using the **Takeoff Elev.** field in Mission Settings. This represents how far above the ground surface the drone is when it begins the mission — for example, 1.5 m for a ground-level hand launch, or the height of a rooftop for an elevated platform launch. For a standard ground-level takeoff, leave this at 0.
 
 ### Flythrough and FPV
 

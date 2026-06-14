@@ -962,6 +962,7 @@ class App {
       pois: this.pois,
       targetElement: this.isMobileScreen ? this.ui.mobileSheetBody : null,
       onApply: values => this.applyBulkWaypointUpdate(values),
+      onApplyAll: values => this.applyBulkWaypointUpdate(values, this.waypoints),
       onClearSelection: () => this.clearWaypointMultiSelection()
     });
   }
@@ -981,7 +982,8 @@ class App {
       return;
     }
 
-    await this.applyBulkWaypointSettingsFromDialog(values, selectedWaypoints);
+    const targets = values.applyAll ? this.waypoints : selectedWaypoints;
+    await this.applyBulkWaypointSettingsFromDialog(values, targets);
   }
 
   async applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue, poiValue }, selectedWaypoints) {
@@ -1063,7 +1065,7 @@ class App {
     this.setMode('select');
   }
 
-  applyBulkWaypointUpdate({ altitudeValue, speedValue, poiValue }) {
+  applyBulkWaypointUpdate({ altitudeValue, speedValue, poiValue }, targetWaypoints = null) {
     const altitude = parseFloat(altitudeValue);
     const speedKmh = parseFloat(speedValue);
     const applyAltitude = altitudeValue.trim() !== '' && Number.isFinite(altitude);
@@ -1075,8 +1077,8 @@ class App {
       return;
     }
 
-    const targetWaypoints = this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
-    targetWaypoints.forEach(wp => {
+    const targets = targetWaypoints ?? this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
+    targets.forEach(wp => {
       if (applyAltitude) {
         wp.alt = altitude;
       }
@@ -1094,7 +1096,7 @@ class App {
     this.renderList();
     this.updateStats();
     this.showBulkWaypointDetail();
-    this.showStatus(`Updated ${targetWaypoints.length} waypoints.`);
+    this.showStatus(`Updated ${targets.length} waypoints.`);
   }
 
   renderList() {
