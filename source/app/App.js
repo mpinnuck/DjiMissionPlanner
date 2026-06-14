@@ -10,6 +10,9 @@ class App {
     this.lastLoadedMissionFolder = '';
     this.activeWaypointTooltipId = null;
     this.activeWaypointPopup = null;
+    this._mobileScreenMql = typeof window !== 'undefined'
+      ? window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))')
+      : null;
     this.mission = new Mission();
     this.ui = new PlannerUI({ mapElementId: options.mapElementId || 'map' });
     this.droneProfiles = {
@@ -140,8 +143,7 @@ class App {
   }
 
   get isMobileScreen() {
-    return typeof window !== 'undefined'
-      && window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))').matches;
+    return this._mobileScreenMql ? this._mobileScreenMql.matches : false;
   }
 
   showStatus(message) {
@@ -1066,41 +1068,12 @@ class App {
   }
 
   applyBulkWaypointUpdate({ altitudeValue, speedValue, poiValue }, targetWaypoints = null) {
-    const altitude = parseFloat(altitudeValue);
-    const speedKmh = parseFloat(speedValue);
-    const applyAltitude = altitudeValue.trim() !== '' && Number.isFinite(altitude);
-    const applySpeed = speedValue.trim() !== '' && Number.isFinite(speedKmh);
-    const applyPoi = poiValue !== '__KEEP__';
-
-    if (!applyAltitude && !applySpeed && !applyPoi) {
-      this.showStatus('No bulk changes applied.');
-      return;
-    }
-
     const targets = targetWaypoints ?? this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
-    targets.forEach(wp => {
-      if (applyAltitude) {
-        wp.alt = altitude;
-      }
-      if (applySpeed) {
-        wp.speed = Number((speedKmh / 3.6).toFixed(2));
-      }
-      if (applyPoi) {
-        wp.poiId = poiValue === '__NONE__' ? null : poiValue;
-      }
-      this.recomputePOI(wp);
-    });
-
-    this.syncFlythroughMission();
-
-    this.renderList();
-    this.updateStats();
-    this.showBulkWaypointDetail();
-    this.showStatus(`Updated ${targets.length} waypoints.`);
+    this.applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue: '', poiValue }, targets)
+      .then(() => this.showBulkWaypointDetail());
   }
 
   renderList() {
-    const allowWaypointMultiSelect = this.mode === 'select';
     this.ui.renderList({
       waypoints: this.waypoints,
       pois: this.pois,
@@ -1128,21 +1101,28 @@ class App {
       },
       onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
       onDelete: (id, type) => this.deleteItem(id, type),
-      onToggleWaypointMultiSelect: allowWaypointMultiSelect
-        ? (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options)
-        : null,
-      onRangeWaypointMultiSelect: allowWaypointMultiSelect
-        ? (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected)
-        : null,
-      onStartWaypointTouchRange: allowWaypointMultiSelect
-        ? anchorId => this.startWaypointTouchRange(anchorId)
-        : null,
-      onEndWaypointTouchRange: allowWaypointMultiSelect
-        ? () => this.endWaypointTouchRange()
-        : null
+      ...this._buildListCallbacks()
     });
     this.refreshMarkerLabels();
     this.scheduleHeightAboveGroundRefresh();
+  }
+
+  _buildListCallbacks() {
+    const allow = this.mode === 'select';
+    return {
+      onToggleWaypointMultiSelect: allow
+        ? (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options)
+        : null,
+      onRangeWaypointMultiSelect: allow
+        ? (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected)
+        : null,
+      onStartWaypointTouchRange: allow
+        ? anchorId => this.startWaypointTouchRange(anchorId)
+        : null,
+      onEndWaypointTouchRange: allow
+        ? () => this.endWaypointTouchRange()
+        : null,
+    };
   }
 
   getTakeoffPoi() {
@@ -1305,7 +1285,6 @@ class App {
     });
 
     if (updated) {
-      const allowWaypointMultiSelect = this.mode === 'select';
       if (this.fpv && typeof this.fpv.setGraphHeightAboveGround === 'function') {
         this.fpv.setGraphHeightAboveGround(this.heightAboveGroundByWaypointId);
       }
@@ -1337,18 +1316,7 @@ class App {
         },
         onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
         onDelete: (id, type) => this.deleteItem(id, type),
-        onToggleWaypointMultiSelect: allowWaypointMultiSelect
-          ? (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options)
-          : null,
-        onRangeWaypointMultiSelect: allowWaypointMultiSelect
-          ? (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected)
-          : null,
-        onStartWaypointTouchRange: allowWaypointMultiSelect
-          ? anchorId => this.startWaypointTouchRange(anchorId)
-          : null,
-        onEndWaypointTouchRange: allowWaypointMultiSelect
-          ? () => this.endWaypointTouchRange()
-          : null
+        ...this._buildListCallbacks()
       });
       this.refreshMarkerLabels();
     }
