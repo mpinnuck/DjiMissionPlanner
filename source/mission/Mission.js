@@ -32,13 +32,12 @@ class Mission {
     return Math.max(-90, Math.min(30, pitch));
   }
 
-  // FPV gimbal pitch uses only wp.alt as the height (poi.alt treated as 0),
-  // because the FPV renders a flat-ground scene at the takeoff elevation.
-  // This keeps the POI centered in the FPV regardless of terrain difference.
+  // FPV gimbal pitch is identical to the real DJI gimbal pitch.
+  // The FPV scene is flat at y=0, so the center ray with this pitch intersects
+  // the ground at: dist * alt/(alt-poi.alt) — naturally beyond the POI for
+  // above-ground POIs and before it for underground ones, matching real camera geometry.
   calcFpvGimbalPitch(wp, poi) {
-    const horizDist = this.haversine(wp.lat, wp.lng, poi.lat, poi.lng);
-    const pitch = Math.atan2(-wp.alt, horizDist) * 180 / Math.PI;
-    return Math.max(-90, Math.min(30, pitch));
+    return this.calcGimbalPitch(wp, poi);
   }
 
   calcHeading(wp, poi) {

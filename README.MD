@@ -100,6 +100,32 @@ The app includes a flythrough simulation that interpolates the mission path and 
 
 The FPV view uses a drone camera profile. The default profile is DJI Air 3S. A custom camera horizontal field of view can also be entered for preview purposes.
 
+#### Gimbal pitch accuracy
+
+When a waypoint is assigned to a POI, the gimbal pitch is calculated as:
+
+```
+gimbalPitch = -atan((wp.alt - poi.alt) / horizDist)
+```
+
+where `wp.alt` and `poi.alt` are both altitudes relative to the takeoff point. This is the angle written into the DJI KMZ export and is geometrically correct — the drone camera will point directly at the POI regardless of how much higher or lower the POI terrain is compared to the takeoff location.
+
+#### FPV simulation and the flat ground plane
+
+The FPV 3D scene renders satellite imagery on a flat plane at **y = 0**, which represents the takeoff ground elevation. The drone camera is positioned at `wp.alt` metres above that plane. The satellite tiles are a photograph of the actual terrain but they are pinned to this flat reference plane, not draped over real terrain.
+
+As a result, the relationship between the FPV view and the POI depends on terrain:
+
+| POI terrain vs takeoff | `poi.alt` | FPV camera centre | 2D circle |
+|---|---|---|---|
+| Same level as takeoff | `0` | POI centred in frame | Lands on POI |
+| Higher than takeoff | `> 0` | POI appears below centre | Overshoots POI |
+| Lower than takeoff | `< 0` | POI appears above centre | Undershoots POI |
+
+The **2D camera projection circle** on the map shows where the centre of the camera FOV intersects the y=0 ground plane. When the POI terrain differs from takeoff level the circle will not land exactly on the POI marker — this is expected and is a direct visual indicator of terrain difference, not a calculation error.
+
+The **gimbal pitch exported to the drone is always correct** for the real terrain. The FPV simulation is a flat-world approximation; the offset of the POI within the FPV frame reflects the elevation difference between the POI ground and the takeoff point.
+
 ### 5. DJI KMZ Export
 
 When you export, the app generates a DJI waypoint mission package in `.kmz` format containing the expected DJI waypoint mission XML structure.

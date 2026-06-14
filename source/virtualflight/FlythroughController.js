@@ -260,6 +260,7 @@ class FlythroughController {
       poiAlt:      (a.poiAlt || 0) + f * ((b.poiAlt || 0) - (a.poiAlt || 0)),
       poiLat:      (a.poiLat != null && b.poiLat != null) ? a.poiLat + f * (b.poiLat - a.poiLat) : (a.poiLat != null ? a.poiLat : null),
       poiLng:      (a.poiLng != null && b.poiLng != null) ? a.poiLng + f * (b.poiLng - a.poiLng) : (a.poiLng != null ? a.poiLng : null),
+      poiId:       f < 0.5 ? a.poiId : b.poiId,
       speed:       a.speed       + f * (b.speed       - a.speed),
       distance:    a.distance    + f * (b.distance    - a.distance),
       segmentIndex: f < 1 ? a.segmentIndex : b.segmentIndex,
@@ -276,9 +277,14 @@ class FlythroughController {
     if (!Number.isFinite(poiLat) || !Number.isFinite(poiLng)) return frame;
     const horizDist = this._haversine(lat, lng, poiLat, poiLng);
     if (horizDist < 0.1) return frame;
-    const gimbalPitch    = Math.max(-90, Math.min(30, Math.atan2((poiAlt || 0) - alt, horizDist) * 180 / Math.PI));
-    const fpvGimbalPitch = Math.max(-90, Math.min(30, Math.atan2(-alt,             horizDist) * 180 / Math.PI));
-    return { ...frame, gimbalPitch, fpvGimbalPitch };
+    // gimbalPitch = real DJI angle, aimed at poi.alt above the takeoff datum.
+    // Using this for the FPV camera (flat scene at y=0) means the center ray
+    // intersects y=0 at dist * alt/(alt-poi.alt):
+    //   poi.alt = 0  → lands exactly on the POI marker ✓
+    //   poi.alt > 0  → overshoots the POI (POI is below centre of frame) ✓
+    //   poi.alt < 0  → undershoots the POI (POI is above centre of frame) ✓
+    const gimbalPitch = Math.max(-90, Math.min(30, Math.atan2((poiAlt || 0) - alt, horizDist) * 180 / Math.PI));
+    return { ...frame, gimbalPitch, fpvGimbalPitch: gimbalPitch };
   }
 
   _updateDisplay({ lat, lng, heading, alt, gimbalPitch, fpvGimbalPitch, poiAlt }) {
@@ -321,7 +327,7 @@ class FlythroughController {
     }
 
     // ── Camera projection ───
-    const fov = this._computeFOV(lat, lng, alt, heading, gimbalPitch, poiAlt || 0);
+    const fov = this._computeFOV(lat, lng, alt, heading, gimbalPitch);
     if (fov) {
       if (this._showFOV) {
         if (!this._fovLayer) {
@@ -567,17 +573,17 @@ class FlythroughController {
   //
   // Returns null when the pitch is too shallow (footprint becomes enormous).
 
-  _computeFOV(lat, lng, altM, headingDeg, gimbalPitchDeg, targetAlt = 0) {
+  _computeFOV(lat, lng, altM, headingDeg, gimbalPitchDeg) {
     if (!Number.isFinite(altM) || altM <= 0) return null;
 
     // Keep a visible, bounded footprint even when gimbal is near horizontal.
     const safePitch = Number.isFinite(gimbalPitchDeg) ? gimbalPitchDeg : -45;
     const effectivePitchDeg = Math.min(safePitch, -5.0001);
 
-    // Effective height above the POI's elevation (both relative to takeoff origin).
-    // When POI HAG = 0 but terrain differs from takeoff, this corrects the projection
-    // so the center dot lands exactly on the POI regardless of terrain.
-    const h     = altM - (Number.isFinite(targetAlt) ? targetAlt : 0);
+    // Always intersect the y=0 ground plane (takeoff elevation reference).
+    // gimbalPitch already encodes the POI altitude, so the center ray intersection
+    // naturally lands on/before/beyond the POI depending on its elevation.
+    const h     = altM;
     const ψ     = headingDeg    * Math.PI / 180;  // yaw
     const γ     = effectivePitchDeg * Math.PI / 180;  // pitch (negative = down)
     const tanH  = Math.tan((this._hfovDeg / 2) * Math.PI / 180);
@@ -686,6 +692,7 @@ class FlythroughController {
         poiAlt,
         poiLat,
         poiLng,
+        poiId: wp0.poiId || null,
         speed: segmentSpeed,
         distance: cumulativeDistance,
         segmentIndex: segIdx
