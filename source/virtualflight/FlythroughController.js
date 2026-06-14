@@ -327,7 +327,7 @@ class FlythroughController {
     }
 
     // ── Camera projection ───
-    const fov = this._computeFOV(lat, lng, alt, heading, gimbalPitch);
+    const fov = this._computeFOV(lat, lng, alt, heading, gimbalPitch, poiAlt);
     if (fov) {
       if (this._showFOV) {
         if (!this._fovLayer) {
@@ -573,17 +573,18 @@ class FlythroughController {
   //
   // Returns null when the pitch is too shallow (footprint becomes enormous).
 
-  _computeFOV(lat, lng, altM, headingDeg, gimbalPitchDeg) {
+  _computeFOV(lat, lng, altM, headingDeg, gimbalPitchDeg, poiAlt = 0) {
     if (!Number.isFinite(altM) || altM <= 0) return null;
 
     // Keep a visible, bounded footprint even when gimbal is near horizontal.
     const safePitch = Number.isFinite(gimbalPitchDeg) ? gimbalPitchDeg : -45;
     const effectivePitchDeg = Math.min(safePitch, -5.0001);
 
-    // Always intersect the y=0 ground plane (takeoff elevation reference).
-    // gimbalPitch already encodes the POI altitude, so the center ray intersection
-    // naturally lands on/before/beyond the POI depending on its elevation.
-    const h     = altM;
+    // Intersect the POI terrain plane (z = poiAlt above takeoff).
+    // Using h_eff = altM - poiAlt means the center ray lands exactly on the POI
+    // ground level when gimbalPitch was computed from the same geometry.
+    const h     = altM - (Number.isFinite(poiAlt) ? poiAlt : 0);
+    if (h <= 0) return null;
     const ψ     = headingDeg    * Math.PI / 180;  // yaw
     const γ     = effectivePitchDeg * Math.PI / 180;  // pitch (negative = down)
     const tanH  = Math.tan((this._hfovDeg / 2) * Math.PI / 180);

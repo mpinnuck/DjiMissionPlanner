@@ -134,11 +134,19 @@ class FPVController {
    * Update camera from a FlythroughController frame object.
    * { lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch }
    */
-  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed }) {
+  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed, poiAlt }) {
     if (!this._visible || !this._missionCenter) return;
 
     const pos = this._toScene(lat, lng);
     this._camera.position.set(pos.x, alt, pos.z);
+
+    // Shift the satellite ground plane to poi.alt so the gimbal pitch
+    // (which encodes the drone-to-POI vertical difference) centers the POI
+    // in the FPV frame. Camera stays at wp.alt; effective height above the
+    // displayed ground = wp.alt - poi.alt = what gimbalPitch was computed from.
+    if (this._groundGroup) {
+      this._groundGroup.position.y = Number.isFinite(poiAlt) ? poiAlt : 0;
+    }
 
     // Use fpvGimbalPitch for the flat-scene FPV camera so the POI stays centered.
     // fpvGimbalPitch = -atan(wp.alt / horizDist), which treats the FPV ground as flat
@@ -227,6 +235,11 @@ class FPVController {
     sun.position.set(100, 200, 100);
     this._scene.add(sun);
     this._scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+    // Ground group — all satellite tile meshes live here so the entire
+    // ground plane can be shifted along Y to match the POI elevation.
+    this._groundGroup = new THREE.Group();
+    this._scene.add(this._groundGroup);
   }
 
   // ── HUD overlay ───────────────────────────────────────────────────────────
@@ -374,7 +387,7 @@ class FPVController {
       const mat = new THREE.MeshLambertMaterial({ map: texture });
       const mesh = new THREE.Mesh(geo, mat);
 
-      // Lie flat in XZ plane (Y=0 is ground)
+      // Lie flat in XZ plane — position within the group at y=0
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(
         (nwS.x + seS.x) / 2,
@@ -382,7 +395,7 @@ class FPVController {
         (nwS.z + seS.z) / 2
       );
 
-      this._scene.add(mesh);
+      this._groundGroup.add(mesh);
       this._tileCache.set(key, mesh);
     });
   }
@@ -390,7 +403,7 @@ class FPVController {
   _clearTiles() {
     this._tileCache.forEach(mesh => {
       if (!mesh) return;
-      this._scene.remove(mesh);
+      this._groundGroup.remove(mesh);
       mesh.geometry.dispose();
       mesh.material.map?.dispose();
       mesh.material.dispose();

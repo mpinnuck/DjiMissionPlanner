@@ -124,19 +124,21 @@ You can manually adjust a POI's altitude (or HAG) in the POI options dialog to a
 
 #### FPV simulation and the flat ground plane
 
-The FPV 3D scene renders satellite imagery on a flat plane at **y = 0**, which represents the takeoff ground elevation. The drone camera is positioned at `wp.alt` metres above that plane. The satellite tiles are a photograph of the actual terrain but they are pinned to this flat reference plane, not draped over real terrain.
+The FPV ground plane is always positioned so that the POI ground level sits at the centre of the camera FOV. This is achieved by shifting the satellite tile plane along the Y axis to match `poi.alt` each frame, so the effective camera height above the displayed ground equals `wp.alt − poi.alt` — the same vertical distance the gimbal pitch was computed from.
 
-As a result, the relationship between the FPV view and the POI depends on terrain:
+The relationship between the FPV view and the POI depends on the **POI HAG** (height above ground at the POI location):
 
-| POI terrain vs takeoff | `poi.alt` | FPV camera centre | 2D circle |
-|---|---|---|---|
-| Same level as takeoff | `0` | POI centred in frame | Lands on POI |
-| Higher than takeoff | `> 0` | POI appears below centre | Overshoots POI |
-| Lower than takeoff | `< 0` | POI appears above centre | Undershoots POI |
+| POI HAG | FPV camera centre | Meaning |
+|---|---|---|
+| `= 0` | POI centred in frame | Camera aimed at POI ground level |
+| `> 0` (above ground) | POI moves toward bottom of frame | Camera aimed above the POI |
+| `< 0` (below ground) | POI moves toward top of frame | Camera aimed below the POI |
 
-The **2D camera projection circle** on the map shows where the centre of the camera FOV intersects the y=0 ground plane. When the POI terrain differs from takeoff level the circle will not land exactly on the POI marker — this is expected and is a direct visual indicator of terrain difference, not a calculation error.
+When the POI HAG is 0 the FPV simulation accurately centres the POI in the frame. Adjusting the POI altitude or HAG shifts the aim point up or down in the frame proportionally, providing a realistic preview of where the camera will actually be pointing during the real flight.
 
-The **gimbal pitch exported to the drone is always correct** for the real terrain. The FPV simulation is a flat-world approximation; the offset of the POI within the FPV frame reflects the elevation difference between the POI ground and the takeoff point.
+The 2D map camera projection (FOV footprint and centre-point circle) also uses the POI terrain elevation as its ground plane, so the centre-point circle lands at the correct location on the map when the camera is aimed at a POI at ground level.
+
+The **gimbal pitch exported to the drone is always correct** regardless of what the FPV shows — the FPV is a planning preview, not a certified flight simulator.
 
 ### 5. DJI KMZ Export
 
