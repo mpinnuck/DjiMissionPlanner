@@ -91,7 +91,7 @@ class FlythroughController {
     this._closeTelemetryPopup();
     if (this._totalTime <= 0) {
       this._missionTime = 0;
-      const frame = this._timeline[0];
+      const frame = this._augmentFrame({ ...this._timeline[0] });
       this._updateDisplay(frame);
       if (this.onFrame) this.onFrame(frame);
       if (this.onProgress) this.onProgress(0, 0);
@@ -124,7 +124,7 @@ class FlythroughController {
       return;
     }
 
-    const frame = this._getFrame(this._missionTime);
+    const frame = this._augmentFrame(this._getFrame(this._missionTime));
     this._updateDisplay(frame);
     if (this.onFrame) {
       this.onFrame(frame);
@@ -138,7 +138,7 @@ class FlythroughController {
     const safeFraction = Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
     this._missionTime = safeFraction * this._totalTime;
     if (this._timeline.length) {
-      const frame = this._getFrame(this._missionTime);
+      const frame = this._augmentFrame(this._getFrame(this._missionTime));
       this._updateDisplay(frame);
       if (this.onFrame) this.onFrame(frame);
     }
@@ -169,7 +169,7 @@ class FlythroughController {
     }
 
     if (show && this._timeline.length) {
-      const frame = this._getFrame(this._missionTime);
+      const frame = this._augmentFrame(this._getFrame(this._missionTime));
       this._updateDisplay(frame);
       if (this.onFrame) this.onFrame(frame);
     }
@@ -191,7 +191,7 @@ class FlythroughController {
     ) * 180 / Math.PI;
 
     if (Array.isArray(this._timeline) && this._timeline.length) {
-      const frame = this._getFrame(this._missionTime);
+      const frame = this._augmentFrame(this._getFrame(this._missionTime));
       this._updateDisplay(frame);
       if (this.onFrame) this.onFrame(frame);
     }
@@ -214,7 +214,7 @@ class FlythroughController {
 
     if (this._missionTime >= this._totalTime) {
       this._missionTime = this._totalTime;
-      const frame = this._getFrame(this._missionTime);
+      const frame = this._augmentFrame(this._getFrame(this._missionTime));
       this._updateDisplay(frame);
       if (this.onFrame) this.onFrame(frame);
       this._playing = false;
@@ -224,7 +224,7 @@ class FlythroughController {
       return;
     }
 
-    const frame = this._getFrame(this._missionTime);
+    const frame = this._augmentFrame(this._getFrame(this._missionTime));
     this._updateDisplay(frame);
     if (this.onFrame) this.onFrame(frame);
     if (this.onProgress) this.onProgress(this._missionTime, this._totalTime);
@@ -256,6 +256,10 @@ class FlythroughController {
       alt:         a.alt         + f * (b.alt         - a.alt),
       heading:     this._lerpAngle(a.heading, b.heading, f),
       gimbalPitch: a.gimbalPitch + f * (b.gimbalPitch - a.gimbalPitch),
+      fpvGimbalPitch: a.fpvGimbalPitch + f * (b.fpvGimbalPitch - a.fpvGimbalPitch),
+      poiAlt:      (a.poiAlt || 0) + f * ((b.poiAlt || 0) - (a.poiAlt || 0)),
+      poiLat:      (a.poiLat != null && b.poiLat != null) ? a.poiLat + f * (b.poiLat - a.poiLat) : (a.poiLat != null ? a.poiLat : null),
+      poiLng:      (a.poiLng != null && b.poiLng != null) ? a.poiLng + f * (b.poiLng - a.poiLng) : (a.poiLng != null ? a.poiLng : null),
       speed:       a.speed       + f * (b.speed       - a.speed),
       distance:    a.distance    + f * (b.distance    - a.distance),
       segmentIndex: f < 1 ? a.segmentIndex : b.segmentIndex,
@@ -264,14 +268,29 @@ class FlythroughController {
 
   // ── Display update ──────────────────────────────────────────────────────
 
-  _updateDisplay({ lat, lng, heading, alt, gimbalPitch }) {
+  // Dynamically recomputes gimbalPitch and fpvGimbalPitch from the actual drone
+  // position at this frame moment, so the FOV projection and FPV view are exact
+  // even when the spline places the drone slightly off the waypoint radius.
+  _augmentFrame(frame) {
+    const { lat, lng, alt, poiLat, poiLng, poiAlt } = frame;
+    if (!Number.isFinite(poiLat) || !Number.isFinite(poiLng)) return frame;
+    const horizDist = this._haversine(lat, lng, poiLat, poiLng);
+    if (horizDist < 0.1) return frame;
+    const gimbalPitch    = Math.max(-90, Math.min(30, Math.atan2((poiAlt || 0) - alt, horizDist) * 180 / Math.PI));
+    const fpvGimbalPitch = Math.max(-90, Math.min(30, Math.atan2(-alt,             horizDist) * 180 / Math.PI));
+    return { ...frame, gimbalPitch, fpvGimbalPitch };
+  }
+
+  _updateDisplay({ lat, lng, heading, alt, gimbalPitch, fpvGimbalPitch, poiAlt }) {
     this._activeFrame = {
       ...this._getFrame(this._missionTime),
       lat,
       lng,
       heading,
       alt,
-      gimbalPitch
+      gimbalPitch,
+      fpvGimbalPitch,
+      poiAlt
     };
 
     // ── Drone marker ───
@@ -302,7 +321,7 @@ class FlythroughController {
     }
 
     // ── Camera projection ───
-    const fov = this._computeFOV(lat, lng, alt, heading, gimbalPitch);
+    const fov = this._computeFOV(lat, lng, alt, heading, gimbalPitch, poiAlt || 0);
     if (fov) {
       if (this._showFOV) {
         if (!this._fovLayer) {
@@ -416,7 +435,7 @@ class FlythroughController {
     });
 
     this._droneLayer.on('drag', event => {
-      const nearestFrame = this._findNearestFrame(event.target.getLatLng());
+      const nearestFrame = this._augmentFrame(this._findNearestFrame(event.target.getLatLng()));
       if (!nearestFrame) {
         return;
       }
@@ -429,7 +448,7 @@ class FlythroughController {
 
     this._droneLayer.on('dragend', event => {
       this._draggingDrone = false;
-      const nearestFrame = this._findNearestFrame(event.target.getLatLng());
+      const nearestFrame = this._augmentFrame(this._findNearestFrame(event.target.getLatLng()));
       if (!nearestFrame) {
         return;
       }
@@ -548,14 +567,17 @@ class FlythroughController {
   //
   // Returns null when the pitch is too shallow (footprint becomes enormous).
 
-  _computeFOV(lat, lng, altM, headingDeg, gimbalPitchDeg) {
+  _computeFOV(lat, lng, altM, headingDeg, gimbalPitchDeg, targetAlt = 0) {
     if (!Number.isFinite(altM) || altM <= 0) return null;
 
     // Keep a visible, bounded footprint even when gimbal is near horizontal.
     const safePitch = Number.isFinite(gimbalPitchDeg) ? gimbalPitchDeg : -45;
     const effectivePitchDeg = Math.min(safePitch, -5.0001);
 
-    const h     = altM;
+    // Effective height above the POI's elevation (both relative to takeoff origin).
+    // When POI HAG = 0 but terrain differs from takeoff, this corrects the projection
+    // so the center dot lands exactly on the POI regardless of terrain.
+    const h     = altM - (Number.isFinite(targetAlt) ? targetAlt : 0);
     const ψ     = headingDeg    * Math.PI / 180;  // yaw
     const γ     = effectivePitchDeg * Math.PI / 180;  // pitch (negative = down)
     const tanH  = Math.tan((this._hfovDeg / 2) * Math.PI / 180);
@@ -628,8 +650,17 @@ class FlythroughController {
       }
 
       // Altitude and gimbal pitch: linear interpolation between waypoints
-      const alt         = wp0.alt + frac * (wp1.alt - wp0.alt);
-      const gimbalPitch = (wp0.gimbalPitch || 0) + frac * ((wp1.gimbalPitch || 0) - (wp0.gimbalPitch || 0));
+      const alt             = wp0.alt + frac * (wp1.alt - wp0.alt);
+      const gimbalPitch     = (wp0.gimbalPitch    || 0) + frac * ((wp1.gimbalPitch    || 0) - (wp0.gimbalPitch    || 0));
+      const fpvGimbalPitch  = (wp0.fpvGimbalPitch || 0) + frac * ((wp1.fpvGimbalPitch || 0) - (wp0.fpvGimbalPitch || 0));
+      const poiAlt          = (wp0.poiAlt         || 0) + frac * ((wp1.poiAlt         || 0) - (wp0.poiAlt         || 0));
+      // POI lat/lng: only interpolate when both waypoints share a POI, otherwise use wp0's values
+      const poiLat = (wp0.poiLat != null && wp1.poiLat != null)
+        ? wp0.poiLat + frac * (wp1.poiLat - wp0.poiLat)
+        : (wp0.poiLat != null ? wp0.poiLat : null);
+      const poiLng = (wp0.poiLng != null && wp1.poiLng != null)
+        ? wp0.poiLng + frac * (wp1.poiLng - wp0.poiLng)
+        : (wp0.poiLng != null ? wp0.poiLng : null);
 
       // Heading: tangent along spline, overridden by POI heading when assigned
       let heading;
@@ -651,6 +682,10 @@ class FlythroughController {
         heading,
         alt,
         gimbalPitch,
+        fpvGimbalPitch,
+        poiAlt,
+        poiLat,
+        poiLng,
         speed: segmentSpeed,
         distance: cumulativeDistance,
         segmentIndex: segIdx

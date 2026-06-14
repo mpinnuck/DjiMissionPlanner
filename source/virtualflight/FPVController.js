@@ -132,20 +132,25 @@ class FPVController {
 
   /**
    * Update camera from a FlythroughController frame object.
-   * { lat, lng, alt, heading, gimbalPitch }
+   * { lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch }
    */
-  updateFrame({ lat, lng, alt, heading, gimbalPitch, speed }) {
+  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed }) {
     if (!this._visible || !this._missionCenter) return;
 
     const pos = this._toScene(lat, lng);
     this._camera.position.set(pos.x, alt, pos.z);
+
+    // Use fpvGimbalPitch for the flat-scene FPV camera so the POI stays centered.
+    // fpvGimbalPitch = -atan(wp.alt / horizDist), which treats the FPV ground as flat
+    // at takeoff elevation. gimbalPitch is the real-world DJI angle and is shown on the HUD.
+    const displayPitch = Number.isFinite(fpvGimbalPitch) ? fpvGimbalPitch : gimbalPitch;
 
     // YXZ Euler: yaw first (Y), then pitch (X), no roll (Z)
     // Three.js Y rotation is CCW from above → negate clockwise heading
     // Three.js X rotation positive = tilt up → gimbalPitch negative = look down ✓
     this._camera.rotation.order = 'YXZ';
     this._camera.rotation.set(
-      gimbalPitch * Math.PI / 180,
+      displayPitch * Math.PI / 180,
       -(heading  * Math.PI / 180),
       0
     );

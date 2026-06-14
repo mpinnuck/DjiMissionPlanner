@@ -32,6 +32,15 @@ class Mission {
     return Math.max(-90, Math.min(30, pitch));
   }
 
+  // FPV gimbal pitch uses only wp.alt as the height (poi.alt treated as 0),
+  // because the FPV renders a flat-ground scene at the takeoff elevation.
+  // This keeps the POI centered in the FPV regardless of terrain difference.
+  calcFpvGimbalPitch(wp, poi) {
+    const horizDist = this.haversine(wp.lat, wp.lng, poi.lat, poi.lng);
+    const pitch = Math.atan2(-wp.alt, horizDist) * 180 / Math.PI;
+    return Math.max(-90, Math.min(30, pitch));
+  }
+
   calcHeading(wp, poi) {
     return this.bearing(wp.lat, wp.lng, poi.lat, poi.lng);
   }
@@ -81,7 +90,11 @@ class Mission {
       speed,
       heading: 0,
       gimbalPitch: 0,
-      poiId: null
+      fpvGimbalPitch: 0,
+      poiId: null,
+      poiAlt: 0,
+      poiLat: null,
+      poiLng: null
     };
   }
 
@@ -137,6 +150,10 @@ class Mission {
     }
     wp.heading = this.calcHeading(wp, poi);
     wp.gimbalPitch = this.calcGimbalPitch(wp, poi);
+    wp.fpvGimbalPitch = this.calcFpvGimbalPitch(wp, poi);
+    wp.poiAlt = poi.alt || 0;
+    wp.poiLat = poi.lat;
+    wp.poiLng = poi.lng;
   }
 
   recomputeAllPOI() {
@@ -162,6 +179,10 @@ class Mission {
         wp.poiId = null;
         wp.heading = 0;
         wp.gimbalPitch = 0;
+        wp.fpvGimbalPitch = 0;
+        wp.poiAlt = 0;
+        wp.poiLat = null;
+        wp.poiLng = null;
       }
     });
     return poi;
