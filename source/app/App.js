@@ -296,41 +296,44 @@ class App {
 
   addWaypointMarker(wp, idx) {
     const m = this.mapController.addWaypointMarker(wp, idx);
-    let singleClickTimer = null;
+    let longPressTimer = null;
+    let longPressTriggered = false;
+
+    const cancelLongPress = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    m.on('mousedown', () => {
+      cancelLongPress();
+      longPressTriggered = false;
+      longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        longPressTriggered = true;
+        this.showWaypointTooltip(wp.id);
+        this.selectItem(wp.id, 'wp');
+        this.openWaypointOptionsDialog(wp.id);
+      }, 600);
+    });
+
+    m.on('mouseup', cancelLongPress);
+    m.on('dragstart', cancelLongPress);
+
     m.on('click', () => {
-      if (singleClickTimer) {
-        // Second click within 220 ms — treat as double-tap on mobile
-        // (mobile browsers don't fire a native dblclick event when tap:false)
-        clearTimeout(singleClickTimer);
-        singleClickTimer = null;
-        if (this.isMobileScreen) {
-          this.selectItem(wp.id, 'wp');
-          this.showWaypointTooltip(wp.id);
-          this.openWaypointOptionsDialog(wp.id);
-        }
-        // On desktop the native dblclick event handles it below
+      if (longPressTriggered) {
+        longPressTriggered = false;
         return;
       }
-
-      singleClickTimer = setTimeout(() => {
-        singleClickTimer = null;
-        this.onWaypointMarkerClick(wp.id);
-      }, 220);
+      this.onWaypointMarkerClick(wp.id);
     });
-    m.on('dblclick', event => {
-      if (singleClickTimer) {
-        clearTimeout(singleClickTimer);
-        singleClickTimer = null;
-      }
 
+    m.on('dblclick', event => {
       if (event && event.originalEvent) {
         event.originalEvent.preventDefault();
         event.originalEvent.stopPropagation();
       }
-
-      this.showWaypointTooltip(wp.id);
-      this.selectItem(wp.id, 'wp');
-      this.openWaypointOptionsDialog(wp.id);
     });
     m.on('dragend', e => {
       wp.lat = e.target.getLatLng().lat;
@@ -400,7 +403,7 @@ class App {
     this.selectedWaypointIds.add(waypointId);
     this.lastWaypointAnchorId = waypointId;
     this.applyWaypointSelectionState();
-    // Tooltip/options shown on double-click, not single-click
+    // Tooltip/options shown on long press, not single-click
   }
 
   closeWaypointTooltip() {

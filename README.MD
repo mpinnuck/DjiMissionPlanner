@@ -268,7 +268,8 @@ You can also:
 
 - drag waypoint markers to move them
 - insert waypoints into the route from the map path tools
-- multi-select waypoints
+- **long press** a waypoint marker to open the waypoint options dialog
+- multi-select waypoints by clicking them
 - apply bulk updates to multiple selected waypoints
 - copy multiple selected waypoints to the clipboard with `Cmd+C` or `Ctrl+C`
 
