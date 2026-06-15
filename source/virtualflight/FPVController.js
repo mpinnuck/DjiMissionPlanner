@@ -134,7 +134,7 @@ class FPVController {
    * Update camera from a FlythroughController frame object.
    * { lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch }
    */
-  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed, poiAlt }) {
+  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed, poiAlt, distance }) {
     if (!this._visible || !this._missionCenter) return;
 
     const pos = this._toScene(lat, lng);
@@ -164,7 +164,7 @@ class FPVController {
     );
 
     this._renderer.render(this._scene, this._camera);
-    this._drawHUD(alt, heading, gimbalPitch, speed);
+    this._drawHUD(alt, heading, gimbalPitch, speed, distance);
   }
 
   show() {
@@ -252,7 +252,7 @@ class FPVController {
     this._hudCtx    = hud.getContext('2d');
   }
 
-  _drawHUD(alt, heading, gimbalPitch, speed) {
+  _drawHUD(alt, heading, gimbalPitch, speed, distance) {
     const c   = this._hudCtx;
     const w   = this._hudCanvas.width;
     const h   = this._hudCanvas.height;
@@ -281,6 +281,16 @@ class FPVController {
     c.fillText(`SPD`, w - 14, h * 0.08);
     c.fillStyle = '#ffffff';
     c.fillText(`${speedKmh != null ? Math.round(speedKmh) : '—'} km/h`, w - 14, h * 0.14);
+
+    // ── Distance travelled (bottom-right) ──
+    const distM = Number.isFinite(distance) ? distance : null;
+    const distStr = distM == null ? '—' : distM >= 1000 ? `${(distM / 1000).toFixed(2)} km` : `${Math.round(distM)} m`;
+    c.fillStyle = '#2ed573';
+    c.font = small;
+    c.textAlign = 'right';
+    c.fillText(`DIST`, w - 14, h * 0.92);
+    c.fillStyle = '#ffffff';
+    c.fillText(distStr, w - 14, h * 0.965);
 
     // ── Heading (top-centre) ──
     const hdgLabel = this._headingLabel(heading);
