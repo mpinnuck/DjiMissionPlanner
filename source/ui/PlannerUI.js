@@ -2244,20 +2244,22 @@ class PlannerUI {
     detailTarget.innerHTML = '<div id="detail-placeholder">Nothing selected</div>';
   }
 
-  highlightSelectedItem(selectedId, selectedWaypointIds = new Set()) {
+  highlightSelectedItem(selectedId, selectedWaypointIds = new Set(), scrollTargetId = undefined) {
     document.querySelectorAll('.tree-wp-hdr').forEach(el => {
       const isMultiSelected = selectedWaypointIds.has(el.dataset.wpId);
       el.classList.toggle('selected', el.dataset.wpId === selectedId);
       el.classList.toggle('multi-selected', isMultiSelected);
     });
 
-    const scrollTargetId = selectedId || [...selectedWaypointIds].at(-1) || null;
+    const resolvedScrollTarget = scrollTargetId !== undefined
+      ? scrollTargetId
+      : (selectedId || [...selectedWaypointIds].at(-1) || null);
     if (this.selectedItemScrollFrame) {
       window.cancelAnimationFrame(this.selectedItemScrollFrame);
     }
     this.selectedItemScrollFrame = window.requestAnimationFrame(() => {
       this.selectedItemScrollFrame = null;
-      this.scrollListItemIntoView(scrollTargetId);
+      this.scrollListItemIntoView(resolvedScrollTarget);
     });
   }
 

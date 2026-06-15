@@ -352,7 +352,7 @@ class App {
       this.selectedId = null;
       this.selectedType = null;
       this.lastWaypointAnchorId = waypointId;
-      this.renderList();
+      this.applyWaypointSelectionState();
       this.showStatus(`${this.selectedWaypointIds.size} waypoints selected.`);
       return;
     }
@@ -938,7 +938,8 @@ class App {
       this.selectedId = null;
       this.selectedType = null;
       this.renderList();
-      this.ui.highlightSelectedItem(null, this.selectedWaypointIds);
+    this.ui.highlightSelectedItem(null, this.selectedWaypointIds,
+        this.waypoints.findLast(wp => this.selectedWaypointIds.has(wp.id))?.id ?? null);
       this.showBulkWaypointDetail();
       return;
     }
@@ -948,7 +949,7 @@ class App {
       this.selectedId = onlyId;
       this.selectedType = 'wp';
       this.renderList();
-      this.ui.highlightSelectedItem(onlyId, this.selectedWaypointIds);
+      this.ui.highlightSelectedItem(onlyId, this.selectedWaypointIds, onlyId);
       this.showDetail(onlyId, 'wp');
       return;
     }
@@ -1827,8 +1828,8 @@ class App {
       return false;
     }
 
-    // Clipboard format intentionally excludes internal IDs and derived fields.
-    // Future paste can generate fresh IDs and recompute heading/gimbal from POI links.
+    // Internal IDs are excluded; all other authored fields are preserved.
+    // heading and gimbalPitch are included so manually-set values survive paste.
     const clipboardPayload = {
       schema: 'dji-mission-planner/waypoint-copy-v1',
       copiedAt: Date.now(),
@@ -1836,7 +1837,12 @@ class App {
         lat: waypoint.lat,
         lng: waypoint.lng,
         alt: waypoint.alt,
-        speed: waypoint.speed
+        speed: waypoint.speed,
+        heading: waypoint.heading,
+        gimbalPitch: waypoint.gimbalPitch,
+        actions: Array.isArray(waypoint.actions) && waypoint.actions.length > 0
+          ? waypoint.actions.map(a => ({ ...a }))
+          : undefined
       }))
     };
     const payload = JSON.stringify(clipboardPayload, null, 2);
@@ -1870,10 +1876,10 @@ class App {
   }
 
   deleteSelectionFromKeyboard() {
-    if (this.selectedWaypointIds.size > 1) {
+    if (this.selectedWaypointIds.size >= 1) {
       const waypointIds = [...this.selectedWaypointIds];
       waypointIds.forEach(waypointId => this.deleteItem(waypointId, 'wp'));
-      this.showStatus(`Deleted ${waypointIds.length} waypoints.`);
+      this.showStatus(`Deleted ${waypointIds.length} waypoint${waypointIds.length === 1 ? '' : 's'}.`);
       return true;
     }
 
