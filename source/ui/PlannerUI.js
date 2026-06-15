@@ -2483,14 +2483,14 @@ class PlannerUI {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const wpId = btn.dataset.wpId;
-        this.showActionPickerDialog(wpId, (type, params) => {
+        this.showActionPickerDialog((type, params) => {
           onAddAction && onAddAction(wpId, type, params);
         });
       });
     });
   }
 
-  showActionPickerDialog(wpId, onConfirm) {
+  showActionPickerDialog(onConfirm) {
     const types = Object.keys(ACTION_META);
     let selectedType = types[0];
     let paramValues = {};

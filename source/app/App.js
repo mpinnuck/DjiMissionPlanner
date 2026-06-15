@@ -779,11 +779,6 @@ class App {
         ? this.flythrough.currentTime / this.flythrough.totalTime
         : 0
     );
-    this.ui.updateMobileStats({
-      wpCount: this.waypoints.length,
-      distanceMeters: this.mission.totalDistance(),
-      elapsedSeconds: this.flythrough.totalTime
-    });
   }
 
   insertWaypointAt(index, latlng) {
@@ -2365,6 +2360,7 @@ class App {
     }
     this.renderList();
     this.syncFlythroughMission();
+    this.updateStats();
     this.showStatus(`Action '${type}' added to waypoint.`);
   }
 
@@ -2372,6 +2368,7 @@ class App {
     this.mission.removeWaypointAction(wpId, actionId);
     this.renderList();
     this.syncFlythroughMission();
+    this.updateStats();
     this.showStatus('Action removed.');
   }
 
@@ -2379,12 +2376,14 @@ class App {
     this.mission.moveWaypointActionUp(wpId, actionId);
     this.renderList();
     this.syncFlythroughMission();
+    this.updateStats();
   }
 
   moveWaypointActionDown(wpId, actionId) {
     this.mission.moveWaypointActionDown(wpId, actionId);
     this.renderList();
     this.syncFlythroughMission();
+    this.updateStats();
   }
 
   _refreshDialogActions(wp) {
