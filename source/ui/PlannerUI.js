@@ -1,3 +1,53 @@
+const ACTION_META = {
+  takePhoto:    { icon: '📷', label: 'Take Photo',    params: [
+    { key: 'fileSuffix', label: 'File suffix', type: 'text', default: '' }
+  ]},
+  startRecord:  { icon: '🎬', label: 'Start Record',  params: [],
+    warning: 'DJI Fly does not support auto-start recording on Air 3S' },
+  stopRecord:   { icon: '⏹', label: 'Stop Record',   params: [] },
+  hover:        { icon: '⏱', label: 'Hover',          params: [
+    { key: 'hoverTime', label: 'Duration', type: 'number', unit: 's', min: 1, max: 300, default: 3 }
+  ]},
+  rotateYaw:    { icon: '🔄', label: 'Rotate Yaw',    params: [
+    { key: 'heading',  label: 'Heading',   type: 'number', unit: '°', min: -180, max: 180, default: 0 },
+    { key: 'turnDir',  label: 'Direction', type: 'select',
+      options: [['clockwise','Clockwise'],['counterClockwise','Counter-clockwise'],['followPath','Follow Path']],
+      default: 'clockwise' }
+  ]},
+  gimbalRotate: { icon: '🎥', label: 'Gimbal Rotate', params: [
+    { key: 'pitch',      label: 'Pitch', type: 'number', unit: '°', min: -90, max: 30, default: -45 },
+    { key: 'rotateMode', label: 'Mode',  type: 'select',
+      options: [['absoluteAngle','Absolute'],['relativeAngle','Relative']],
+      default: 'absoluteAngle' }
+  ]},
+  zoom:         { icon: '🔍', label: 'Zoom',           params: [
+    { key: 'focalLength', label: 'Focal length', type: 'number', unit: 'mm', min: 1, max: 200, default: 24 }
+  ]},
+  focus:        { icon: '🎯', label: 'Focus',          params: [
+    { key: 'isInfiniteFocus', label: 'Infinite focus', type: 'checkbox', default: false }
+  ]},
+  panoShot:     { icon: '🌐', label: 'Pano Shot',      params: [
+    { key: 'panoShotSubMode', label: 'Mode', type: 'select',
+      options: [
+        ['panoShot_360','360°'],['panoShot_sphere','Sphere'],
+        ['panoShot_cylinder','Cylinder'],['panoShot_180','180°']
+      ],
+      default: 'panoShot_360' }
+  ]},
+};
+
+function _actionSummary(action) {
+  const p = action.params || {};
+  switch (action.type) {
+    case 'hover':        return `${p.hoverTime || 1}s`;
+    case 'gimbalRotate': return `${p.pitch || 0}°`;
+    case 'rotateYaw':    return `${p.heading || 0}°`;
+    case 'zoom':         return `${p.focalLength || 24}mm`;
+    case 'panoShot':     return (p.panoShotSubMode || '').replace('panoShot_', '');
+    default:             return '';
+  }
+}
+
 class PlannerUI {
   constructor(options = {}) {
     this.mapElement = document.getElementById(options.mapElementId || 'map');
@@ -59,6 +109,9 @@ class PlannerUI {
     this.mobileSheetBody = document.getElementById('mobileSheetBody');
     this.mobileSheetOvl = document.getElementById('mobileSheetOverlay');
     this.touchRangeSelection = null;
+    this._expandedWpIds = new Set();
+    this._wpSectionOpen = true;
+    this._poiSectionOpen = true;
 
     this.updateDroneInputsState();
   }
@@ -1010,6 +1063,7 @@ class PlannerUI {
     initialSpeed,
     currentPoiId,
     pois,
+    actions = [],
     initialPosition,
     onClose,
     onDelete,
@@ -1017,7 +1071,11 @@ class PlannerUI {
     onNext,
     onAltitudeChange,
     onSpeedChange,
-    onPoiChange
+    onPoiChange,
+    onAddAction,
+    onDeleteAction,
+    onMoveActionUp,
+    onMoveActionDown,
   }) {
     this.closeWaypointOptionsDialog();
 
@@ -1228,6 +1286,11 @@ class PlannerUI {
     prevButton.textContent = 'Previous';
     prevButton.addEventListener('click', () => onPrevious());
 
+    const actionsButton = document.createElement('button');
+    actionsButton.type = 'button';
+    actionsButton.className = 'wp-options-nav wp-options-actions-btn';
+    actionsButton.textContent = `Actions${actions.length ? ' (' + actions.length + ')' : ''}`;
+
     const nextButton = document.createElement('button');
     nextButton.type = 'button';
     nextButton.className = 'wp-options-nav';
@@ -1235,12 +1298,218 @@ class PlannerUI {
     nextButton.addEventListener('click', () => onNext());
 
     footer.appendChild(prevButton);
+    footer.appendChild(actionsButton);
     footer.appendChild(nextButton);
 
     modal.appendChild(header);
     modal.appendChild(body);
     modal.appendChild(footer);
     overlay.appendChild(modal);
+
+    // ── Action side panels ────────────────────────────────────────────────────
+    let actionListPanel = null;
+    let actionEditPanel = null;
+    let currentActions = Array.isArray(actions) ? [...actions] : [];
+
+    const closeActionEditPanel = () => {
+      if (actionEditPanel) { actionEditPanel.remove(); actionEditPanel = null; }
+    };
+
+    const closeActionListPanel = () => {
+      closeActionEditPanel();
+      if (actionListPanel) { actionListPanel.remove(); actionListPanel = null; }
+      actionsButton.classList.remove('active');
+    };
+
+    const positionPanel = (panel, anchor) => {
+      const rect = (anchor || modal).getBoundingClientRect();
+      panel.style.position = 'fixed';
+      panel.style.top = `${Math.max(10, rect.top)}px`;
+      panel.style.left = `${rect.right + 8}px`;
+    };
+
+    const refreshActionListPanel = () => {
+      if (!actionListPanel) return;
+      const listEl = actionListPanel.querySelector('.wpa-list');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+      if (currentActions.length === 0) {
+        listEl.innerHTML = '<div class="wpa-empty">No actions yet</div>';
+      } else {
+        currentActions.forEach(action => {
+          const m = ACTION_META[action.type];
+          const icon = m ? m.icon : '?';
+          const label = m ? m.label : action.type;
+          const summ = _actionSummary(action);
+          const row = document.createElement('div');
+          row.className = 'wpa-row';
+          row.innerHTML = `
+            <span class="wpa-icon">${icon}</span>
+            <span class="wpa-label">${label}${summ ? ' · ' + summ : ''}</span>
+            <button class="wpa-up" title="Move up">↑</button>
+            <button class="wpa-dn" title="Move down">↓</button>
+            <button class="wpa-del" title="Delete">✕</button>`;
+          row.querySelector('.wpa-up').addEventListener('click', e => {
+            e.stopPropagation();
+            closeActionEditPanel();
+            onMoveActionUp && onMoveActionUp(action.id);
+          });
+          row.querySelector('.wpa-dn').addEventListener('click', e => {
+            e.stopPropagation();
+            closeActionEditPanel();
+            onMoveActionDown && onMoveActionDown(action.id);
+          });
+          row.querySelector('.wpa-del').addEventListener('click', e => {
+            e.stopPropagation();
+            closeActionEditPanel();
+            onDeleteAction && onDeleteAction(action.id);
+          });
+          row.addEventListener('click', e => {
+            if (e.target.closest('.wpa-up, .wpa-dn, .wpa-del')) return;
+            openActionEditPanel(action);
+          });
+          listEl.appendChild(row);
+        });
+      }
+      actionsButton.textContent = `Actions${currentActions.length ? ' (' + currentActions.length + ')' : ''}`;
+    };
+
+    const openActionEditPanel = (existingAction) => {
+      closeActionEditPanel();
+      const isNew = !existingAction;
+      const types = Object.keys(ACTION_META);
+      let selectedType = existingAction ? existingAction.type : types[0];
+      let paramValues = existingAction ? { ...existingAction.params } : {};
+
+      actionEditPanel = document.createElement('div');
+      actionEditPanel.className = 'wpa-panel wpa-edit-panel';
+
+      const buildParamHtml = () => {
+        const meta = ACTION_META[selectedType];
+        if (!meta) return '';
+        const lines = [];
+        if (meta.warning) lines.push(`<div class="wpa-warning">⚠ ${meta.warning}</div>`);
+        meta.params.forEach(p => {
+          const val = paramValues[p.key] !== undefined ? paramValues[p.key] : p.default;
+          if (p.type === 'number') {
+            lines.push(`<div class="wpa-param-row">
+              <span class="wpa-param-label">${p.label}</span>
+              <input class="wpa-param-input ap-field" type="number" data-key="${p.key}" min="${p.min}" max="${p.max}" value="${val}">
+              <span class="wpa-param-unit">${p.unit || ''}</span>
+            </div>`);
+          } else if (p.type === 'text') {
+            lines.push(`<div class="wpa-param-row">
+              <span class="wpa-param-label">${p.label}</span>
+              <input class="wpa-param-input ap-field" type="text" data-key="${p.key}" value="${this._escapeHtml(String(val))}">
+            </div>`);
+          } else if (p.type === 'select') {
+            const opts = p.options.map(([v, l]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${l}</option>`).join('');
+            lines.push(`<div class="wpa-param-row">
+              <span class="wpa-param-label">${p.label}</span>
+              <select class="wpa-param-select ap-field" data-key="${p.key}">${opts}</select>
+            </div>`);
+          } else if (p.type === 'checkbox') {
+            lines.push(`<div class="wpa-param-row">
+              <span class="wpa-param-label">${p.label}</span>
+              <input class="ap-field" type="checkbox" data-key="${p.key}" ${val ? 'checked' : ''}>
+            </div>`);
+          }
+        });
+        return lines.join('');
+      };
+
+      const readParams = () => {
+        const result = {};
+        actionEditPanel.querySelectorAll('.ap-field').forEach(f => {
+          const key = f.dataset.key;
+          if (f.type === 'checkbox') result[key] = f.checked;
+          else if (f.type === 'number') result[key] = parseFloat(f.value);
+          else result[key] = f.value;
+        });
+        return result;
+      };
+
+      const typeGrid = isNew ? types.map(t => {
+        const m = ACTION_META[t];
+        return `<button class="wpa-type-btn js-wpa-type ${t === selectedType ? 'active' : ''}" data-type="${t}">
+          <span>${m.icon}</span><span class="wpa-type-label">${m.label}</span>
+        </button>`;
+      }).join('') : '';
+
+      actionEditPanel.innerHTML = `
+        <div class="wpa-panel-header">
+          <span class="wpa-panel-title">${isNew ? 'Add Action' : 'Edit Action'}</span>
+          <button class="wpa-close-btn" title="Close">✕</button>
+        </div>
+        ${isNew ? `<div class="wpa-type-grid">${typeGrid}</div>` : ''}
+        <div class="wpa-params" id="wpaEditParams">${buildParamHtml()}</div>
+        <div class="wpa-edit-footer">
+          ${!isNew ? '<button class="wpa-del-btn">Delete</button>' : ''}
+          <button class="wpa-confirm-btn">${isNew ? 'Add' : 'Done'}</button>
+        </div>`;
+
+      actionEditPanel.querySelector('.wpa-close-btn').addEventListener('click', closeActionEditPanel);
+
+      if (isNew) {
+        actionEditPanel.querySelectorAll('.js-wpa-type').forEach(btn => {
+          btn.addEventListener('click', () => {
+            paramValues = readParams();
+            selectedType = btn.dataset.type;
+            actionEditPanel.querySelectorAll('.js-wpa-type').forEach(b =>
+              b.classList.toggle('active', b.dataset.type === selectedType));
+            const p = actionEditPanel.querySelector('#wpaEditParams');
+            if (p) p.innerHTML = buildParamHtml();
+          });
+        });
+      } else {
+        actionEditPanel.querySelector('.wpa-del-btn').addEventListener('click', () => {
+          closeActionEditPanel();
+          onDeleteAction && onDeleteAction(existingAction.id);
+        });
+      }
+
+      actionEditPanel.querySelector('.wpa-confirm-btn').addEventListener('click', () => {
+        const params = readParams();
+        closeActionEditPanel();
+        if (isNew) {
+          onAddAction && onAddAction(selectedType, params);
+        }
+      });
+
+      positionPanel(actionEditPanel, actionListPanel);
+      overlay.appendChild(actionEditPanel);
+    };
+
+    const openActionListPanel = () => {
+      if (actionListPanel) { closeActionListPanel(); return; }
+      actionsButton.classList.add('active');
+      actionListPanel = document.createElement('div');
+      actionListPanel.className = 'wpa-panel wpa-list-panel';
+      actionListPanel.innerHTML = `
+        <div class="wpa-panel-header">
+          <span class="wpa-panel-title">Actions</span>
+          <button class="wpa-close-btn" title="Close">✕</button>
+        </div>
+        <div class="wpa-list"></div>
+        <button class="wpa-add-btn">＋ Add Action</button>`;
+      actionListPanel.querySelector('.wpa-close-btn').addEventListener('click', closeActionListPanel);
+      actionListPanel.querySelector('.wpa-add-btn').addEventListener('click', () => {
+        closeActionEditPanel();
+        openActionEditPanel(null);
+      });
+      positionPanel(actionListPanel, modal);
+      overlay.appendChild(actionListPanel);
+      refreshActionListPanel();
+    };
+
+    actionsButton.addEventListener('click', openActionListPanel);
+
+    // Expose refresh hook so App can push updated actions without reopening
+    overlay._refreshActions = (updatedActions) => {
+      currentActions = Array.isArray(updatedActions) ? [...updatedActions] : [];
+      refreshActionListPanel();
+    };
+
     document.body.appendChild(overlay);
 
     const dragPadding = 10;
@@ -2025,193 +2294,312 @@ class PlannerUI {
   }
 
   renderList({
-    waypoints,
-    pois,
-    selectedId,
+    waypoints = [],
+    pois = [],
+    selectedId = null,
+    selectedType = null,
     selectedWaypointIds = new Set(),
-    resolvePoiName,
-    resolveWaypointHeightAboveGround,
-    resolveWaypointGroundElevation,
-    resolveTakeoffGroundElevation,
-    resolveWaypointLegDistance,
+    heightAboveGroundByWaypointId = null,
+    heightAboveGroundByPoiId = null,
     onSelect,
     onDelete,
     onToggleWaypointMultiSelect,
-    onRangeWaypointMultiSelect,
-    onStartWaypointTouchRange,
-    onEndWaypointTouchRange
-  }) {
-    this.wpList.innerHTML = '';
-    const poiIndexById = new Map(pois.map((poi, index) => [poi.id, index + 1]));
-    const getPoiDisplayName = poi => {
-      const index = poiIndexById.get(poi?.id);
-      return Mission.formatPoiDisplayName(poi?.name, index);
-    };
-    const all = [
-      ...waypoints.map((waypoint, index) => ({ ...waypoint, _type: 'wp', _idx: index + 1 })),
-      ...pois.map(poi => ({ ...poi, _type: 'poi' }))
-    ];
+    onAddAction,
+    onDeleteAction,
+    onMoveActionUp,
+    onMoveActionDown,
+  } = {}) {
+    const list = document.getElementById('wp-list');
+    const empty = document.getElementById('emptyState');
+    if (!list) return;
 
-    if (all.length === 0) {
-      this.setEmptyStateVisible(true);
-      return;
-    }
-    this.setEmptyStateVisible(false);
+    const hasItems = waypoints.length > 0 || pois.length > 0;
+    if (empty) empty.style.display = hasItems ? 'none' : '';
+    if (!hasItems) { list.innerHTML = ''; return; }
 
-    all.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'wp-item' + (item._type === 'poi' ? ' poi-item' : '');
-      div.dataset.id = item.id;
-      div.dataset.type = item._type;
-      if (item.id === selectedId) {
-        div.classList.add('selected');
-      }
-      if (item._type === 'wp' && selectedWaypointIds.has(item.id)) {
-        div.classList.add('multi-selected');
-      }
-      const poiDisplayName = item._type === 'poi' ? getPoiDisplayName(item) : null;
+    const html = [];
 
-      let badge;
-      let meta = '';
-      let coordExtra = '';
-      if (item._type === 'wp') {
-        badge = `<span class="wp-badge wp">WP${item._idx}</span>`;
-        const poiNumber = item.poiId && poiIndexById.has(item.poiId)
-          ? String(poiIndexById.get(item.poiId))
-          : '—';
-        const hagMeters = typeof resolveWaypointHeightAboveGround === 'function'
-          ? resolveWaypointHeightAboveGround(item)
-          : null;
-        const hagLabel = Number.isFinite(hagMeters) ? `${Math.round(hagMeters)}m` : '—';
-        const groundAsl = typeof resolveWaypointGroundElevation === 'function'
-          ? resolveWaypointGroundElevation(item)
-          : null;
-        const takeoffAsl = typeof resolveTakeoffGroundElevation === 'function'
-          ? resolveTakeoffGroundElevation()
-          : null;
-        const groundAslLabel = Number.isFinite(groundAsl) ? `${Math.round(groundAsl)}m` : '—';
-        const headingLabel = Number.isFinite(item.heading) ? `${item.heading.toFixed(1)}°` : '—';
-        const pitchLabel = Number.isFinite(item.gimbalPitch) ? `${item.gimbalPitch.toFixed(1)}°` : '—';
-        const legDistanceMeters = typeof resolveWaypointLegDistance === 'function'
-          ? resolveWaypointLegDistance(item, item._idx - 1)
-          : null;
-        const legDistanceText = Number.isFinite(legDistanceMeters)
-          ? (legDistanceMeters >= 1000 ? `${(legDistanceMeters / 1000).toFixed(2)} km` : `${Math.round(legDistanceMeters)} m`)
-          : '—';
-        coordExtra = `<span class="wp-leg-distance">Dist: ${legDistanceText}</span>`;
-        meta = `
-        <div class="wp-meta">
-          <div class="wp-meta-row">
-            <span class="wp-meta-tag">Alt <span>${Math.round(item.alt)}m</span></span>
-            <span class="wp-meta-tag">HAG <span>${hagLabel}</span></span>
-            <span class="wp-meta-tag">Speed <span>${Math.round(item.speed * 3.6)}km/h</span></span>
-          </div>
-          ${item.poiId ? `
-          <div class="wp-meta-row">
-            <span class="wp-meta-tag">POI <span>${poiNumber}</span></span>
-          </div>
-          ` : ''}
-          <div class="wp-meta-row wp-meta-row-computed wp-meta-row-computed-headings">
-            <span class="wp-meta-tag wp-meta-tag-computed">Gnd ASL</span>
-            <span class="wp-meta-tag wp-meta-tag-computed">Hdg</span>
-            <span class="wp-meta-tag wp-meta-tag-computed">Pitch</span>
-          </div>
-          <div class="wp-meta-row wp-meta-row-computed wp-meta-row-computed-values">
-            <span class="wp-meta-tag wp-meta-tag-computed"><span>${groundAslLabel}</span></span>
-            <span class="wp-meta-tag wp-meta-tag-computed"><span>${headingLabel}</span></span>
-            <span class="wp-meta-tag wp-meta-tag-computed"><span>${pitchLabel}</span></span>
-          </div>
-        </div>`;
-      } else {
-        badge = '<span class="wp-badge poi">POI</span>';
-        const takeoffAsl = typeof resolveTakeoffGroundElevation === 'function'
-          ? resolveTakeoffGroundElevation()
-          : null;
-        const takeoffAslLabel = Number.isFinite(takeoffAsl) ? `${Math.round(takeoffAsl)}m` : '—';
-        const takeoffMeta = item.id === 'poi_1'
-          ? `<span class="wp-meta-tag wp-meta-tag-computed">Tko ASL <span>${takeoffAslLabel}</span></span>`
-          : '';
-        meta = `<div class="wp-meta">
-        <div class="wp-meta-row">
-          <span class="wp-meta-tag">Alt <span>${item.alt}m</span></span>
-          <span class="wp-meta-tag">POI <span>${poiDisplayName}</span></span>
-          ${takeoffMeta}
+    // ── Waypoints section ──────────────────────────────────────────
+    html.push(`<div class="tree-section-hdr js-tree-sect" data-sect="wp">
+      <span class="tree-arrow ${this._wpSectionOpen ? 'expanded' : ''}">▶</span>
+      <span>Waypoints (${waypoints.length})</span>
+    </div>`);
+
+    html.push(`<div class="tree-section-body ${this._wpSectionOpen ? '' : 'collapsed'}" id="treeSectWp">`);
+
+    waypoints.forEach((wp, idx) => {
+      const wpIdx      = idx + 1;
+      const isSelected = selectedId === wp.id && selectedType === 'wp';
+      const isExpanded = this._expandedWpIds.has(wp.id);
+      const hasActions = Array.isArray(wp.actions) && wp.actions.length > 0;
+      const speedKmh   = Math.round((wp.speed || 0) * 3.6);
+      const hag = heightAboveGroundByWaypointId instanceof Map
+        ? heightAboveGroundByWaypointId.get(wp.id)
+        : null;
+      const meta = hag != null
+        ? `${wp.alt}m · HAG ${Math.round(hag)}m · ${speedKmh}km/h`
+        : `${wp.alt}m · ${speedKmh}km/h`;
+
+      html.push(`<div class="tree-wp" data-wp-id="${wp.id}">
+        <div class="tree-wp-hdr ${isSelected ? 'selected' : ''}" data-wp-id="${wp.id}">
+          <button class="tree-wp-expand js-wp-expand" data-wp-id="${wp.id}" title="${isExpanded ? 'Collapse' : 'Expand'}">
+            ${hasActions || isExpanded ? (isExpanded ? '▼' : '▶') : '◦'}
+          </button>
+          <span class="tree-wp-label">WP ${wpIdx}</span>
+          <span class="tree-wp-meta">${meta}</span>
+          <button class="tree-wp-del js-wp-del" data-wp-id="${wp.id}" title="Delete waypoint">✕</button>
         </div>
-      </div>`;
-      }
+        <div class="tree-actions ${isExpanded ? 'open' : ''}" id="wpActions_${wp.id}">`);
 
-      div.innerHTML = `
-      <div class="wp-item-header">
-        ${badge}
-        <span class="wp-name">${item._type === 'poi' ? poiDisplayName : ('Waypoint ' + item._idx)}</span>
-        <button class="wp-del" data-id="${item.id}" data-type="${item._type}">✕</button>
-      </div>
-      <div class="wp-coords"><span>${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}</span>${coordExtra}</div>
-      ${meta}
-    `;
-      if (item._type === 'wp' && typeof onToggleWaypointMultiSelect === 'function') {
-        div.addEventListener('click', ev => {
-          if (ev.target.closest('.wp-del')) {
-            return;
-          }
-          const shouldSelect = !selectedWaypointIds.has(item.id);
-          onToggleWaypointMultiSelect(item.id, shouldSelect, { shiftKey: ev.shiftKey });
+      if (isExpanded) {
+        const actions = Array.isArray(wp.actions) ? wp.actions : [];
+        actions.forEach(action => {
+          const m    = ACTION_META[action.type];
+          const icon = m ? m.icon  : '?';
+          const lbl  = m ? m.label : action.type;
+          const summ = _actionSummary(action);
+          html.push(`<div class="tree-action-row" data-action-id="${action.id}" data-wp-id="${wp.id}">
+            <span class="tree-action-icon">${icon}</span>
+            <span class="tree-action-label">${lbl}${summ ? ' · ' + summ : ''}</span>
+            <button class="tree-action-up js-act-up" data-wp-id="${wp.id}" data-action-id="${action.id}" title="Move up">↑</button>
+            <button class="tree-action-dn js-act-dn" data-wp-id="${wp.id}" data-action-id="${action.id}" title="Move down">↓</button>
+            <button class="tree-action-del js-act-del" data-wp-id="${wp.id}" data-action-id="${action.id}" title="Delete action">✕</button>
+          </div>`);
         });
-
-        if (typeof onStartWaypointTouchRange === 'function' && typeof onRangeWaypointMultiSelect === 'function') {
-          div.addEventListener('touchstart', ev => {
-            if (ev.target.closest('.wp-del')) {
-              return;
-            }
-            this.touchRangeSelection = { anchorId: item.id, lastTargetId: item.id };
-            onStartWaypointTouchRange(item.id);
-          }, { passive: true });
-
-          div.addEventListener('touchmove', ev => {
-            if (!this.touchRangeSelection || !ev.touches || ev.touches.length === 0) {
-              return;
-            }
-
-            const touch = ev.touches[0];
-            const element = document.elementFromPoint(touch.clientX, touch.clientY);
-            const row = element ? element.closest('.wp-item[data-type="wp"]') : null;
-            if (!row || !row.dataset.id) {
-              return;
-            }
-
-            const targetId = row.dataset.id;
-            if (targetId === this.touchRangeSelection.lastTargetId) {
-              return;
-            }
-
-            this.touchRangeSelection.lastTargetId = targetId;
-            onRangeWaypointMultiSelect(this.touchRangeSelection.anchorId, targetId, true);
-            ev.preventDefault();
-          }, { passive: false });
-
-          const endTouchRange = () => {
-            if (!this.touchRangeSelection) {
-              return;
-            }
-            this.touchRangeSelection = null;
-            onEndWaypointTouchRange();
-          };
-
-          div.addEventListener('touchend', endTouchRange);
-          div.addEventListener('touchcancel', endTouchRange);
-        }
-      } else {
-        div.addEventListener('click', ev => onSelect(item.id, item._type, { shiftKey: ev.shiftKey }));
+        html.push(`<button class="tree-add-action js-add-action" data-wp-id="${wp.id}">＋ Add Action</button>`);
       }
-      div.querySelector('.wp-del').addEventListener('click', ev => {
-        ev.stopPropagation();
-        onDelete(item.id, item._type);
-      });
-      this.wpList.appendChild(div);
+
+      html.push(`</div></div>`); // close tree-actions + tree-wp
     });
 
-    const scrollTargetId = selectedId || [...selectedWaypointIds].at(-1) || null;
-    this.scrollListItemIntoView(scrollTargetId);
+    html.push(`</div>`); // close treeSectWp
+
+    // ── POIs section ───────────────────────────────────────────────
+    if (pois.length > 0) {
+      html.push(`<div class="tree-section-hdr js-tree-sect" data-sect="poi">
+        <span class="tree-arrow ${this._poiSectionOpen ? 'expanded' : ''}">▶</span>
+        <span>POIs (${pois.length})</span>
+      </div>`);
+      html.push(`<div class="tree-section-body ${this._poiSectionOpen ? '' : 'collapsed'}" id="treeSectPoi">`);
+
+      pois.forEach(poi => {
+        const isSelected = selectedId === poi.id && selectedType === 'poi';
+        const hag = heightAboveGroundByPoiId instanceof Map
+          ? heightAboveGroundByPoiId.get(poi.id)
+          : null;
+        const meta = hag != null ? `HAG ${Math.round(hag)}m` : `${poi.alt}m`;
+        html.push(`<div class="tree-poi ${isSelected ? 'selected' : ''}" data-poi-id="${poi.id}">
+          <span class="tree-poi-dot">🎯</span>
+          <span class="tree-poi-label">${this._escapeHtml(Mission.formatPoiDisplayName(poi.name))}</span>
+          <span class="tree-poi-meta">${meta}</span>
+          <button class="tree-poi-del js-poi-del" data-poi-id="${poi.id}" title="Delete POI">✕</button>
+        </div>`);
+      });
+
+      html.push(`</div>`); // close treeSectPoi
+    }
+
+    list.innerHTML = html.join('');
+
+    // ── Wire events ────────────────────────────────────────────────
+    list.querySelectorAll('.js-tree-sect').forEach(hdr => {
+      hdr.addEventListener('click', () => {
+        const sect = hdr.dataset.sect;
+        if (sect === 'wp') {
+          this._wpSectionOpen = !this._wpSectionOpen;
+          hdr.querySelector('.tree-arrow').classList.toggle('expanded', this._wpSectionOpen);
+          const body = document.getElementById('treeSectWp');
+          if (body) body.classList.toggle('collapsed', !this._wpSectionOpen);
+        } else {
+          this._poiSectionOpen = !this._poiSectionOpen;
+          hdr.querySelector('.tree-arrow').classList.toggle('expanded', this._poiSectionOpen);
+          const body = document.getElementById('treeSectPoi');
+          if (body) body.classList.toggle('collapsed', !this._poiSectionOpen);
+        }
+      });
+    });
+
+    list.querySelectorAll('.js-wp-expand').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const wpId = btn.dataset.wpId;
+        if (this._expandedWpIds.has(wpId)) this._expandedWpIds.delete(wpId);
+        else this._expandedWpIds.add(wpId);
+        btn.dispatchEvent(new CustomEvent('tree-expand', { bubbles: true, detail: { wpId } }));
+      });
+    });
+
+    list.querySelectorAll('.tree-wp-hdr').forEach(hdr => {
+      hdr.addEventListener('click', e => {
+        if (e.target.closest('.tree-wp-expand, .tree-wp-del')) return;
+        const wpId = hdr.dataset.wpId;
+        onSelect && onSelect(wpId, 'wp');
+      });
+    });
+
+    list.querySelectorAll('.js-wp-del').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        onDelete && onDelete(btn.dataset.wpId, 'wp');
+      });
+    });
+
+    list.querySelectorAll('.tree-poi').forEach(row => {
+      row.addEventListener('click', e => {
+        if (e.target.closest('.tree-poi-del')) return;
+        onSelect && onSelect(row.dataset.poiId, 'poi');
+      });
+    });
+
+    list.querySelectorAll('.js-poi-del').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        onDelete && onDelete(btn.dataset.poiId, 'poi');
+      });
+    });
+
+    list.querySelectorAll('.js-act-up').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        onMoveActionUp && onMoveActionUp(btn.dataset.wpId, btn.dataset.actionId);
+      });
+    });
+
+    list.querySelectorAll('.js-act-dn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        onMoveActionDown && onMoveActionDown(btn.dataset.wpId, btn.dataset.actionId);
+      });
+    });
+
+    list.querySelectorAll('.js-act-del').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        onDeleteAction && onDeleteAction(btn.dataset.wpId, btn.dataset.actionId);
+      });
+    });
+
+    list.querySelectorAll('.js-add-action').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const wpId = btn.dataset.wpId;
+        this.showActionPickerDialog(wpId, (type, params) => {
+          onAddAction && onAddAction(wpId, type, params);
+        });
+      });
+    });
+  }
+
+  showActionPickerDialog(wpId, onConfirm) {
+    const types = Object.keys(ACTION_META);
+    let selectedType = types[0];
+    let paramValues = {};
+
+    const buildParamSection = () => {
+      const meta = ACTION_META[selectedType];
+      if (!meta) return '';
+      const lines = [];
+      if (meta.warning) {
+        lines.push(`<div class="action-warning">⚠ ${meta.warning}</div>`);
+      }
+      meta.params.forEach(p => {
+        const val = paramValues[p.key] !== undefined ? paramValues[p.key] : p.default;
+        if (p.type === 'number') {
+          lines.push(`<div class="action-param-row">
+            <span class="action-param-label">${p.label}</span>
+            <input class="action-param-input ap-field" type="number"
+              data-key="${p.key}" min="${p.min}" max="${p.max}" value="${val}">
+            <span class="action-param-unit">${p.unit || ''}</span>
+          </div>`);
+        } else if (p.type === 'text') {
+          lines.push(`<div class="action-param-row">
+            <span class="action-param-label">${p.label}</span>
+            <input class="action-param-input ap-field" type="text"
+              data-key="${p.key}" value="${this._escapeHtml(String(val))}">
+          </div>`);
+        } else if (p.type === 'select') {
+          const opts = p.options.map(([v, l]) =>
+            `<option value="${v}" ${v === val ? 'selected' : ''}>${l}</option>`
+          ).join('');
+          lines.push(`<div class="action-param-row">
+            <span class="action-param-label">${p.label}</span>
+            <select class="action-param-select ap-field" data-key="${p.key}">${opts}</select>
+          </div>`);
+        } else if (p.type === 'checkbox') {
+          lines.push(`<div class="action-param-row">
+            <span class="action-param-label">${p.label}</span>
+            <input class="ap-field" type="checkbox" data-key="${p.key}" ${val ? 'checked' : ''}>
+          </div>`);
+        }
+      });
+      return lines.join('');
+    };
+
+    const typeGrid = types.map(t => {
+      const m = ACTION_META[t];
+      return `<button class="action-type-btn js-atype ${t === selectedType ? 'active' : ''}"
+        data-type="${t}">
+        <span class="action-type-icon">${m.icon}</span>
+        <span class="action-type-label">${m.label}</span>
+      </button>`;
+    }).join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'action-picker-overlay';
+    overlay.innerHTML = `
+      <div class="action-picker">
+        <div class="action-picker-title">Add Action</div>
+        <div class="action-type-grid">${typeGrid}</div>
+        <div class="action-params" id="apParams">${buildParamSection()}</div>
+        <div class="action-picker-footer">
+          <button class="ghost" id="apCancel">Cancel</button>
+          <button class="primary" id="apConfirm">Add</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+
+    const readParams = () => {
+      const result = {};
+      overlay.querySelectorAll('.ap-field').forEach(f => {
+        const key = f.dataset.key;
+        if (f.type === 'checkbox') result[key] = f.checked;
+        else if (f.type === 'number') result[key] = parseFloat(f.value);
+        else result[key] = f.value;
+      });
+      return result;
+    };
+
+    overlay.addEventListener('click', e => {
+      const btn = e.target.closest('.js-atype');
+      if (btn) {
+        paramValues = readParams();
+        selectedType = btn.dataset.type;
+        overlay.querySelectorAll('.js-atype').forEach(b =>
+          b.classList.toggle('active', b.dataset.type === selectedType));
+        const p = document.getElementById('apParams');
+        if (p) p.innerHTML = buildParamSection();
+        return;
+      }
+      if (e.target.id === 'apCancel' || e.target === overlay) {
+        overlay.remove();
+        return;
+      }
+      if (e.target.id === 'apConfirm') {
+        const params = readParams();
+        overlay.remove();
+        onConfirm(selectedType, params);
+      }
+    });
+  }
+
+  _escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange, targetElement = null }) {

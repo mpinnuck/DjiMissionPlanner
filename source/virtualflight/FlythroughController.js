@@ -629,6 +629,28 @@ class FlythroughController {
 
   // ── Timeline builder ────────────────────────────────────────────────────
 
+  /**
+   * Returns the total dwell time (seconds) contributed by a waypoint's actions.
+   * Called from both FlythroughController and FlightGraph.
+   */
+  static _actionsDwellTime(actions) {
+    if (!Array.isArray(actions) || actions.length === 0) return 0;
+    let t = 0;
+    for (const act of actions) {
+      const p = act.params || {};
+      switch (act.type) {
+        case 'hover':        t += Math.max(0, Number(p.hoverTime) || 3);  break;
+        case 'panoShot':     t += p.panoShotSubMode === 'panoShot_180' ? 10 : 25; break;
+        case 'gimbalRotate': t += 2;  break;
+        case 'rotateYaw':    t += 4;  break;
+        case 'takePhoto':    t += 1;  break;
+        default: break;
+      }
+    }
+    // Add 1 s per stop to account for deceleration and acceleration
+    return t > 0 ? t + 1 : 0;
+  }
+
   _buildTimeline(waypoints) {
     const SAMPLES  = 20;
     const pts      = waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng }));
@@ -636,6 +658,7 @@ class FlythroughController {
     const n        = waypoints.length;
     const timeline = [];
     let   mT       = 0;
+    let   dwellOffset = 0;
     let   cumulativeDistance = 0;
 
     spline.forEach((pt, idx) => {
@@ -682,8 +705,8 @@ class FlythroughController {
         heading  = this._lerpAngle(h0, h1, frac);
       }
 
-      timeline.push({
-        time: mT,
+      const entry = {
+        time: mT + dwellOffset,
         lat: pt[0],
         lng: pt[1],
         heading,
@@ -697,7 +720,22 @@ class FlythroughController {
         speed: segmentSpeed,
         distance: cumulativeDistance,
         segmentIndex: segIdx
-      });
+      };
+      timeline.push(entry);
+
+      // If this index falls exactly on a waypoint, add dwell time for its actions.
+      // idx === 0  → actions at the departure waypoint (executed before first flight leg)
+      // idx % SAMPLES === 0 && idx > 0 → arrival at waypoint idx/SAMPLES
+      const isWpBoundary = idx === 0 || (idx > 0 && idx % SAMPLES === 0);
+      if (isWpBoundary) {
+        const wpIdx = idx === 0 ? 0 : idx / SAMPLES;
+        const dwell = FlythroughController._actionsDwellTime(waypoints[wpIdx].actions);
+        if (dwell > 0) {
+          // Push a stationary "end of dwell" entry at the same position
+          timeline.push({ ...entry, time: mT + dwellOffset + dwell });
+          dwellOffset += dwell;
+        }
+      }
     });
 
     return timeline;

@@ -57,7 +57,14 @@ class App {
           }
         },
         onComplete: () => {
-          this.ui.setFlythroughStopped();
+          // Keep drone at the end of the path; show final time in the progress label
+          if (this.flythrough) {
+            this.ui.updateFlythroughProgress(
+              this.flythrough.totalTime,
+              this.flythrough.totalTime,
+              1
+            );
+          }
           if (this.flythrough && this.fpv) {
             this.fpv.updateGraphCursor(this.flythrough.totalTime, this.flythrough.totalTime);
           }
@@ -248,14 +255,17 @@ class App {
   }
 
   updateStats() {
+    const distanceMeters = this.mission.totalDistance();
+    const totalSeconds = this.flythrough ? this.flythrough.totalTime : 0;
     this.ui.updateStats({
       waypointCount: this.waypoints.length,
       poiCount: this.pois.length,
-      distanceMeters: this.mission.totalDistance()
+      distanceMeters
     });
     this.ui.updateMobileStats({
       wpCount: this.waypoints.length,
-      distanceMeters: this.mission.totalDistance()
+      distanceMeters,
+      elapsedSeconds: totalSeconds
     });
   }
 
@@ -611,6 +621,23 @@ class App {
         this.syncFlythroughMission();
         this.renderList();
         this.showWaypointTooltip(wp.id);
+      },
+      actions: Array.isArray(wp.actions) ? wp.actions : [],
+      onAddAction: (type, params) => {
+        this.addWaypointAction(wp.id, type, params);
+        this._refreshDialogActions(wp);
+      },
+      onDeleteAction: actionId => {
+        this.deleteWaypointAction(wp.id, actionId);
+        this._refreshDialogActions(wp);
+      },
+      onMoveActionUp: actionId => {
+        this.moveWaypointActionUp(wp.id, actionId);
+        this._refreshDialogActions(wp);
+      },
+      onMoveActionDown: actionId => {
+        this.moveWaypointActionDown(wp.id, actionId);
+        this._refreshDialogActions(wp);
       }
     });
   }
@@ -752,6 +779,11 @@ class App {
         ? this.flythrough.currentTime / this.flythrough.totalTime
         : 0
     );
+    this.ui.updateMobileStats({
+      wpCount: this.waypoints.length,
+      distanceMeters: this.mission.totalDistance(),
+      elapsedSeconds: this.flythrough.totalTime
+    });
   }
 
   insertWaypointAt(index, latlng) {
@@ -1078,28 +1110,11 @@ class App {
       waypoints: this.waypoints,
       pois: this.pois,
       selectedId: this.selectedId,
+      selectedType: this.selectedType,
       selectedWaypointIds: this.selectedWaypointIds,
-      resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
-      resolveWaypointHeightAboveGround: waypoint => this.heightAboveGroundByWaypointId.get(waypoint.id),
-      resolveWaypointGroundElevation: waypoint => this.waypointGroundElevationById.get(waypoint.id),
-      resolveTakeoffGroundElevation: () => this.takeoffGroundElevation,
-      resolveWaypointLegDistance: (waypoint, index) => {
-        if (index <= 0) {
-          return 0;
-        }
-
-        let accumulated = 0;
-        for (let waypointIndex = 1; waypointIndex <= index; waypointIndex += 1) {
-          const previous = this.waypoints[waypointIndex - 1];
-          const current = this.waypoints[waypointIndex];
-          if (!previous || !current) {
-            continue;
-          }
-          accumulated += this.mission.haversine(previous.lat, previous.lng, current.lat, current.lng);
-        }
-        return accumulated;
-      },
-      onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
+      heightAboveGroundByWaypointId: this.heightAboveGroundByWaypointId,
+      heightAboveGroundByPoiId: this.heightAboveGroundByPoiId,
+      onSelect: (id, type) => this.selectItem(id, type),
       onDelete: (id, type) => this.deleteItem(id, type),
       ...this._buildListCallbacks()
     });
@@ -1122,6 +1137,10 @@ class App {
       onEndWaypointTouchRange: allow
         ? () => this.endWaypointTouchRange()
         : null,
+      onAddAction:      (wpId, type, params) => this.addWaypointAction(wpId, type, params),
+      onDeleteAction:   (wpId, actionId)     => this.deleteWaypointAction(wpId, actionId),
+      onMoveActionUp:   (wpId, actionId)     => this.moveWaypointActionUp(wpId, actionId),
+      onMoveActionDown: (wpId, actionId)     => this.moveWaypointActionDown(wpId, actionId),
     };
   }
 
@@ -1293,28 +1312,11 @@ class App {
         waypoints: this.waypoints,
         pois: this.pois,
         selectedId: this.selectedId,
+        selectedType: this.selectedType,
         selectedWaypointIds: this.selectedWaypointIds,
-        resolvePoiName: poiId => (this.mission.findPOI(poiId) || { name: '?' }).name,
-        resolveWaypointHeightAboveGround: waypoint => this.heightAboveGroundByWaypointId.get(waypoint.id),
-        resolveWaypointGroundElevation: waypoint => this.waypointGroundElevationById.get(waypoint.id),
-        resolveTakeoffGroundElevation: () => this.takeoffGroundElevation,
-        resolveWaypointLegDistance: (waypoint, index) => {
-          if (index <= 0) {
-            return 0;
-          }
-
-          let accumulated = 0;
-          for (let waypointIndex = 1; waypointIndex <= index; waypointIndex += 1) {
-            const previous = this.waypoints[waypointIndex - 1];
-            const current = this.waypoints[waypointIndex];
-            if (!previous || !current) {
-              continue;
-            }
-            accumulated += this.mission.haversine(previous.lat, previous.lng, current.lat, current.lng);
-          }
-          return accumulated;
-        },
-        onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
+        heightAboveGroundByWaypointId: this.heightAboveGroundByWaypointId,
+        heightAboveGroundByPoiId: this.heightAboveGroundByPoiId,
+        onSelect: (id, type) => this.selectItem(id, type),
         onDelete: (id, type) => this.deleteItem(id, type),
         ...this._buildListCallbacks()
       });
@@ -2227,7 +2229,8 @@ class App {
       onFlythroughStop: () => {
         if (this.flythrough) {
           this.flythrough.stop();
-          this.ui.setFlythroughStopped();
+          // After stop(), missionTime=0 but totalTime is still correct
+          this.ui.updateFlythroughProgress(0, this.flythrough.totalTime, 0);
         }
       },
       onFlythroughSpeedChange: speedValue => {
@@ -2321,6 +2324,10 @@ class App {
       onMobileFPV: () => this.toggleFPV()
     });
 
+    document.getElementById('wp-list')?.addEventListener('tree-expand', () => {
+      this.renderList();
+    });
+
     const applyScreenSm = () => {
       document.body.classList.toggle(
         'screen-sm',
@@ -2347,6 +2354,43 @@ class App {
     } else {
       this.fpv.hide();
       this.showStatus('FPV view hidden.');
+    }
+  }
+
+  addWaypointAction(wpId, type, params) {
+    const action = this.mission.addWaypointAction(wpId, type, params);
+    if (!action) return;
+    if (this.ui._expandedWpIds) {
+      this.ui._expandedWpIds.add(wpId);
+    }
+    this.renderList();
+    this.syncFlythroughMission();
+    this.showStatus(`Action '${type}' added to waypoint.`);
+  }
+
+  deleteWaypointAction(wpId, actionId) {
+    this.mission.removeWaypointAction(wpId, actionId);
+    this.renderList();
+    this.syncFlythroughMission();
+    this.showStatus('Action removed.');
+  }
+
+  moveWaypointActionUp(wpId, actionId) {
+    this.mission.moveWaypointActionUp(wpId, actionId);
+    this.renderList();
+    this.syncFlythroughMission();
+  }
+
+  moveWaypointActionDown(wpId, actionId) {
+    this.mission.moveWaypointActionDown(wpId, actionId);
+    this.renderList();
+    this.syncFlythroughMission();
+  }
+
+  _refreshDialogActions(wp) {
+    const overlay = document.getElementById('waypointOptionsModal');
+    if (overlay && typeof overlay._refreshActions === 'function') {
+      overlay._refreshActions(Array.isArray(wp.actions) ? wp.actions : []);
     }
   }
 

@@ -46,12 +46,18 @@ class FlightGraph {
     let elapsed = 0;
 
     const first = waypoints[0];
-    points.push({
-      t: 0,
-      alt: Number.isFinite(Number(first.alt)) ? Number(first.alt) : 0,
-      hag: resolveHag(first),
-      speedKmh: Math.round((Number.isFinite(Number(first.speed)) ? Number(first.speed) : 8) * 3.6)
-    });
+    const firstDwell = FlythroughController._actionsDwellTime(first.actions);
+    const firstAlt   = Number.isFinite(Number(first.alt)) ? Number(first.alt) : 0;
+    const firstSpeedKmh = Math.round((Number.isFinite(Number(first.speed)) ? Number(first.speed) : 8) * 3.6);
+
+    if (firstDwell > 0) {
+      // Drone is stationary at WP0 executing actions before first flight leg
+      points.push({ t: 0, alt: firstAlt, hag: resolveHag(first), speedKmh: 0 });
+      elapsed += firstDwell;
+      points.push({ t: elapsed, alt: firstAlt, hag: resolveHag(first), speedKmh: firstSpeedKmh });
+    } else {
+      points.push({ t: 0, alt: firstAlt, hag: resolveHag(first), speedKmh: firstSpeedKmh });
+    }
 
     for (let i = 1; i < waypoints.length; i += 1) {
       const prev = waypoints[i - 1];
@@ -61,13 +67,20 @@ class FlightGraph {
       const segmentSpeed = Number.isFinite(prevSpeed) && prevSpeed > 0 ? prevSpeed : 1;
       elapsed += segmentDistance / segmentSpeed;
 
+      const dwell = FlythroughController._actionsDwellTime(curr.actions);
       const speed = Number(curr.speed);
-      points.push({
-        t: elapsed,
-        alt: Number.isFinite(Number(curr.alt)) ? Number(curr.alt) : 0,
-        hag: resolveHag(curr),
-        speedKmh: Math.round((Number.isFinite(speed) && speed > 0 ? speed : segmentSpeed) * 3.6)
-      });
+      const currAlt = Number.isFinite(Number(curr.alt)) ? Number(curr.alt) : 0;
+      const departureSpeedKmh = Math.round((Number.isFinite(speed) && speed > 0 ? speed : segmentSpeed) * 3.6);
+
+      if (dwell > 0) {
+        // Arrival: drone has stopped to execute actions (speed = 0)
+        points.push({ t: elapsed, alt: currAlt, hag: resolveHag(curr), speedKmh: 0 });
+        elapsed += dwell;
+        // Departure: drone about to leave for next segment
+        points.push({ t: elapsed, alt: currAlt, hag: resolveHag(curr), speedKmh: departureSpeedKmh });
+      } else {
+        points.push({ t: elapsed, alt: currAlt, hag: resolveHag(curr), speedKmh: departureSpeedKmh });
+      }
     }
 
     const alts = points.map(point => point.alt);

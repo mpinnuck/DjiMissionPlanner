@@ -93,7 +93,8 @@ class Mission {
       poiId: null,
       poiAlt: 0,
       poiLat: null,
-      poiLng: null
+      poiLng: null,
+      actions: []
     };
   }
 
@@ -192,5 +193,52 @@ class Mission {
     this.pois = [];
     this.wpCounter = 0;
     this.poiCounter = 0;
+  }
+
+  static _actionId() {
+    return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  createAction(type, params = {}) {
+    return { id: Mission._actionId(), type, params: { ...params } };
+  }
+
+  addWaypointAction(wpId, type, params = {}) {
+    const wp = this.findWaypoint(wpId);
+    if (!wp) return null;
+    if (!Array.isArray(wp.actions)) wp.actions = [];
+    const action = this.createAction(type, params);
+    wp.actions.push(action);
+    return action;
+  }
+
+  removeWaypointAction(wpId, actionId) {
+    const wp = this.findWaypoint(wpId);
+    if (!wp || !Array.isArray(wp.actions)) return;
+    wp.actions = wp.actions.filter(a => a.id !== actionId);
+  }
+
+  updateWaypointAction(wpId, actionId, params) {
+    const wp = this.findWaypoint(wpId);
+    if (!wp) return;
+    const action = wp.actions && wp.actions.find(a => a.id === actionId);
+    if (!action) return;
+    Object.assign(action.params, params);
+  }
+
+  moveWaypointActionUp(wpId, actionId) {
+    const wp = this.findWaypoint(wpId);
+    if (!wp || !Array.isArray(wp.actions)) return;
+    const idx = wp.actions.findIndex(a => a.id === actionId);
+    if (idx <= 0) return;
+    [wp.actions[idx - 1], wp.actions[idx]] = [wp.actions[idx], wp.actions[idx - 1]];
+  }
+
+  moveWaypointActionDown(wpId, actionId) {
+    const wp = this.findWaypoint(wpId);
+    if (!wp || !Array.isArray(wp.actions)) return;
+    const idx = wp.actions.findIndex(a => a.id === actionId);
+    if (idx < 0 || idx >= wp.actions.length - 1) return;
+    [wp.actions[idx], wp.actions[idx + 1]] = [wp.actions[idx + 1], wp.actions[idx]];
   }
 }

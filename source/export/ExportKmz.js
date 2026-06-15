@@ -233,7 +233,7 @@ class ExportKmz {
       return n > 180 ? n - 360 : n;
     };
 
-    const NS = 'http://www.uav.com/wpmz/1.0.2';
+    const NS = 'http://www.dji.com/wpmz/1.0.6';
 
     const missionConfig = `
     <wpml:missionConfig>
@@ -259,59 +259,40 @@ class ExportKmz {
   </Document>
 </kml>`;
 
-    // FIX 1: actionGroupId pattern must match Dronelink exactly:
-    //
-    //   Group 1  — gimbalRotate on WP0 only (snap to initial pitch)
-    //              actionGroupId=1, actionId=1, span [0→0]
-    //
-    //   Group 2  — gimbalEvenlyRotate on WP0..WP(N-2), actionGroupId=2 CONSTANT
-    //              actionId increments from 2 upward (unique per action instance)
-    //              span [i→i+1] per waypoint
-    //
-    //   WP(last) — NO action groups at all
-    //
-    // Using a unique incrementing actionGroupId for every group (previous approach)
-    // causes DJI Fly to reject the mission.
-    //
-    // FIX 2: lastAction (gimbalRotate on last waypoint) removed entirely.
-    // Dronelink's last waypoint has zero action groups.
-
-    let evenlyActionId = 2; // actionId counter for gimbalEvenlyRotate instances
+    // ── Wayline action groups — 0-based running counter ─────────────────────
+    let grpId = 0;   // actionGroupId — unique across the whole wayline
 
     const wpmlPlacemarks = waypoints.map((wp, i) => {
       const isFirst = i === 0;
       const isLast  = i === lastIndex;
       const usePOI  = !!wp.poiId;
 
-      // ── Heading ──────────────────────────────────────────────────────────
+      // ── Heading ─────────────────────────────────────────────────────────
       const hdgAngle  = normalizeAngle(usePOI ? wp.heading : 0).toFixed(6);
       const hdgModeWP = usePOI ? 'smoothTransition' : hdgMode;
       const hdgEnable = (isFirst || isLast) ? '1' : '0';
 
-      // ── Turn mode ─────────────────────────────────────────────────────────
+      // ── Turn mode ────────────────────────────────────────────────────────
       const turnMode = (isFirst || isLast)
         ? 'toPointAndStopWithContinuityCurvature'
         : 'toPointAndPassWithContinuityCurvature';
 
-      // ── Gimbal pitches ────────────────────────────────────────────────────
+      // ── Gimbal pitches ───────────────────────────────────────────────────
       const gimbalPitch = (usePOI && wp.gimbalPitch != null)
-        ? Number(wp.gimbalPitch).toFixed(2)
-        : '0';
-
-      // FIX 4: gimbalEvenlyRotate targets the NEXT waypoint's pitch, not the
-      // current one. It is a transition — the drone interpolates FROM the current
-      // pitch TO the next waypoint's pitch during the transit segment.
+        ? Number(wp.gimbalPitch).toFixed(2) : '0';
       const nextWp          = !isLast ? waypoints[i + 1] : null;
       const nextGimbalPitch = nextWp
-        ? (nextWp.poiId && nextWp.gimbalPitch != null ? Number(nextWp.gimbalPitch).toFixed(2) : '0')
+        ? (nextWp.poiId && nextWp.gimbalPitch != null
+            ? Number(nextWp.gimbalPitch).toFixed(2) : '0')
         : gimbalPitch;
 
-      // ── Action group 1: gimbalRotate snap — WP0 only ──────────────────────
-      let snapAction = '';
+      // ── Group A: gimbalRotate snap — WP0 only ────────────────────────────
+      let snapGroup = '';
       if (isFirst) {
-        snapAction = `
+        const gid = grpId++;
+        snapGroup = `
         <wpml:actionGroup>
-          <wpml:actionGroupId>1</wpml:actionGroupId>
+          <wpml:actionGroupId>${gid}</wpml:actionGroupId>
           <wpml:actionGroupStartIndex>0</wpml:actionGroupStartIndex>
           <wpml:actionGroupEndIndex>0</wpml:actionGroupEndIndex>
           <wpml:actionGroupMode>parallel</wpml:actionGroupMode>
@@ -319,51 +300,74 @@ class ExportKmz {
             <wpml:actionTriggerType>reachPoint</wpml:actionTriggerType>
           </wpml:actionTrigger>
           <wpml:action>
-            <wpml:actionId>1</wpml:actionId>
+            <wpml:actionId>0</wpml:actionId>
             <wpml:actionActuatorFunc>gimbalRotate</wpml:actionActuatorFunc>
             <wpml:actionActuatorFuncParam>
-              <wpml:gimbalHeadingYawBase>aircraft</wpml:gimbalHeadingYawBase>
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:gimbalHeadingYawBase>north</wpml:gimbalHeadingYawBase>
               <wpml:gimbalRotateMode>absoluteAngle</wpml:gimbalRotateMode>
               <wpml:gimbalPitchRotateEnable>1</wpml:gimbalPitchRotateEnable>
               <wpml:gimbalPitchRotateAngle>${gimbalPitch}</wpml:gimbalPitchRotateAngle>
-              <wpml:gimbalRollRotateEnable>0</wpml:gimbalRollRotateEnable>
+              <wpml:gimbalRollRotateEnable>1</wpml:gimbalRollRotateEnable>
               <wpml:gimbalRollRotateAngle>0</wpml:gimbalRollRotateAngle>
-              <wpml:gimbalYawRotateEnable>0</wpml:gimbalYawRotateEnable>
+              <wpml:gimbalYawRotateEnable>1</wpml:gimbalYawRotateEnable>
               <wpml:gimbalYawRotateAngle>0</wpml:gimbalYawRotateAngle>
               <wpml:gimbalRotateTimeEnable>0</wpml:gimbalRotateTimeEnable>
               <wpml:gimbalRotateTime>0</wpml:gimbalRotateTime>
-              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
             </wpml:actionActuatorFuncParam>
           </wpml:action>
         </wpml:actionGroup>`;
       }
 
-      // ── Action group 2: gimbalEvenlyRotate — all waypoints except last ─────
-      // actionGroupId is always 2. actionId increments across the mission.
-      let evenAction = '';
+      // ── Group B: gimbalEvenlyRotate — all waypoints except last ──────────
+      // Trigger: betweenAdjacentPoints, span [i, i] (Dronelink pattern)
+      let evenGroup = '';
       if (!isLast) {
-        const myActionId = evenlyActionId++;
-        evenAction = `
+        const gid = grpId++;
+        evenGroup = `
         <wpml:actionGroup>
-          <wpml:actionGroupId>2</wpml:actionGroupId>
+          <wpml:actionGroupId>${gid}</wpml:actionGroupId>
           <wpml:actionGroupStartIndex>${i}</wpml:actionGroupStartIndex>
-          <wpml:actionGroupEndIndex>${i + 1}</wpml:actionGroupEndIndex>
-          <wpml:actionGroupMode>parallel</wpml:actionGroupMode>
+          <wpml:actionGroupEndIndex>${i}</wpml:actionGroupEndIndex>
+          <wpml:actionGroupMode>sequence</wpml:actionGroupMode>
           <wpml:actionTrigger>
-            <wpml:actionTriggerType>reachPoint</wpml:actionTriggerType>
+            <wpml:actionTriggerType>betweenAdjacentPoints</wpml:actionTriggerType>
           </wpml:actionTrigger>
           <wpml:action>
-            <wpml:actionId>${myActionId}</wpml:actionId>
+            <wpml:actionId>0</wpml:actionId>
             <wpml:actionActuatorFunc>gimbalEvenlyRotate</wpml:actionActuatorFunc>
             <wpml:actionActuatorFuncParam>
-              <wpml:gimbalPitchRotateAngle>${nextGimbalPitch}</wpml:gimbalPitchRotateAngle>
-              <wpml:gimbalRollRotateAngle>0</wpml:gimbalRollRotateAngle>
               <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:gimbalPitchRotateAngle>${nextGimbalPitch}</wpml:gimbalPitchRotateAngle>
             </wpml:actionActuatorFuncParam>
           </wpml:action>
         </wpml:actionGroup>`;
       }
-      // Last waypoint: no action groups — covered by preceding gimbalEvenlyRotate.
+
+      // ── Group C: user-defined actions — sequence on arrival ───────────────
+      let userGroup = '';
+      const userActions = Array.isArray(wp.actions)
+        ? wp.actions.filter(a => a && a.type)
+        : [];
+      if (userActions.length > 0) {
+        const gid = grpId++;
+        const actionXml = userActions.map((a, j) =>
+          ExportKmz._buildUserActionXml(a, j)
+        ).filter(Boolean).join('');
+        if (actionXml) {
+          userGroup = `
+        <wpml:actionGroup>
+          <wpml:actionGroupId>${gid}</wpml:actionGroupId>
+          <wpml:actionGroupStartIndex>${i}</wpml:actionGroupStartIndex>
+          <wpml:actionGroupEndIndex>${i}</wpml:actionGroupEndIndex>
+          <wpml:actionGroupMode>sequence</wpml:actionGroupMode>
+          <wpml:actionTrigger>
+            <wpml:actionTriggerType>reachPoint</wpml:actionTriggerType>
+          </wpml:actionTrigger>
+          ${actionXml}
+        </wpml:actionGroup>`;
+        }
+      }
 
       return `
       <Placemark>
@@ -388,8 +392,9 @@ class ExportKmz {
           <wpml:waypointTurnDampingDist>0</wpml:waypointTurnDampingDist>
         </wpml:waypointTurnParam>
         <wpml:useStraightLine>0</wpml:useStraightLine>
-        ${snapAction}
-        ${evenAction}
+        ${snapGroup}
+        ${evenGroup}
+        ${userGroup}
         <wpml:waypointGimbalHeadingParam>
           <wpml:waypointGimbalPitchAngle>0</wpml:waypointGimbalPitchAngle>
           <wpml:waypointGimbalYawAngle>0</wpml:waypointGimbalYawAngle>
@@ -537,5 +542,104 @@ class ExportKmz {
 
       await this._shareOrDownloadBlob(blob, filename, waypoints.length);
     });
+  }
+
+  static _buildUserActionXml(action, actionId) {
+    const p = action.params || {};
+    let param = '';
+
+    switch (action.type) {
+      case 'takePhoto':
+        param = `
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:fileSuffix>${ExportKmz._esc(p.fileSuffix || '')}</wpml:fileSuffix>
+              <wpml:useGlobalPayloadLensIndex>0</wpml:useGlobalPayloadLensIndex>`;
+        break;
+
+      case 'startRecord':
+        param = `
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:fileSuffix/>
+              <wpml:useGlobalPayloadLensIndex>0</wpml:useGlobalPayloadLensIndex>`;
+        break;
+
+      case 'stopRecord':
+        param = `
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>`;
+        break;
+
+      case 'hover':
+        param = `
+              <wpml:hoverTime>${Math.max(1, Math.round(Number(p.hoverTime) || 1))}</wpml:hoverTime>`;
+        break;
+
+      case 'gimbalRotate':
+        param = `
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:gimbalHeadingYawBase>north</wpml:gimbalHeadingYawBase>
+              <wpml:gimbalRotateMode>${p.rotateMode || 'absoluteAngle'}</wpml:gimbalRotateMode>
+              <wpml:gimbalPitchRotateEnable>1</wpml:gimbalPitchRotateEnable>
+              <wpml:gimbalPitchRotateAngle>${Number(p.pitch || 0).toFixed(1)}</wpml:gimbalPitchRotateAngle>
+              <wpml:gimbalRollRotateEnable>1</wpml:gimbalRollRotateEnable>
+              <wpml:gimbalRollRotateAngle>0</wpml:gimbalRollRotateAngle>
+              <wpml:gimbalYawRotateEnable>1</wpml:gimbalYawRotateEnable>
+              <wpml:gimbalYawRotateAngle>0</wpml:gimbalYawRotateAngle>
+              <wpml:gimbalRotateTimeEnable>0</wpml:gimbalRotateTimeEnable>
+              <wpml:gimbalRotateTime>0</wpml:gimbalRotateTime>`;
+        break;
+
+      case 'rotateYaw': {
+        const hdg = Number(p.heading || 0);
+        const norm = ((hdg % 360) + 360) % 360;
+        const clamped = norm > 180 ? norm - 360 : norm;
+        param = `
+              <wpml:aircraftHeading>${clamped.toFixed(1)}</wpml:aircraftHeading>
+              <wpml:aircraftPathMode>${p.turnDir || 'clockwise'}</wpml:aircraftPathMode>`;
+        break;
+      }
+
+      case 'zoom':
+        param = `
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:focalLength>${Math.max(1, Math.round(Number(p.focalLength) || 24))}</wpml:focalLength>`;
+        break;
+
+      case 'focus':
+        param = `
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:isPointFocus>0</wpml:isPointFocus>
+              <wpml:focusX>0.5</wpml:focusX>
+              <wpml:focusY>0.5</wpml:focusY>
+              <wpml:focusRegionWidth>1</wpml:focusRegionWidth>
+              <wpml:focusRegionHeight>1</wpml:focusRegionHeight>
+              <wpml:isInfiniteFocus>${p.isInfiniteFocus ? 1 : 0}</wpml:isInfiniteFocus>`;
+        break;
+
+      case 'panoShot':
+        param = `
+              <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
+              <wpml:useGlobalPayloadLensIndex>0</wpml:useGlobalPayloadLensIndex>
+              <wpml:panoShotSubMode>${p.panoShotSubMode || 'panoShot_360'}</wpml:panoShotSubMode>`;
+        break;
+
+      default:
+        return '';
+    }
+
+    return `
+          <wpml:action>
+            <wpml:actionId>${actionId}</wpml:actionId>
+            <wpml:actionActuatorFunc>${action.type}</wpml:actionActuatorFunc>
+            <wpml:actionActuatorFuncParam>${param}
+            </wpml:actionActuatorFuncParam>
+          </wpml:action>`;
+  }
+
+  static _esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 }

@@ -1957,3 +1957,461 @@ body.screen-sm.mobile-mission-open #sidebar select {
   color: #f5f9ff;
   border-color: rgba(255, 255, 255, 0.28);
 }
+/* ══════════════════════════════════════════════════════════════════
+   MISSION TREE  —  sidebar waypoint/POI/action tree
+══════════════════════════════════════════════════════════════════ */
+
+/* ── Section headers (Waypoints / POIs) ─────────────────────────── */
+.tree-section-hdr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  border-top: 1px solid var(--border, #30363d);
+}
+.tree-section-hdr:first-child { border-top: none; }
+.tree-section-hdr:hover { background: var(--hover-bg, rgba(255,255,255,.04)); }
+
+.tree-arrow {
+  font-size: 10px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  color: var(--text-muted, #6b7280);
+  transition: transform .15s;
+}
+.tree-arrow.expanded { transform: rotate(90deg); }
+
+.tree-section-body { display: block; }
+.tree-section-body.collapsed { display: none; }
+
+/* ── Waypoint rows ───────────────────────────────────────────────── */
+.tree-wp {
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+
+.tree-wp-hdr {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px 5px 4px;
+  cursor: pointer;
+  user-select: none;
+  min-height: 32px;
+}
+.tree-wp-hdr:hover { background: var(--hover-bg, rgba(255,255,255,.04)); }
+.tree-wp-hdr.selected { background: var(--accent-bg, rgba(59,130,246,.18)); }
+
+.tree-wp-expand {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted, #6b7280);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.tree-wp-expand:hover { background: rgba(255,255,255,.1); }
+
+.tree-wp-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+  flex-shrink: 0;
+  min-width: 36px;
+}
+.tree-wp-hdr.selected .tree-wp-label { color: var(--accent, #60a5fa); }
+
+.tree-wp-meta {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-wp-del {
+  width: 20px; height: 20px;
+  background: none; border: none;
+  color: var(--text-muted, #6b7280);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tree-wp-hdr:hover .tree-wp-del,
+.tree-wp-hdr.selected .tree-wp-del { opacity: 1; }
+.tree-wp-del:hover { background: rgba(239,68,68,.2); color: #f87171; }
+
+/* ── Action sub-list ─────────────────────────────────────────────── */
+.tree-actions {
+  display: none;
+  background: rgba(0,0,0,.15);
+  border-top: 1px solid rgba(255,255,255,.05);
+}
+.tree-actions.open { display: block; }
+
+.tree-action-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 32px;
+  font-size: 11px;
+  color: var(--text, #e2e8f0);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.tree-action-row:last-of-type { border-bottom: none; }
+
+.tree-action-icon { font-size: 13px; flex-shrink: 0; }
+.tree-action-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tree-action-up, .tree-action-dn, .tree-action-del {
+  width: 18px; height: 18px;
+  background: none; border: none;
+  color: var(--text-muted, #6b7280);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  opacity: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.tree-action-row:hover .tree-action-up,
+.tree-action-row:hover .tree-action-dn,
+.tree-action-row:hover .tree-action-del { opacity: 1; }
+.tree-action-del:hover { background: rgba(239,68,68,.2); color: #f87171; }
+.tree-action-up:hover, .tree-action-dn:hover { background: rgba(255,255,255,.1); }
+
+.tree-add-action {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 32px;
+  font-size: 11px;
+  color: var(--accent, #60a5fa);
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.tree-add-action:hover { background: rgba(96,165,250,.08); }
+
+/* ── POI rows ────────────────────────────────────────────────────── */
+.tree-poi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  min-height: 30px;
+}
+.tree-poi:hover { background: var(--hover-bg, rgba(255,255,255,.04)); }
+.tree-poi.selected { background: var(--accent-bg, rgba(59,130,246,.18)); }
+
+.tree-poi-dot { font-size: 13px; flex-shrink: 0; }
+.tree-poi-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+  flex: 1;
+}
+.tree-poi.selected .tree-poi-label { color: var(--accent, #60a5fa); }
+.tree-poi-meta { font-size: 11px; color: var(--text-muted, #6b7280); }
+
+.tree-poi-del {
+  width: 20px; height: 20px;
+  background: none; border: none;
+  color: var(--text-muted, #6b7280);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.tree-poi:hover .tree-poi-del,
+.tree-poi.selected .tree-poi-del { opacity: 1; }
+.tree-poi-del:hover { background: rgba(239,68,68,.2); color: #f87171; }
+
+/* ── Action picker dialog ─────────────────────────────────────────── */
+.action-picker-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 1100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.action-picker {
+  background: var(--bg, #14142a);
+  border: 1px solid var(--border, #30363d);
+  border-radius: 14px;
+  width: 100%; max-width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+.action-picker-title {
+  font-size: 15px; font-weight: 700;
+  color: var(--text, #e2e8f0);
+  margin-bottom: 14px;
+}
+.action-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.action-type-btn {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #30363d);
+  background: rgba(255,255,255,.04);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  -webkit-tap-highlight-color: transparent;
+  transition: background .1s, border-color .1s;
+}
+.action-type-btn:hover { background: rgba(255,255,255,.08); }
+.action-type-btn.active {
+  border-color: var(--accent, #3b82f6);
+  background: rgba(59,130,246,.15);
+  color: var(--accent, #60a5fa);
+}
+.action-type-icon { font-size: 20px; }
+.action-type-label { text-align: center; line-height: 1.2; }
+
+.action-params { margin-bottom: 14px; }
+.action-param-row {
+  display: flex; align-items: center;
+  gap: 8px; margin-bottom: 10px;
+}
+.action-param-label {
+  width: 90px; flex-shrink: 0;
+  font-size: 12px; color: var(--text-muted, #6b7280);
+}
+.action-param-input {
+  flex: 1; height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--border, #30363d);
+  background: rgba(255,255,255,.07);
+  color: var(--text, #e2e8f0);
+  font-size: 13px; padding: 0 10px;
+}
+.action-param-select {
+  flex: 1; height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--border, #30363d);
+  background: rgba(30,30,50,.9);
+  color: var(--text, #e2e8f0);
+  font-size: 13px; padding: 0 8px;
+}
+.action-param-unit {
+  font-size: 11px; color: var(--text-muted, #6b7280); width: 26px;
+}
+.action-warning {
+  font-size: 11px; color: #fbbf24;
+  background: rgba(251,191,36,.1);
+  border: 1px solid rgba(251,191,36,.3);
+  border-radius: 7px;
+  padding: 7px 10px; margin-bottom: 12px;
+}
+.action-picker-footer {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+
+/* ── Waypoint options dialog — action side panels ──────────────────── */
+.wpa-panel {
+  position: fixed;
+  width: min(210px, 55vw);
+  max-height: 72vh;
+  overflow-y: auto;
+  background: rgba(10, 12, 16, 0.96);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  color: #f8faff;
+  display: flex;
+  flex-direction: column;
+  z-index: 1200;
+}
+
+.wpa-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+
+.wpa-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: .04em;
+}
+
+.wpa-close-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.wpa-close-btn:hover { background: rgba(255,255,255,.1); color: #f8faff; }
+
+.wpa-list { flex: 1; overflow-y: auto; }
+
+.wpa-empty {
+  padding: 10px 12px;
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.wpa-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  font-size: 11px;
+}
+.wpa-row:hover { background: rgba(255,255,255,.05); }
+.wpa-row:last-child { border-bottom: none; }
+
+.wpa-icon { font-size: 14px; flex-shrink: 0; }
+.wpa-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e2e8f0; }
+
+.wpa-up, .wpa-dn, .wpa-del {
+  width: 18px; height: 18px;
+  background: none; border: none;
+  color: #6b7280;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  opacity: 0;
+}
+.wpa-row:hover .wpa-up,
+.wpa-row:hover .wpa-dn,
+.wpa-row:hover .wpa-del { opacity: 1; }
+.wpa-up:hover, .wpa-dn:hover { background: rgba(255,255,255,.12); }
+.wpa-del:hover { background: rgba(239,68,68,.2); color: #f87171; }
+
+.wpa-add-btn {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-top: 1px solid rgba(255,255,255,.08);
+  color: #60a5fa;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  flex-shrink: 0;
+}
+.wpa-add-btn:hover { background: rgba(96,165,250,.08); }
+
+/* Edit panel */
+.wpa-edit-panel { width: min(220px, 58vw); }
+
+.wpa-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.wpa-type-btn {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 2px;
+  padding: 7px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  cursor: pointer;
+  font-size: 10px;
+  color: #6b7280;
+}
+.wpa-type-btn:hover { background: rgba(255,255,255,.08); }
+.wpa-type-btn.active { border-color: #3b82f6; background: rgba(59,130,246,.15); color: #60a5fa; }
+
+.wpa-type-label { text-align: center; line-height: 1.2; font-size: 9px; }
+
+.wpa-params { padding: 6px 10px; flex: 1; overflow-y: auto; }
+
+.wpa-param-row {
+  display: flex; align-items: center;
+  gap: 6px; margin-bottom: 8px;
+}
+.wpa-param-label { width: 70px; flex-shrink: 0; font-size: 11px; color: #6b7280; }
+.wpa-param-input, .wpa-param-select {
+  flex: 1; height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.07);
+  color: #f8faff;
+  font-size: 12px; padding: 0 7px;
+}
+.wpa-param-select { background: rgba(20,20,40,.9); }
+.wpa-param-unit { font-size: 10px; color: #6b7280; width: 22px; }
+
+.wpa-warning {
+  font-size: 10px; color: #fbbf24;
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.25);
+  border-radius: 5px;
+  padding: 5px 7px; margin-bottom: 8px;
+}
+
+.wpa-edit-footer {
+  display: flex; justify-content: flex-end; gap: 6px;
+  padding: 7px 10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+
+.wpa-del-btn, .wpa-confirm-btn {
+  border: none; background: transparent;
+  color: #00d4ff;
+  font-family: var(--font-ui);
+  font-size: 13px; cursor: pointer; padding: 0;
+}
+.wpa-del-btn { color: #f87171; }
+.wpa-del-btn:hover { text-decoration: underline; }
+.wpa-confirm-btn:hover { text-decoration: underline; }
+
+.wp-options-actions-btn.active { color: #60a5fa; }

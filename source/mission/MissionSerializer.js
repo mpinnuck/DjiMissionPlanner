@@ -22,7 +22,10 @@ class MissionSerializer {
         speed: wp.speed,
         heading: wp.heading,
         gimbalPitch: wp.gimbalPitch,
-        poiId: wp.poiId || null
+        poiId: wp.poiId || null,
+        actions: Array.isArray(wp.actions) ? wp.actions.map(a => ({
+          id: a.id, type: a.type, params: { ...a.params }
+        })) : []
       })),
       pois: mission.pois.map(poi => ({
         id: poi.id,
@@ -104,7 +107,14 @@ class MissionSerializer {
           speed: Number.isFinite(wp.speed) ? wp.speed : 8,
           heading: Number.isFinite(wp.heading) ? wp.heading : 0,
           gimbalPitch: Number.isFinite(wp.gimbalPitch) ? wp.gimbalPitch : 0,
-          poiId: typeof wp.poiId === 'string' && wp.poiId ? wp.poiId : null
+          poiId: typeof wp.poiId === 'string' && wp.poiId ? wp.poiId : null,
+          actions: Array.isArray(wp.actions)
+            ? wp.actions.map(a => ({
+                id: a.id || Mission._actionId(),
+                type: typeof a.type === 'string' ? a.type : 'takePhoto',
+                params: (a.params && typeof a.params === 'object') ? { ...a.params } : {}
+              }))
+            : []
         };
       });
   }
