@@ -110,6 +110,8 @@ gimbalPitch = -atan((wp.alt - poi.alt) / horizDist)
 
 where `wp.alt` and `poi.alt` are both altitudes relative to the takeoff point. This is the angle written into the DJI KMZ export and is geometrically correct — the drone camera will point directly at the POI regardless of how much higher or lower the POI terrain is compared to the takeoff location.
 
+This value has been validated against real flight telemetry (DJI Air 3S, DJI RC-2). The FPV virtual preview and the actual in-flight gimbal pitch are in close agreement.
+
 #### POI altitude initialisation
 
 When a new POI is placed on the map, the app automatically fetches the terrain elevation at the POI location and sets the POI altitude so that its **HAG = 0** — meaning the POI sits at ground level at its map position. The formula used is:
@@ -150,8 +152,17 @@ The export logic includes DJI-specific compatibility rules such as:
 - waypoint placemarks and heights
 - waypoint speed handling
 - heading mode encoding
-- gimbal action generation across segments
+- gimbal action generation across segments (see below)
 - drone enum information in the exported mission
+
+#### Gimbal action encoding
+
+The KMZ uses two DJI action types to control gimbal pitch during flight:
+
+- **`gimbalRotate` (snap)** — emitted only at waypoint 0. Snaps the gimbal to the first waypoint's pitch at mission start.
+- **`gimbalEvenlyRotate`** — emitted for every waypoint except the last. Smoothly rotates the gimbal from the previous waypoint's pitch to the **current** waypoint's pitch over the segment between them.
+
+The key detail: DJI's `betweenAdjacentPoints [i, i]` action fires on the leg *from WP(i−1) to WP(i)* and completes *on arrival at WP(i)*. So the target angle for the action at index `i` must be the pitch of WP(i) itself — not the next waypoint's pitch. This was validated against real flight data (DJI Air 3S, DJI RC-2) and confirmed correct.
 
 The output `.kmz` is designed to be used with tools such as `DJI_RC2_KMZ_Sync` or `DJIKMZInjector` to place the mission where the DJI RC can consume it.
 

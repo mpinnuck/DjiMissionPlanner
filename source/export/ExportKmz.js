@@ -280,11 +280,6 @@ class ExportKmz {
       // ── Gimbal pitches ───────────────────────────────────────────────────
       const gimbalPitch = (usePOI && wp.gimbalPitch != null)
         ? Number(wp.gimbalPitch).toFixed(2) : '0';
-      const nextWp          = !isLast ? waypoints[i + 1] : null;
-      const nextGimbalPitch = nextWp
-        ? (nextWp.poiId && nextWp.gimbalPitch != null
-            ? Number(nextWp.gimbalPitch).toFixed(2) : '0')
-        : gimbalPitch;
 
       // ── Group A: gimbalRotate snap — WP0 only ────────────────────────────
       let snapGroup = '';
@@ -338,7 +333,7 @@ class ExportKmz {
             <wpml:actionActuatorFunc>gimbalEvenlyRotate</wpml:actionActuatorFunc>
             <wpml:actionActuatorFuncParam>
               <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
-              <wpml:gimbalPitchRotateAngle>${nextGimbalPitch}</wpml:gimbalPitchRotateAngle>
+              <wpml:gimbalPitchRotateAngle>${gimbalPitch}</wpml:gimbalPitchRotateAngle>
             </wpml:actionActuatorFuncParam>
           </wpml:action>
         </wpml:actionGroup>`;
