@@ -1213,6 +1213,9 @@ class App {
     // => poi.alt = poiGround - takeoffGround - takeoffElevation
     poi.alt = Math.round((poiGround - takeoffGround - takeoffElevation) * 100) / 100;
 
+    this.recomputeAllPOI();
+    this.syncFlythroughMission();
+
     this.renderList();
     if (this.selectedId === poi.id) {
       this.showDetail(poi.id, 'poi');
