@@ -938,6 +938,7 @@ class App {
       this.selectedId = null;
       this.selectedType = null;
       this.renderList();
+      this.ui.highlightSelectedItem(null, this.selectedWaypointIds);
       this.showBulkWaypointDetail();
       return;
     }
@@ -947,6 +948,7 @@ class App {
       this.selectedId = onlyId;
       this.selectedType = 'wp';
       this.renderList();
+      this.ui.highlightSelectedItem(onlyId, this.selectedWaypointIds);
       this.showDetail(onlyId, 'wp');
       return;
     }
@@ -1109,7 +1111,7 @@ class App {
       selectedWaypointIds: this.selectedWaypointIds,
       heightAboveGroundByWaypointId: this.heightAboveGroundByWaypointId,
       heightAboveGroundByPoiId: this.heightAboveGroundByPoiId,
-      onSelect: (id, type) => this.selectItem(id, type),
+      onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
       onDelete: (id, type) => this.deleteItem(id, type),
       ...this._buildListCallbacks()
     });
@@ -1314,7 +1316,7 @@ class App {
         selectedWaypointIds: this.selectedWaypointIds,
         heightAboveGroundByWaypointId: this.heightAboveGroundByWaypointId,
         heightAboveGroundByPoiId: this.heightAboveGroundByPoiId,
-        onSelect: (id, type) => this.selectItem(id, type),
+        onSelect: (id, type, interaction) => this.selectItem(id, type, interaction),
         onDelete: (id, type) => this.deleteItem(id, type),
         ...this._buildListCallbacks()
       });

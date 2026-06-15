@@ -2008,6 +2008,7 @@ body.screen-sm.mobile-mission-open #sidebar select {
 }
 .tree-wp-hdr:hover { background: var(--hover-bg, rgba(255,255,255,.04)); }
 .tree-wp-hdr.selected { background: var(--accent-bg, rgba(59,130,246,.18)); }
+.tree-wp-hdr.multi-selected { background: rgba(59,130,246,.10); border-left: 2px solid rgba(96,165,250,.5); }
 
 .tree-wp-expand {
   width: 18px; height: 18px;
@@ -2032,6 +2033,7 @@ body.screen-sm.mobile-mission-open #sidebar select {
   min-width: 36px;
 }
 .tree-wp-hdr.selected .tree-wp-label { color: var(--accent, #60a5fa); }
+.tree-wp-hdr.multi-selected .tree-wp-label { color: var(--accent, #60a5fa); }
 
 .tree-wp-meta {
   font-size: 11px;

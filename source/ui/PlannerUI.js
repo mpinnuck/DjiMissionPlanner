@@ -2245,9 +2245,9 @@ class PlannerUI {
   }
 
   highlightSelectedItem(selectedId, selectedWaypointIds = new Set()) {
-    document.querySelectorAll('.wp-item').forEach(el => {
-      const isMultiSelected = selectedWaypointIds.has(el.dataset.id);
-      el.classList.toggle('selected', el.dataset.id === selectedId);
+    document.querySelectorAll('.tree-wp-hdr').forEach(el => {
+      const isMultiSelected = selectedWaypointIds.has(el.dataset.wpId);
+      el.classList.toggle('selected', el.dataset.wpId === selectedId);
       el.classList.toggle('multi-selected', isMultiSelected);
     });
 
@@ -2266,7 +2266,7 @@ class PlannerUI {
       return;
     }
 
-    const row = this.wpList.querySelector(`.wp-item[data-id="${itemId}"]`);
+    const row = this.wpList.querySelector(`.tree-wp[data-wp-id="${itemId}"]`);
     if (!row) {
       return;
     }
@@ -2433,7 +2433,15 @@ class PlannerUI {
       hdr.addEventListener('click', e => {
         if (e.target.closest('.tree-wp-expand, .tree-wp-del')) return;
         const wpId = hdr.dataset.wpId;
-        onSelect && onSelect(wpId, 'wp');
+        const isCtrlCmd = e.ctrlKey || e.metaKey;
+        if (isCtrlCmd && onToggleWaypointMultiSelect) {
+          const isAlreadySelected = hdr.classList.contains('multi-selected') || hdr.classList.contains('selected');
+          onToggleWaypointMultiSelect(wpId, !isAlreadySelected, {});
+        } else if (e.shiftKey) {
+          onSelect && onSelect(wpId, 'wp', { shiftKey: true });
+        } else {
+          onSelect && onSelect(wpId, 'wp');
+        }
       });
     });
 
