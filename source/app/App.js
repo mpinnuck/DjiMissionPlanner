@@ -296,40 +296,39 @@ class App {
 
   addWaypointMarker(wp, idx) {
     const m = this.mapController.addWaypointMarker(wp, idx);
-    let longPressTimer = null;
-    let longPressTriggered = false;
 
-    const cancelLongPress = () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
+    let lastClickTime = 0;
+    let singleClickTimer = null;
+    const DOUBLE_TAP_MS = 350;
 
-    m.on('mousedown', () => {
-      cancelLongPress();
-      longPressTriggered = false;
-      longPressTimer = setTimeout(() => {
-        longPressTimer = null;
-        longPressTriggered = true;
+    m.on('click', event => {
+      const now = Date.now();
+      const gap = now - lastClickTime;
+      lastClickTime = now;
+
+      if (gap < DOUBLE_TAP_MS) {
+        // Double-tap / double-click
+        clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+        if (event && event.originalEvent) {
+          event.originalEvent.preventDefault();
+          event.originalEvent.stopPropagation();
+        }
         this.showWaypointTooltip(wp.id);
         this.selectItem(wp.id, 'wp');
         this.openWaypointOptionsDialog(wp.id);
-      }, 600);
-    });
-
-    m.on('mouseup', cancelLongPress);
-    m.on('dragstart', cancelLongPress);
-
-    m.on('click', () => {
-      if (longPressTriggered) {
-        longPressTriggered = false;
-        return;
+      } else {
+        // Defer single-click so a quick second tap can cancel it
+        clearTimeout(singleClickTimer);
+        singleClickTimer = setTimeout(() => {
+          singleClickTimer = null;
+          this.onWaypointMarkerClick(wp.id);
+        }, DOUBLE_TAP_MS);
       }
-      this.onWaypointMarkerClick(wp.id);
     });
 
     m.on('dblclick', event => {
+      // Prevent map zoom on native dblclick (desktop)
       if (event && event.originalEvent) {
         event.originalEvent.preventDefault();
         event.originalEvent.stopPropagation();
@@ -355,14 +354,29 @@ class App {
       this.selectedId = null;
       this.selectedType = null;
       this.lastWaypointAnchorId = waypointId;
-      this.applyWaypointSelectionState();
+      // On mobile: just update highlight + status — don't auto-open any dialog
+      this.renderList();
+      this.ui.highlightSelectedItem(
+        null,
+        this.selectedWaypointIds,
+        this.waypoints.findLast(wp => this.selectedWaypointIds.has(wp.id))?.id ?? null
+      );
       this.showStatus(`${this.selectedWaypointIds.size} waypoints selected.`);
       return;
     }
 
     if (this.isMobileScreen) {
+      // On mobile: single tap just selects/highlights — double-tap opens the dialog
       this.selectedWaypointIds.clear();
-      this.selectItem(waypointId, 'wp');
+      this.selectedId = waypointId;
+      this.selectedType = 'wp';
+      this.lastWaypointAnchorId = waypointId;
+      this.closeWaypointTooltip();
+      this.ui.closeWaypointOptionsDialog();
+      this.ui.closePOIOptionsDialog();
+      this.ui.hideMobileSheet();
+      this.renderList();
+      this.ui.highlightSelectedItem(waypointId, this.selectedWaypointIds, waypointId);
       return;
     }
 

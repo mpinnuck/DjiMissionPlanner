@@ -268,7 +268,7 @@ You can also:
 
 - drag waypoint markers to move them
 - insert waypoints into the route from the map path tools
-- **long press** a waypoint marker to open the waypoint options dialog
+- **double-click / double-tap** a waypoint marker to open the waypoint options dialog
 - multi-select waypoints by clicking them
 - apply bulk updates to multiple selected waypoints
 - copy multiple selected waypoints to the clipboard with `Cmd+C` or `Ctrl+C`
@@ -356,7 +356,7 @@ To export:
 Notes:
 
 - The export folder can be changed by right-clicking the `Export KMZ` button
-- On touch devices, a long press is used for the same action
+- On touch devices, a double-tap is used for the same action
 - The exported `.kmz` is the deliverable for DJI mission injection/sync tools
 
 ## Limitations And Notes
