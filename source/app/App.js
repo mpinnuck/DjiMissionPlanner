@@ -69,6 +69,7 @@ class App {
           if (this.flythrough && this.fpv) {
             this.fpv.updateGraphCursor(this.flythrough.totalTime, this.flythrough.totalTime);
           }
+          this.ui.setFlythroughPlayState('stopped');
         },
         onFrame: frame => {
           if (this.fpv) {
@@ -1685,9 +1686,74 @@ class App {
     }
   }
 
+  async _openSaveHandleDb() {
+    if (typeof indexedDB === 'undefined') return null;
+    return new Promise(resolve => {
+      const req = indexedDB.open('djiMissionPlannerSaveFile', 1);
+      req.onupgradeneeded = e => { e.target.result.createObjectStore('handles'); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async _persistSaveFileHandle(handle) {
+    const db = await this._openSaveHandleDb();
+    if (!db) return;
+    await new Promise(resolve => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(handle, 'saveFile');
+      tx.oncomplete = resolve;
+      tx.onerror = resolve;
+    });
+    db.close();
+  }
+
+  async _restoreSaveFileHandle() {
+    const db = await this._openSaveHandleDb();
+    if (!db) return null;
+    const handle = await new Promise(resolve => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get('saveFile');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+    db.close();
+    return handle;
+  }
+
   async doSaveMission() {
     try {
       const jsonText = this.exportMissionJson();
+
+      // On platforms where showSaveFilePicker is available but showDirectoryPicker is not
+      // (e.g. iOS Safari 17.4+), write directly to the persisted file handle so the file
+      // is overwritten in-place rather than a new copy being created.
+      if (
+        typeof window !== 'undefined' &&
+        typeof window.showSaveFilePicker === 'function' &&
+        !PersistentStorage.supportsFileSystemAccess()
+      ) {
+        const fileHandle = await this._restoreSaveFileHandle();
+        if (fileHandle) {
+          try {
+            let permGranted = true;
+            if (typeof fileHandle.requestPermission === 'function') {
+              permGranted = (await fileHandle.requestPermission({ mode: 'readwrite' })) === 'granted';
+            }
+            if (permGranted) {
+              const writable = await fileHandle.createWritable();
+              await writable.write(jsonText);
+              await writable.close();
+              this.showStatus(`Saved: ${fileHandle.name}`);
+              this.ui.showToast(`Saved: ${fileHandle.name}`, 'success');
+              return;
+            }
+          } catch (e) {
+            // Permission unavailable or file gone — fall through to regular save
+          }
+        }
+      }
+
       const savedPath = await this.storage.save(this.ui.getMissionName(), jsonText);
       this.showStatus(`Saved mission: ${savedPath}`);
       this.ui.showToast(`Saved mission: ${savedPath}`, 'success');
@@ -1731,6 +1797,8 @@ class App {
         : `${safeBaseName}.json`;
 
       if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
+        // Save As — always show the picker so the user can choose a new location/name.
+        // The resulting handle is persisted so that subsequent plain saves overwrite this file.
         const fileHandle = await window.showSaveFilePicker({
           suggestedName: filename,
           types: [
@@ -1742,11 +1810,12 @@ class App {
             }
           ]
         });
+        await this._persistSaveFileHandle(fileHandle);
         const writable = await fileHandle.createWritable();
         await writable.write(jsonText);
         await writable.close();
-        this.showStatus(`Saved mission file: ${filename}`);
-        this.ui.showToast(`Saved to Files: ${filename}`, 'success');
+        this.showStatus(`Saved mission file: ${fileHandle.name}`);
+        this.ui.showToast(`Saved to Files: ${fileHandle.name}`, 'success');
         return;
       }
 
@@ -2322,15 +2391,21 @@ class App {
     });
 
     this.ui.bindFlythroughEvents({
-      onFlythroughPlay: () => {
-        if (this.flythrough) {
-          this.syncFlythroughMission();
+      onFlythroughPlayPause: () => {
+        if (!this.flythrough) return;
+        if (this.flythrough.isPlaying) {
+          this.flythrough.pause();
+          this.ui.setFlythroughPlayState('paused');
+        } else {
           this.flythrough.play();
+          this.ui.setFlythroughPlayState('playing');
         }
       },
-      onFlythroughPause: () => {
+      onFlythroughPlayFromStart: () => {
         if (this.flythrough) {
-          this.flythrough.pause();
+          this.syncFlythroughMission();
+          this.flythrough.playFromStart();
+          this.ui.setFlythroughPlayState('playing');
         }
       },
       onFlythroughStop: () => {
@@ -2338,6 +2413,7 @@ class App {
           this.flythrough.stop();
           // After stop(), missionTime=0 but totalTime is still correct
           this.ui.updateFlythroughProgress(0, this.flythrough.totalTime, 0);
+          this.ui.setFlythroughPlayState('stopped');
         }
       },
       onFlythroughSpeedChange: speedValue => {

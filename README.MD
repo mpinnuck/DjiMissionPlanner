@@ -227,10 +227,11 @@ Why use a local web server:
 - `Unselect All` clears the current selection
 - `Clear All` removes all waypoints and POIs
 - `Use My Location` centers the map on your current location when browser permissions allow it
-- `Save Mission` saves the editable JSON mission to the current save location. **Double-click or right-click** `Save Mission` to open a folder picker and choose a new save location (Save As)
+- `Save Mission` saves the editable JSON mission to the current save location. **Double-click or right-click** `Save Mission` to pick a new file location (Save As). On iOS, the first Save As shows a file picker to choose an iCloud or local location; subsequent saves overwrite that file directly without showing the picker again
 - `Load Mission` opens a file picker to load a previously saved JSON mission. The folder from the loaded file is remembered and used as the default location for subsequent saves and loads
 - `Export KMZ` generates the DJI waypoint package and saves it to the current export location. **Double-click or right-click** `Export KMZ` to open a folder picker and choose a new export location (Export As)
-- `Play`, `Pause`, `Stop` control the virtual flythrough
+- `Play` resumes or starts the virtual flythrough from the **current aircraft position** and the button label changes to `Pause`. Click again to pause. **Double-click** to restart playback from the **beginning of the mission**
+- `Stop` stops the flythrough and resets the aircraft to the beginning of the mission
 - `FOV` toggles the camera field-of-view footprint on the map
 - `FPV` shows or hides the FPV preview panel
 

@@ -85,6 +85,11 @@ class FlythroughController {
   get currentTime() { return this._missionTime; }
   get isPlaying()   { return this._playing; }
 
+  playFromStart() {
+    this._missionTime = 0;
+    this.play();
+  }
+
   play() {
     if (!this._timeline.length || this._playing) return;
     this.showAtCurrentTime();

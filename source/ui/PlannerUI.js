@@ -85,7 +85,6 @@ class PlannerUI {
     this.mbFPV = document.getElementById('mbFPV');
     this.btnFPV = document.getElementById('btnFPV');
     this.btnFTPlay = document.getElementById('btnFTPlay');
-    this.btnFTPause = document.getElementById('btnFTPause');
     this.btnFTStop = document.getElementById('btnFTStop');
     this.ftSpeedSelect = document.getElementById('ftSpeed');
     this.mbftSpeedSelect = document.getElementById('mbftSpeed');
@@ -281,11 +280,31 @@ class PlannerUI {
   }
 
   bindFlythroughEvents(handlers = {}) {
-    if (this.btnFTPlay && typeof handlers.onFlythroughPlay === 'function') {
-      this.btnFTPlay.addEventListener('click', handlers.onFlythroughPlay);
-    }
-    if (this.btnFTPause && typeof handlers.onFlythroughPause === 'function') {
-      this.btnFTPause.addEventListener('click', handlers.onFlythroughPause);
+    if (this.btnFTPlay) {
+      let _clickTimer = null;
+      this.btnFTPlay.addEventListener('click', () => {
+        if (_clickTimer !== null) {
+          // Second click of a double-click: cancel and let dblclick handle it
+          clearTimeout(_clickTimer);
+          _clickTimer = null;
+          return;
+        }
+        _clickTimer = setTimeout(() => {
+          _clickTimer = null;
+          if (typeof handlers.onFlythroughPlayPause === 'function') {
+            handlers.onFlythroughPlayPause();
+          }
+        }, 250);
+      });
+      this.btnFTPlay.addEventListener('dblclick', () => {
+        if (_clickTimer !== null) {
+          clearTimeout(_clickTimer);
+          _clickTimer = null;
+        }
+        if (typeof handlers.onFlythroughPlayFromStart === 'function') {
+          handlers.onFlythroughPlayFromStart();
+        }
+      });
     }
     if (this.btnFTStop && typeof handlers.onFlythroughStop === 'function') {
       this.btnFTStop.addEventListener('click', handlers.onFlythroughStop);
@@ -296,9 +315,20 @@ class PlannerUI {
       });
     }
     if (this.mbftSpeedSelect && typeof handlers.onFlythroughSpeedChange === 'function') {
+      // On iOS, focusing a <select> causes the viewport to scroll up even when the
+      // element is position:fixed.  Save the scroll offset on focus and restore it
+      // after the picker is dismissed so the layout snaps back immediately.
+      let _savedScrollY = 0;
+      this.mbftSpeedSelect.addEventListener('focus', () => {
+        _savedScrollY = window.pageYOffset || 0;
+      }, { passive: true });
       this.mbftSpeedSelect.addEventListener('change', event => {
         handlers.onFlythroughSpeedChange(event.target.value);
+        event.target.blur();
       });
+      this.mbftSpeedSelect.addEventListener('blur', () => {
+        window.scrollTo(0, _savedScrollY);
+      }, { passive: true });
     }
     if (this.ftFovCheckbox && typeof handlers.onFlythroughFovToggle === 'function') {
       this.ftFovCheckbox.addEventListener('change', event => {
@@ -2030,6 +2060,19 @@ class PlannerUI {
     });
     if (map[mode]) {
       map[mode].classList.add('mb-active');
+    }
+  }
+
+  setFlythroughPlayState(state) {
+    if (!this.btnFTPlay) {
+      return;
+    }
+    if (state === 'playing') {
+      this.btnFTPlay.textContent = '⏸ Pause';
+      this.btnFTPlay.title = 'Pause flythrough (double-click to play from start)';
+    } else {
+      this.btnFTPlay.textContent = '▶ Play';
+      this.btnFTPlay.title = 'Play from current position (double-click to play from start)';
     }
   }
 

@@ -77,8 +77,7 @@
   </div>
   <div class="sep"></div>
   <div class="tb-group flythrough-controls" id="flythroughControls">
-    <button class="ghost" id="btnFTPlay" title="Start virtual flythrough">▶ Play</button>
-    <button class="ghost" id="btnFTPause" title="Pause virtual flythrough">⏸ Pause</button>
+    <button class="ghost" id="btnFTPlay" title="Play from current position (double-click to play from start)">▶ Play</button>
     <button class="ghost" id="btnFTStop" title="Stop virtual flythrough">⏹ Stop</button>
     <select id="ftSpeed" title="Flythrough speed">
       <option value="0.5">0.5x</option>
@@ -260,7 +259,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v5.9';
+  const APP_VERSION = 'v5.10';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
