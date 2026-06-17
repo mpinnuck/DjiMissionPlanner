@@ -283,6 +283,8 @@ You can:
 - rename them
 - set their altitude (relative to the takeoff point)
 - drag them to a new location
+- **single-click / single-tap** a POI marker to select it (it turns light green)
+- **double-click / double-tap** a POI marker to open the POI options dialog
 
 Changing a POI can change the heading and gimbal pitch of waypoints that reference it.
 

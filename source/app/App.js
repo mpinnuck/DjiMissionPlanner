@@ -10,6 +10,7 @@ class App {
     this.lastLoadedMissionFolder = '';
     this.activeWaypointTooltipId = null;
     this.activeWaypointPopup = null;
+    this.activePOIPopup = null;
     this._mobileScreenMql = typeof window !== 'undefined'
       ? window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))')
       : null;
@@ -428,6 +429,66 @@ class App {
     }
   }
 
+  closePOITooltip() {
+    if (this.activePOIPopup && this.mapController && this.mapController.map) {
+      this.mapController.map.closePopup(this.activePOIPopup);
+      this.activePOIPopup = null;
+    }
+  }
+
+  showPOITooltip(poiId) {
+    const poi = this.mission.findPOI(poiId);
+    const marker = this.poiMarkers.get(poiId);
+    if (!poi || !marker) {
+      return;
+    }
+
+    const poiIndex = this.pois.indexOf(poi);
+    if (poiIndex === -1) {
+      return;
+    }
+
+    const hagMeters = this.heightAboveGroundByPoiId.get(poi.id);
+    const hagLabel = Number.isFinite(hagMeters) ? ` (${Math.round(hagMeters)})` : '';
+    const tooltipHtml = `
+      <div class="wp-map-tooltip-content">
+        <div class="wp-map-tooltip-title">POI ${Mission.formatPoiDisplayName(poi.name, String(poiIndex + 1))}</div>
+        <div>Position: ${poi.lat.toFixed(6)}, ${poi.lng.toFixed(6)}</div>
+        <div>Altitude: ${Math.round(poi.alt)} m${hagLabel}</div>
+        <button type="button" class="wp-map-tooltip-options">Tap for Options</button>
+      </div>
+    `;
+
+    this.closePOITooltip();
+
+    const popup = L.popup({
+      className: 'wp-map-popup',
+      closeButton: false,
+      autoClose: true,
+      closeOnClick: true,
+      offset: [0, -24]
+    })
+      .setLatLng(marker.getLatLng())
+      .setContent(tooltipHtml)
+      .openOn(this.mapController.map);
+
+    this.activePOIPopup = popup;
+
+    requestAnimationFrame(() => {
+      const popupElement = popup ? popup.getElement() : null;
+      const button = popupElement ? popupElement.querySelector('.wp-map-tooltip-options') : null;
+      if (!button) {
+        return;
+      }
+
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openPOIOptionsDialog(poiId);
+      });
+    });
+  }
+
   formatWaypointTime(seconds) {
     const safe = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
     const mins = Math.floor(safe / 60);
@@ -664,9 +725,31 @@ class App {
     const m = this.mapController.addPOIMarker(poi, {
       index: poiIndex >= 0 ? poiIndex + 1 : (this.pois.length + 1)
     });
-    m.on('click', () => {
-      this.selectItem(poi.id, 'poi');
-      this.openPOIOptionsDialog(poi.id);
+    let lastPoiClickTime = 0;
+    let poiSingleClickTimer = null;
+    const DOUBLE_TAP_MS = 350;
+
+    m.on('click', event => {
+      const now = Date.now();
+      const gap = now - lastPoiClickTime;
+      lastPoiClickTime = now;
+
+      if (gap < DOUBLE_TAP_MS) {
+        clearTimeout(poiSingleClickTimer);
+        poiSingleClickTimer = null;
+        if (event && event.originalEvent) {
+          event.originalEvent.preventDefault();
+          event.originalEvent.stopPropagation();
+        }
+        this.selectItem(poi.id, 'poi');
+        this.openPOIOptionsDialog(poi.id);
+      } else {
+        clearTimeout(poiSingleClickTimer);
+        poiSingleClickTimer = setTimeout(() => {
+          poiSingleClickTimer = null;
+          this.selectItem(poi.id, 'poi');
+        }, DOUBLE_TAP_MS);
+      }
     });
     m.on('dblclick', event => {
       if (event && event.originalEvent) {
@@ -892,6 +975,7 @@ class App {
       this.lastWaypointAnchorId = id;
     }
     this.ui.highlightSelectedItem(id, this.selectedWaypointIds);
+    this.refreshMarkerLabels();
     this.showDetail(id, type);
   }
 

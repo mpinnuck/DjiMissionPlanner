@@ -74,7 +74,7 @@ class MapController {
 
   poiIcon(idx, isSelected = false) {
     const safeIndex = this._escapeHtml(String(idx));
-    const fill = isSelected ? '#68d5ff' : '#1f9d55'; // green, selected light blue
+    const fill = isSelected ? '#6eeb83' : '#1f9d55'; // green, selected light green
     const pin = this._buildPinSvg({
       fill,
       mainText: safeIndex,

@@ -2338,9 +2338,13 @@ class PlannerUI {
       const hag = heightAboveGroundByWaypointId instanceof Map
         ? heightAboveGroundByWaypointId.get(wp.id)
         : null;
+      const assignedPoi = wp.poiId ? pois.find(p => p.id === wp.poiId) : null;
+      const poiSuffix = assignedPoi
+        ? ` · 🎯 ${this._escapeHtml(Mission.formatPoiDisplayName(assignedPoi.name, '?'))}`
+        : '';
       const meta = hag != null
-        ? `${wp.alt}m · HAG ${Math.round(hag)}m · ${speedKmh}km/h`
-        : `${wp.alt}m · ${speedKmh}km/h`;
+        ? `${wp.alt}m · HAG ${Math.round(hag)}m · ${speedKmh}km/h${poiSuffix}`
+        : `${wp.alt}m · ${speedKmh}km/h${poiSuffix}`;
 
       html.push(`<div class="tree-wp" data-wp-id="${wp.id}">
         <div class="tree-wp-hdr ${isSelected ? 'selected' : ''}" data-wp-id="${wp.id}">
