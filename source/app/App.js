@@ -2496,7 +2496,6 @@ class App {
           return;
         }
 
-        this.syncFlythroughMission();
         this.flythrough.play();
         this.ui.setMobilePlayState('playing');
       },
