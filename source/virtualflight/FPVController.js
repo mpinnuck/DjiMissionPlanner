@@ -134,7 +134,7 @@ class FPVController {
    * Update camera from a FlythroughController frame object.
    * { lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch }
    */
-  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed, poiAlt, distance }) {
+  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed, poiAlt, distance, segmentIndex, poiId }) {
     if (!this._visible || !this._missionCenter) return;
 
     const pos = this._toScene(lat, lng);
@@ -164,7 +164,7 @@ class FPVController {
     );
 
     this._renderer.render(this._scene, this._camera);
-    this._drawHUD(alt, heading, gimbalPitch, speed, distance);
+    this._drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId);
   }
 
   show() {
@@ -252,7 +252,7 @@ class FPVController {
     this._hudCtx    = hud.getContext('2d');
   }
 
-  _drawHUD(alt, heading, gimbalPitch, speed, distance) {
+  _drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId) {
     const c   = this._hudCtx;
     const w   = this._hudCanvas.width;
     const h   = this._hudCanvas.height;
@@ -272,6 +272,29 @@ class FPVController {
     c.fillText(`ALT`, 14, h * 0.08);
     c.fillStyle = '#ffffff';
     c.fillText(`${Math.round(alt)}m`, 14, h * 0.14);
+
+    // ── Last waypoint passed + POI (bottom-left) ──
+    if (Number.isFinite(segmentIndex)) {
+      const wpNum = segmentIndex + 1;
+      c.fillStyle = '#2ed573';
+      c.font = small;
+      c.textAlign = 'left';
+      c.fillText(`WP`, 14, h * 0.92);
+      c.fillStyle = '#ffffff';
+      c.fillText(`#${wpNum}`, 14, h * 0.965);
+
+      if (poiId) {
+        const poi = (this._graphMission && Array.isArray(this._graphMission.pois))
+          ? this._graphMission.pois.find(p => p.id === poiId)
+          : null;
+        const poiLabel = poi ? (poi.name || poiId) : poiId;
+        c.fillStyle = '#00d4ff';
+        c.font = small;
+        c.fillText(`POI`, 14 + w * 0.075, h * 0.92);
+        c.fillStyle = '#ffffff';
+        c.fillText(poiLabel, 14 + w * 0.075, h * 0.965);
+      }
+    }
 
     // ── Speed (top-right) ──
     const speedKmh = Number.isFinite(speed) ? speed * 3.6 : null;
