@@ -347,19 +347,39 @@ class PlannerUI {
     wire(this.mbMission, handlers.onMobileMissionSettings);
     wire(this.mbMissionDone, handlers.onMobileMissionDone);
     wire(this.mbLoad, handlers.onMobileLoad);
-    wire(this.mbSave, handlers.onMobileSave);
-    wire(this.mbExport, handlers.onMobileExport);
-
-    // Long-press on mobile Save / Export = Save As / Export As
-    const addLongPress = (el, fn) => {
-      if (!el || typeof fn !== 'function') return;
+    // addTapLongPress: single tap = tapFn, hold ≥ 500ms = longFn.
+    // longFn is called from touchend (not the timer) so navigator.share() stays
+    // within the iOS user-gesture chain.
+    const addTapLongPress = (el, tapFn, longFn) => {
+      if (!el) return;
       let timer = null;
-      el.addEventListener('touchstart', () => { timer = setTimeout(fn, 500); }, { passive: true });
-      el.addEventListener('touchend', () => { if (timer) { clearTimeout(timer); timer = null; } });
-      el.addEventListener('touchcancel', () => { if (timer) { clearTimeout(timer); timer = null; } });
+      let longFired = false;
+      el.addEventListener('touchstart', () => {
+        longFired = false;
+        if (typeof longFn === 'function') {
+          timer = setTimeout(() => { longFired = true; }, 500);
+        }
+      }, { passive: true });
+      el.addEventListener('touchend', (e) => {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (longFired) {
+          e.preventDefault(); // suppress synthetic click
+          if (typeof longFn === 'function') longFn();
+        }
+      });
+      el.addEventListener('touchcancel', () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+        longFired = false;
+      });
+      if (typeof tapFn === 'function') {
+        el.addEventListener('click', () => {
+          if (longFired) { longFired = false; return; }
+          tapFn();
+        });
+      }
     };
-    addLongPress(this.mbSave, handlers.onMobileSaveAs);
-    addLongPress(this.mbExport, handlers.onMobileExportAs);
+    addTapLongPress(this.mbSave, handlers.onMobileSave, handlers.onMobileSaveAs);
+    addTapLongPress(this.mbExport, handlers.onMobileExport, handlers.onMobileExportAs);
 
     wire(this.mbPlay, handlers.onMobilePlay);
     wire(this.mbAddWp, handlers.onMobileAddWp);
@@ -1952,7 +1972,8 @@ class PlannerUI {
     const {
       duration = 2200,
       id = null,
-      persistent = false
+      persistent = false,
+      position = 'center'
     } = options;
     const container = this.ensureToastContainer();
 
@@ -1961,6 +1982,11 @@ class PlannerUI {
       if (existing) {
         existing.remove();
       }
+    }
+
+    if (position === 'top') {
+      container.classList.add('position-top');
+      this._topToastCount = (this._topToastCount || 0) + 1;
     }
 
     const toast = document.createElement('div');
@@ -1975,10 +2001,18 @@ class PlannerUI {
       toast.classList.add('visible');
     });
 
+    const cleanup = () => {
+      this.hideToast(toast);
+      if (position === 'top') {
+        this._topToastCount = Math.max(0, (this._topToastCount || 1) - 1);
+        if (this._topToastCount === 0) {
+          container.classList.remove('position-top');
+        }
+      }
+    };
+
     if (!persistent && duration > 0) {
-      window.setTimeout(() => {
-        this.hideToast(toast);
-      }, duration);
+      window.setTimeout(cleanup, duration);
     }
 
     return toast;

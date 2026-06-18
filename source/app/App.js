@@ -27,7 +27,6 @@ class App {
       }
     };
     this.activeDroneConfig = null;
-
     this.onStatus = options.onStatus || null;
     this.onError = options.onError || (message => alert(message));
     this.waypointMarkers = new Map();
@@ -1686,74 +1685,27 @@ class App {
     }
   }
 
-  async _openSaveHandleDb() {
-    if (typeof indexedDB === 'undefined') return null;
-    return new Promise(resolve => {
-      const req = indexedDB.open('djiMissionPlannerSaveFile', 1);
-      req.onupgradeneeded = e => { e.target.result.createObjectStore('handles'); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
-    });
-  }
-
-  async _persistSaveFileHandle(handle) {
-    const db = await this._openSaveHandleDb();
-    if (!db) return;
-    await new Promise(resolve => {
-      const tx = db.transaction('handles', 'readwrite');
-      tx.objectStore('handles').put(handle, 'saveFile');
-      tx.oncomplete = resolve;
-      tx.onerror = resolve;
-    });
-    db.close();
-  }
-
-  async _restoreSaveFileHandle() {
-    const db = await this._openSaveHandleDb();
-    if (!db) return null;
-    const handle = await new Promise(resolve => {
-      const tx = db.transaction('handles', 'readonly');
-      const req = tx.objectStore('handles').get('saveFile');
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    });
-    db.close();
-    return handle;
+  _persistSaveFileHandle(handle) {
+    // No-op: handle caching removed — navigator.share is used for iOS saves.
   }
 
   async doSaveMission() {
     try {
-      const jsonText = this.exportMissionJson();
-
-      // On platforms where showSaveFilePicker is available but showDirectoryPicker is not
-      // (e.g. iOS Safari 17.4+), write directly to the persisted file handle so the file
-      // is overwritten in-place rather than a new copy being created.
+      // On mobile/iOS (showDirectoryPicker unavailable), save silently to localStorage.
+      // Long-press Save (saveMissionToFiles via share sheet) is used to push to iCloud.
       if (
         typeof window !== 'undefined' &&
-        typeof window.showSaveFilePicker === 'function' &&
         !PersistentStorage.supportsFileSystemAccess()
       ) {
-        const fileHandle = await this._restoreSaveFileHandle();
-        if (fileHandle) {
-          try {
-            let permGranted = true;
-            if (typeof fileHandle.requestPermission === 'function') {
-              permGranted = (await fileHandle.requestPermission({ mode: 'readwrite' })) === 'granted';
-            }
-            if (permGranted) {
-              const writable = await fileHandle.createWritable();
-              await writable.write(jsonText);
-              await writable.close();
-              this.showStatus(`Saved: ${fileHandle.name}`);
-              this.ui.showToast(`Saved: ${fileHandle.name}`, 'success');
-              return;
-            }
-          } catch (e) {
-            // Permission unavailable or file gone — fall through to regular save
-          }
-        }
+        const jsonText = this.exportMissionJson();
+        const savedPath = await this.storage.save(this.ui.getMissionName(), jsonText);
+        this.showStatus(`Saved: ${savedPath}`);
+        this.ui.showToast('Mission saved', 'success');
+        return;
       }
 
+      // Desktop with full filesystem access: use the storage backend
+      const jsonText = this.exportMissionJson();
       const savedPath = await this.storage.save(this.ui.getMissionName(), jsonText);
       this.showStatus(`Saved mission: ${savedPath}`);
       this.ui.showToast(`Saved mission: ${savedPath}`, 'success');
@@ -1762,7 +1714,6 @@ class App {
       this.ui.showToast(error.message || 'Failed to save mission file.', 'error');
     }
   }
-
   async doMobileSave() {
     const action = await this.ui.showSaveOptionsDialog({
       canChooseFolder: this.storage.canChooseRootDirectory(),
@@ -1820,33 +1771,30 @@ class App {
       }
 
       const jsonFile = new File([jsonText], filename, { type: 'application/json' });
+
+      // Try the Web Share API (files only — no text: property which creates a rogue text file).
+      // On iOS this shows the share sheet; the user can tap "Save to Files" to save to iCloud.
       let canShareFile = false;
       try {
         canShareFile = typeof navigator !== 'undefined'
           && typeof navigator.share === 'function'
           && typeof navigator.canShare === 'function'
           && navigator.canShare({ files: [jsonFile] });
-      } catch (error) {
+      } catch (e) {
         canShareFile = false;
       }
 
       if (canShareFile) {
         try {
-          await navigator.share({
-            files: [jsonFile],
-            title: filename,
-            text: 'Mission JSON generated locally on this device.'
-          });
-          this.showStatus(`Mission ready in Share Sheet: ${filename}`);
-          this.ui.showToast(`Mission ready: ${filename}`, 'success');
+          await navigator.share({ files: [jsonFile] });
           return;
-        } catch (error) {
-          if (!error || error.name !== 'AbortError') {
-            console.warn('Share failed, falling back to download flow:', error);
-          }
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+          console.warn('Share failed, falling back to download:', e);
         }
       }
 
+      // Final fallback: browser download
       const url = URL.createObjectURL(new Blob([jsonText], { type: 'application/json' }));
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -1858,7 +1806,7 @@ class App {
       URL.revokeObjectURL(url);
 
       this.showStatus(`Downloaded mission file: ${filename}`);
-      this.ui.showToast(`Downloaded mission: ${filename}`, 'success');
+      this.ui.showToast(`Downloaded: ${filename}`, 'success');
     } catch (error) {
       if (error && error.name === 'AbortError') {
         return;

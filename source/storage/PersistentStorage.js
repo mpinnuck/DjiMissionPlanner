@@ -23,6 +23,12 @@ class PersistentStorage {
   }
 
   static supportsFileSystemAccess() {
+    if (typeof navigator !== 'undefined') {
+      const ua = navigator.userAgent || '';
+      const isAppleMobile = /iPad|iPhone|iPod/.test(ua)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (isAppleMobile) return false;
+    }
     return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
   }
 
@@ -191,6 +197,13 @@ class PersistentStorage {
     return typeof this.backend.getDescription === 'function'
       ? this.backend.getDescription()
       : 'Persistent storage';
+  }
+
+  async getLastLoadedFileHandle() {
+    if (typeof this.backend.restoreLastLoadedFileHandle !== 'function') {
+      return null;
+    }
+    return this.backend.restoreLastLoadedFileHandle();
   }
 
   async save(name, jsonText) {

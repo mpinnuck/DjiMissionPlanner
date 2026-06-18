@@ -227,9 +227,9 @@ Why use a local web server:
 - `Unselect All` clears the current selection
 - `Clear All` removes all waypoints and POIs
 - `Use My Location` centers the map on your current location when browser permissions allow it
-- `Save Mission` saves the editable JSON mission to the current save location. **Double-click or right-click** `Save Mission` to pick a new file location (Save As). On iOS, the first Save As shows a file picker to choose an iCloud or local location; subsequent saves overwrite that file directly without showing the picker again
+- `Save Mission` saves the editable JSON mission to the current save location. **Double-click or right-click** `Save Mission` to pick a new file location (Save As). On iOS/iPadOS, **tap** `Save 💾` to save silently to device storage (localStorage). **Long-press** `Save 💾` to push the file to iCloud so it is accessible on other devices — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**
 - `Load Mission` opens a file picker to load a previously saved JSON mission. The folder from the loaded file is remembered and used as the default location for subsequent saves and loads
-- `Export KMZ` generates the DJI waypoint package and saves it to the current export location. **Double-click or right-click** `Export KMZ` to open a folder picker and choose a new export location (Export As)
+- `Export KMZ` generates the DJI waypoint package and saves it to the current export location. **Double-click or right-click** `Export KMZ` to open a folder picker and choose a new export location (Export As). On iOS/iPadOS, **tap** `Export 📤` to export KMZ via the system share sheet — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace** to overwrite it
 - `Play` resumes or starts the virtual flythrough from the **current aircraft position** and the button label changes to `Pause`. Click again to pause. **Double-click** to restart playback from the **beginning of the mission**
 - `Stop` stops the flythrough and resets the aircraft to the beginning of the mission
 - `FOV` toggles the camera field-of-view footprint on the map
@@ -325,7 +325,11 @@ The app supports two storage modes depending on browser capabilities.
 - Preferred: File System Access API using a chosen local folder
 - Fallback: browser local storage
 
-On iOS/iPadOS Safari, `showOpenFilePicker` is not available. The mission load dialog includes an `Open from Files...` action that uses the native Files picker (`<input type="file">`) so you can load mission JSON from iCloud Drive or other Files providers.
+On iOS/iPadOS Safari the app always uses device storage (localStorage) — the File System Access API is intentionally bypassed to avoid triggering iOS folder pickers on every save.
+
+- **Tap** `Save 💾` — saves silently to device storage (overwrites, no dialog).
+- **Long-press** `Save 💾` — pushes the file to iCloud so it is accessible on other devices (desktop, other iPads). Tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**.
+- **Long-press** `Export 📤` — same share-sheet flow for KMZ files, useful for opening them on a device running DJI Fly.
 
 Saved missions use JSON so they can be reloaded and edited later.
 

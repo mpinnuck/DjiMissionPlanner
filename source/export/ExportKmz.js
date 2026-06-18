@@ -437,16 +437,8 @@ class ExportKmz {
     if (canShareFile) {
       try {
         await navigator.share({
-          files: [kmzFile],
-          title: filename,
-          text: 'KMZ generated locally on this device.'
+          files: [kmzFile]
         });
-        if (this.onExported) {
-          this.onExported(`${filename} exported via Share Sheet`);
-        }
-        if (this.onStatus) {
-          this.onStatus(`KMZ ready on this device via Share Sheet: ${filename} (${waypointCount} WPs)`);
-        }
         return;
       } catch (shareErr) {
         if (shareErr && shareErr.name === 'AbortError') {

@@ -1414,6 +1414,12 @@ body.mobile-safari #main {
   pointer-events: none;
   transform: translate(-50%, -50%);
   align-items: center;
+  transition: top 0.18s ease, transform 0.18s ease;
+}
+
+.app-toast-container.position-top {
+  top: 72px;
+  transform: translateX(-50%);
 }
 
 .app-toast {
