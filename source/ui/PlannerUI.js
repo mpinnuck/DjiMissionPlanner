@@ -277,6 +277,33 @@ class PlannerUI {
         handlers.onExportAs();
       });
     }
+
+    // Desktop long-press (hold ≥ 500 ms) on Save = change mission folder
+    // Desktop long-press on Export = change KMZ export folder
+    const addDesktopLongPress = (el, longFn) => {
+      if (!el || typeof longFn !== 'function') return;
+      let timer = null;
+      let longFired = false;
+      el.addEventListener('mousedown', e => {
+        if (e.button !== 0) return; // left button only
+        longFired = false;
+        timer = setTimeout(() => {
+          longFired = true;
+          longFn();
+        }, 500);
+      });
+      const cancel = () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+      };
+      el.addEventListener('mouseup', cancel);
+      el.addEventListener('mouseleave', cancel);
+      // Suppress the click that fires after a long press
+      el.addEventListener('click', e => {
+        if (longFired) { longFired = false; e.stopImmediatePropagation(); }
+      }, true);
+    };
+    addDesktopLongPress(this.btnSaveMission, handlers.onChangeMissionFolder);
+    addDesktopLongPress(this.btnExport, handlers.onChangeExportFolder);
   }
 
   bindFlythroughEvents(handlers = {}) {

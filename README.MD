@@ -227,9 +227,9 @@ Why use a local web server:
 - `Unselect All` clears the current selection
 - `Clear All` removes all waypoints and POIs
 - `Use My Location` centers the map on your current location when browser permissions allow it
-- `Save Mission` saves the editable JSON mission to the current save location. **Double-click or right-click** `Save Mission` to pick a new file location (Save As). On iOS/iPadOS, **tap** `Save 💾` to save silently to device storage (localStorage). **Long-press** `Save 💾` to push the file to iCloud so it is accessible on other devices — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**
+- `Save Mission` saves the editable JSON mission to the remembered mission folder. **Double-click or right-click** `Save Mission` to pick a new file location (Save As). **Long-press** (hold ≥ 0.5 s) `Save Mission` to open a folder picker and change which folder missions are saved into. On iOS/iPadOS, **tap** `Save 💾` to save silently to device storage (localStorage). **Long-press** `Save 💾` on iOS/iPadOS to push the file to iCloud — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**
 - `Load Mission` opens a file picker to load a previously saved JSON mission. The folder from the loaded file is remembered and used as the default location for subsequent saves and loads
-- `Export KMZ` generates the DJI waypoint package and saves it to the current export location. **Double-click or right-click** `Export KMZ` to open a folder picker and choose a new export location (Export As). On iOS/iPadOS, **tap** `Export 📤` to export KMZ via the system share sheet — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace** to overwrite it
+- `Export KMZ` generates the DJI waypoint package and saves it to the remembered KMZ export folder. **Double-click or right-click** `Export KMZ` to open a folder picker and choose a new export location (Export As). **Long-press** (hold ≥ 0.5 s) `Export KMZ` to change the remembered KMZ export folder without performing an export. On iOS/iPadOS, **tap** `Export 📤` to export KMZ via the system share sheet — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace** to overwrite it
 - `Play` resumes or starts the virtual flythrough from the **current aircraft position** and the button label changes to `Pause`. Click again to pause. **Double-click** to restart playback from the **beginning of the mission**
 - `Stop` stops the flythrough and resets the aircraft to the beginning of the mission
 - `FOV` toggles the camera field-of-view footprint on the map
@@ -327,6 +327,17 @@ The app supports two storage modes depending on browser capabilities.
 
 On iOS/iPadOS Safari the app always uses device storage (localStorage) — the File System Access API is intentionally bypassed to avoid triggering iOS folder pickers on every save.
 
+**Desktop (Chrome/Edge with File System Access API)**
+
+- **Click** `Save Mission` — saves to the remembered mission folder immediately.
+- **Long-press** `Save Mission` (hold ≥ 0.5 s) — opens a folder picker to change the mission save folder.
+- **Right-click or double-click** `Save Mission` — Save As (pick a new file name/location).
+- **Click** `Export KMZ` — exports to the remembered KMZ folder immediately.
+- **Long-press** `Export KMZ` (hold ≥ 0.5 s) — opens a folder picker to change the KMZ export folder.
+- **Right-click or double-click** `Export KMZ` — Export As (pick a new folder/location).
+
+**iOS/iPadOS Safari**
+
 - **Tap** `Save 💾` — saves silently to device storage (overwrites, no dialog).
 - **Long-press** `Save 💾` — pushes the file to iCloud so it is accessible on other devices (desktop, other iPads). Tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**.
 - **Long-press** `Export 📤` — same share-sheet flow for KMZ files, useful for opening them on a device running DJI Fly.
@@ -362,8 +373,8 @@ To export:
 
 Notes:
 
-- The export folder can be changed by right-clicking the `Export KMZ` button
-- On touch devices, a double-tap is used for the same action
+- The export folder can be changed by right-clicking `Export KMZ`, double-clicking it, or long-pressing it on desktop (hold ≥ 0.5 s)
+- On iOS/iPadOS, long-press `Export 📤` to trigger the share sheet
 - The exported `.kmz` is the deliverable for DJI mission injection/sync tools
 
 ## Limitations And Notes
