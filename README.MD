@@ -346,21 +346,31 @@ Saved missions use JSON so they can be reloaded and edited later.
 
 ### Cloud-Based Workflow (iCloud, OneDrive, Google Drive)
 
-If you want one shared mission library across desktop and iPad, keep your mission JSON files in a cloud-synced folder and use that as your primary working location.
+Keeping your mission JSON files in a cloud-synced folder is the recommended way to use the app across devices. It gives you a single mission library that is accessible everywhere — plan at your desk, refine on-site in the field, and export directly from your mobile device before flying.
 
-Recommended pattern:
+**Typical round-trip workflow:**
 
-1. Create a cloud folder for missions, for example `iCloud Drive/Drone/Missions/Planner/Home`.
-2. On desktop browsers with File System Access support, choose that folder as your mission root.
-3. Save mission JSON files into that folder from desktop.
-4. On iPad Safari, use `Load Mission` and then `Open from Files...` to open JSON files from the same cloud folder.
-5. Export KMZ as needed for your RC workflow.
+1. **Plan on desktop** — create or refine the mission on a desktop browser with full File System Access support. Save to a cloud folder such as `iCloud Drive/Drone/Missions/Planner`.
+2. **Take it to the field** — the cloud folder syncs automatically to your iPad or iPhone. Open the app on iPad Safari, tap `Load Mission → Open from Files...`, and navigate to the cloud folder to open the mission.
+3. **Adjust on-site** — move waypoints, tweak altitudes or speeds, set the takeoff elevation for the actual launch location. The full editor is available on mobile.
+4. **Export from the field** — tap `Export 📤` (or long-press to share via the system share sheet) to generate the `.kmz` directly on the device.
+5. **Save edits back to cloud** — long-press `Save 💾` and tap **Save to Files** to write the updated JSON back to the cloud folder so your desktop copy stays in sync.
+
+Recommended folder structure:
+
+```
+iCloud Drive/Drone/Missions/Planner/
+  SiteName1.json
+  SiteName2.json
+  ...
+```
 
 Notes:
 
 - The app can only display paths that browser APIs expose. Some dialogs show relative paths rather than full OS paths.
 - Load/save mission context and KMZ export folder context are tracked independently.
 - If cloud providers are available through the iOS Files app, they are usable via `Open from Files...`.
+- Changes made in the field are only synced back to desktop if you explicitly save back to the cloud file (step 5 above). The in-browser localStorage copy on the device is separate from the cloud file.
 
 ### Exporting DJI KMZ Missions
 
