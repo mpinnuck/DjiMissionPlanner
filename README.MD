@@ -4,6 +4,14 @@ DJI Mission Planner is a browser-based waypoint planning tool for DJI drones. Th
 
 The goal of the tool is to let you design a waypoint mission, export it as a DJI-compatible `.kmz` waypoint mission package, and then load that mission onto a DJI RC using external transfer/injection tools such as `DJI_RC2_KMZ_Sync` or `DJIKMZInjector`.
 
+## Try It Live
+
+A hosted version of the app is available at:
+
+**https://app.microconcepts.com.au/djimissionplanner/**
+
+You can use this to explore the planner without any local setup. For production mission work, running it locally (see [Running The App](#running-the-app)) is recommended so you have full control over save/load folder access.
+
 ## What This App Does
 
 The app lets you:
