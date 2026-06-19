@@ -84,15 +84,25 @@ The app uses the following reference values:
 The formula for waypoint HAG is:
 
 ```
-Waypoint ASL = takeoffGround + takeoffElevation + wp.alt
-Waypoint HAG = Waypoint ASL - waypointGround
-             = wp.alt + takeoffGround + takeoffElevation - waypointGround
+Terms
+  wp.alt            altitude stored in the mission — relative to the takeoff datum
+                    (takeoffGround + takeoffElevation), in metres
+  takeoffGround     terrain elevation at the takeoff location, metres above sea level (ASL)
+  takeoffElevation  drone height above takeoff ground at launch (0 for a ground-level start)
+  waypointGround    terrain elevation at the waypoint location, metres ASL
+
+Drone ASL altitude at waypoint
+    = takeoffGround + takeoffElevation + wp.alt
+
+Waypoint HAG
+    = Drone ASL altitude − waypointGround
+    = wp.alt + takeoffGround + takeoffElevation − waypointGround
 ```
 
 When you apply a target HAG to a waypoint, the inverse is used to compute the required `wp.alt`:
 
 ```
-wp.alt = targetHAG + waypointGround - takeoffGround - takeoffElevation
+wp.alt = targetHAG + waypointGround − takeoffGround − takeoffElevation
 ```
 
 This means every waypoint gets an individually adjusted altitude so that, regardless of the terrain beneath it, the drone will fly at the same height above local ground.
@@ -113,10 +123,16 @@ The FPV view uses a drone camera profile. The default profile is DJI Air 3S. A c
 When a waypoint is assigned to a POI, the gimbal pitch is calculated as:
 
 ```
-gimbalPitch = -atan((wp.alt - poi.alt) / horizDist)
+Terms
+  wp.alt    drone altitude relative to takeoff datum (metres)
+  poi.alt   POI altitude relative to takeoff datum (metres); negative if below takeoff ground
+  horizDist horizontal distance from waypoint to POI (metres)
+
+altDelta    = poi.alt − wp.alt          (negative when drone is above the POI)
+gimbalPitch = atan2(altDelta, horizDist) (negative = looking down; positive = looking up)
 ```
 
-where `wp.alt` and `poi.alt` are both altitudes relative to the takeoff point. This is the angle written into the DJI KMZ export and is geometrically correct — the drone camera will point directly at the POI regardless of how much higher or lower the POI terrain is compared to the takeoff location.
+where both `wp.alt` and `poi.alt` are relative to the same takeoff datum. This is the angle written into the DJI KMZ export and is geometrically correct — the drone camera will point directly at the POI regardless of how much higher or lower the POI terrain is compared to the takeoff location.
 
 This value has been validated against real flight telemetry (DJI Air 3S, DJI RC-2). The FPV virtual preview and the actual in-flight gimbal pitch are in close agreement.
 
