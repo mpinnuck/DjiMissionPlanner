@@ -28,6 +28,7 @@ if ! ssh -i "$SSH_KEY" -o BatchMode=yes "$REMOTE" "command -v rsync >/dev/null 2
 fi
 
 rsync -avz $DRY_RUN \
+  --chmod=D755,F644 \
   --exclude='*.zip' \
   --exclude='README.MD' \
   --exclude='.gitignore' \
