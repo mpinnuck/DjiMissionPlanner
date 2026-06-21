@@ -15,10 +15,18 @@
 // Mixed into App.prototype in App.js
 
 const AppSave = {
+/**
+ * Do unselect all.
+ */
 doUnselectAll() {
   this.clearSelection(false);
 },
 
+/**
+ * Clear selection.
+ *
+ * @param {boolean} silent [default: false]
+ */
 clearSelection(silent = false) {
   this.closeWaypointTooltip();
   this.ui.closeWaypointOptionsDialog();
@@ -36,10 +44,20 @@ clearSelection(silent = false) {
   }
 },
 
+/**
+ * Persist save file handle.
+ *
+ * @param {FileSystemHandle} handle
+ */
 _persistSaveFileHandle(handle) {
   // No-op: handle caching removed — navigator.share is used for iOS saves.
 },
 
+/**
+ * Do save mission.
+ *
+ * @returns {Promise<void>}
+ */
 async doSaveMission() {
   try {
     // On mobile/iOS (showDirectoryPicker unavailable), save silently to localStorage.
@@ -65,6 +83,11 @@ async doSaveMission() {
     this.ui.showToast(error.message || 'Failed to save mission file.', 'error');
   }
 },
+/**
+ * Do mobile save.
+ *
+ * @returns {Promise<void>}
+ */
 async doMobileSave() {
   const action = await this.ui.showSaveOptionsDialog({
     canChooseFolder: this.storage.canChooseRootDirectory(),
@@ -87,6 +110,11 @@ async doMobileSave() {
   await this.doSaveMission();
 },
 
+/**
+ * Save mission to files.
+ *
+ * @returns {Promise<void>}
+ */
 async saveMissionToFiles() {
   try {
     const jsonText = this.exportMissionJson();
@@ -167,6 +195,11 @@ async saveMissionToFiles() {
   }
 },
 
+/**
+ * Change save mission folder.
+ *
+ * @returns {Promise<void>}
+ */
 async changeSaveMissionFolder() {
   if (!this.storage.canChooseRootDirectory()) {
     this.showStatus('Folder selection is not available in this browser.');

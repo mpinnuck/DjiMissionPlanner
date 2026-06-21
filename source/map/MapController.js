@@ -31,18 +31,44 @@ class MapController {
 
   // Public methods
 
+  /**
+   * On click.
+   *
+   * @param {*} handler
+   *
+   * @returns {number}
+   */
   onClick(handler) {
     this.map.on('click', handler);
   }
 
+  /**
+   * On mouse move.
+   *
+   * @param {*} handler
+   *
+   * @returns {number}
+   */
   onMouseMove(handler) {
     this.map.on('mousemove', handler);
   }
 
+  /**
+   * On zoom end.
+   *
+   * @param {*} handler
+   *
+   * @returns {number}
+   */
   onZoomEnd(handler) {
     this.map.on('zoomend', handler);
   }
 
+  /**
+   * Get waypoint marker scale.
+   *
+   * @returns {number}
+   */
   getWaypointMarkerScale() {
     const zoom = this.map.getZoom();
     if (zoom >= 19) return 1.22;
@@ -51,6 +77,14 @@ class MapController {
     return 1;
   }
 
+  /**
+   * Wp icon.
+   *
+   * @param {number} idx
+   * @param {Object} options [default: {}]
+   *
+   * @returns {*}
+   */
   wpIcon(idx, options = {}) {
     const {
       isFirst = false,
@@ -84,6 +118,14 @@ class MapController {
     });
   }
 
+  /**
+   * Poi icon.
+   *
+   * @param {number} idx
+   * @param {boolean} isSelected [default: false]
+   *
+   * @returns {*}
+   */
   poiIcon(idx, isSelected = false) {
     const safeIndex = this._escapeHtml(String(idx));
     const fill = isSelected ? '#6eeb83' : '#1f9d55'; // green, selected light green
@@ -102,6 +144,15 @@ class MapController {
     });
   }
 
+  /**
+   * Creates a Leaflet marker for a newly placed waypoint and wires click/drag events.
+   *
+   * @param {Object} wp
+   * @param {number} idx
+   * @param {Object} options [default: {}]
+   *
+   * @returns {*}
+   */
   addWaypointMarker(wp, idx, options = {}) {
     return L.marker([wp.lat, wp.lng], {
       icon: this.wpIcon(idx, options),
@@ -111,6 +162,14 @@ class MapController {
     }).addTo(this.map);
   }
 
+  /**
+   * Creates and adds a Leaflet marker for a POI.
+   *
+   * @param {Object} poi
+   * @param {Object} options [default: {}]
+   *
+   * @returns {*}
+   */
   addPOIMarker(poi, options = {}) {
     const pinIndex = Number.isFinite(options.index) ? options.index : 1;
     return L.marker([poi.lat, poi.lng], {
@@ -121,6 +180,13 @@ class MapController {
     }).addTo(this.map);
   }
 
+  /**
+   * Updates the index labels on all waypoint markers to reflect current order and selection.
+   *
+   * @param {Array} waypoints
+   * @param {*} markerResolver
+   * @param {Object} options [default: {}]
+   */
   refreshWaypointLabels(waypoints, markerResolver, options = {}) {
     const {
       selectedId = null,
@@ -143,6 +209,13 @@ class MapController {
     });
   }
 
+  /**
+   * Refresh p o i labels.
+   *
+   * @param {Array} pois
+   * @param {*} markerResolver
+   * @param {Object} options [default: {}]
+   */
   refreshPOILabels(pois, markerResolver, options = {}) {
     const {
       selectedId = null,
@@ -157,23 +230,44 @@ class MapController {
     });
   }
 
+  /**
+   * Update p o i label.
+   *
+   * @param {*} marker
+   * @param {number} index
+   * @param {Object} options [default: {}]
+   */
   updatePOILabel(marker, index, options = {}) {
     if (marker) {
       marker.setIcon(this.poiIcon(index, !!options.isSelected));
     }
   }
 
+  /**
+   * Removes a single Leaflet layer from the map.
+   *
+   * @param {*} layer
+   */
   removeLayer(layer) {
     if (layer) {
       this.map.removeLayer(layer);
     }
   }
 
+  /**
+   * Clear route midpoint markers.
+   */
   clearRouteMidpointMarkers() {
     this.routeMidpointMarkers.forEach(marker => this.map.removeLayer(marker));
     this.routeMidpointMarkers = [];
   }
 
+  /**
+   * Redraws the cubic spline route polyline through all current waypoints.
+   *
+   * @param {Array} waypoints
+   * @param {Object} options [default: {}]
+   */
   updateRoute(waypoints, options = {}) {
     if (this.routeLine) {
       this.map.removeLayer(this.routeLine);
@@ -228,6 +322,9 @@ class MapController {
     }
   }
 
+  /**
+   * Removes the route polyline and all waypoint/POI markers from the map.
+   */
   clearRoute() {
     if (this.routeLine) {
       this.map.removeLayer(this.routeLine);
@@ -236,6 +333,12 @@ class MapController {
     this.clearRouteMidpointMarkers();
   }
 
+  /**
+   * Focus mission.
+   *
+   * @param {Object} waypoints [default: []]
+   * @param {Object} pois [default: []]
+   */
   focusMission(waypoints = [], pois = []) {
     const points = [
       ...waypoints.map(wp => [wp.lat, wp.lng]),
@@ -258,6 +361,9 @@ class MapController {
     });
   }
 
+  /**
+   * Clear user location layers.
+   */
   clearUserLocationLayers() {
     if (this.userLocationMarker) {
       this.map.removeLayer(this.userLocationMarker);
@@ -269,6 +375,13 @@ class MapController {
     }
   }
 
+  /**
+   * Centres the map on the user's location and draws an accuracy circle.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   * @param {*} accuracyMeters
+   */
   showUserLocation(lat, lng, accuracyMeters) {
     this.clearUserLocationLayers();
 
@@ -296,6 +409,13 @@ class MapController {
 
   // Private members
 
+  /**
+   * Build pin svg.
+   *
+   * @param {Object} options - Named options object.
+   *
+   * @returns {Object}
+   */
   _buildPinSvg({ fill, mainText, subText = null, scale = 1 }) {
     const PIN_W = 20;
     const PIN_H = 32;
@@ -322,6 +442,13 @@ class MapController {
     };
   }
 
+  /**
+   * Escape html.
+   *
+   * @param {string} value
+   *
+   * @returns {string}
+   */
   _escapeHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')

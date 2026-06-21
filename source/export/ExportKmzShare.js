@@ -14,6 +14,15 @@
 // Mixed into ExportKmz.prototype
 
 const ExportKmzShare = {
+/**
+ * Delivers a KMZ blob via Share Sheet, filesystem write, or browser download.
+ *
+ * @param {*} blob
+ * @param {string} filename
+ * @param {number} waypointCount
+ *
+ * @returns {Promise<void>}
+ */
 async _shareOrDownloadBlob(blob, filename, waypointCount) {
   const kmzFile = new File([blob], filename, { type: 'application/vnd.google-earth.kmz' });
   let canShareFile = false;
@@ -56,6 +65,11 @@ async _shareOrDownloadBlob(blob, filename, waypointCount) {
   }
 },
 
+/**
+ * Builds and delivers a KMZ file to the saved export folder or Share Sheet.
+ *
+ * @param {Object} params
+ */
 export(params) {
   const built = this._buildKmzZip(params);
   if (!built) return;
@@ -89,6 +103,11 @@ export(params) {
   });
 },
 
+/**
+ * Shows a save file picker then writes the KMZ to the chosen location.
+ *
+ * @param {Object} params
+ */
 exportAs(params) {
   const built = this._buildKmzZip(params);
   if (!built) return;
@@ -123,6 +142,12 @@ exportAs(params) {
   });
 },
 
+/**
+ * Generates the WPML XML block for a single waypoint action.
+ *
+ * @param {*} action
+ * @param {string} actionId
+ */
 _buildUserActionXml(action, actionId) {
   const p = action.params || {};
   let param = '';
@@ -214,6 +239,13 @@ _buildUserActionXml(action, actionId) {
         </wpml:action>`;
 },
 
+/**
+ * XML-escapes a string value for safe embedding in WPML XML attributes.
+ *
+ * @param {string} s
+ *
+ * @returns {string}
+ */
 _esc(s) {
   return String(s)
     .replace(/&/g, '&amp;')

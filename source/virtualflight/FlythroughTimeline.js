@@ -15,6 +15,13 @@
 // Mixed into FlythroughController.prototype
 
 const FlythroughTimeline = {
+/**
+ * Actions dwell time.
+ *
+ * @param {Array} actions
+ *
+ * @returns {number}
+ */
 _actionsDwellTime(actions) {
   if (!Array.isArray(actions) || actions.length === 0) return 0;
   let t = 0;
@@ -33,6 +40,11 @@ _actionsDwellTime(actions) {
   return t > 0 ? t + 1 : 0;
 },
 
+/**
+ * Build timeline.
+ *
+ * @param {Array} waypoints
+ */
 _buildTimeline(waypoints) {
   const SAMPLES  = 20;
   const pts      = waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng }));
@@ -125,6 +137,16 @@ _buildTimeline(waypoints) {
 
 // ── Geometry helpers ────────────────────────────────────────────────────
 
+/**
+ * Haversine.
+ *
+ * @param {number} lat1
+ * @param {number} lon1
+ * @param {number} lat2
+ * @param {number} lon2
+ *
+ * @returns {number}
+ */
 _haversine(lat1, lon1, lat2, lon2) {
   const R = FlythroughController.EARTH_R;
   const dLat = (lat2-lat1) * Math.PI/180;
@@ -134,6 +156,16 @@ _haversine(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 },
 
+/**
+ * Bearing.
+ *
+ * @param {number} lat1
+ * @param {number} lon1
+ * @param {number} lat2
+ * @param {number} lon2
+ *
+ * @returns {number}
+ */
 _bearing(lat1, lon1, lat2, lon2) {
   const dLon = (lon2-lon1) * Math.PI/180;
   const y = Math.sin(dLon) * Math.cos(lat2*Math.PI/180);
@@ -158,6 +190,9 @@ _offsetLatLng(lat, lng, northM, eastM) {
 
 // ── Cleanup ─────────────────────────────────────────────────────────────
 
+/**
+ * Clear layers.
+ */
 _clearLayers() {
   this._closeTelemetryPopup();
   if (this._droneLayer) { this._map.removeLayer(this._droneLayer); this._droneLayer = null; }

@@ -26,6 +26,16 @@ class Mission {
 
   // Public methods
 
+  /**
+   * Calculates the great-circle distance between two lat/lng coordinates using the Haversine formula.
+   *
+   * @param {number} lat1
+   * @param {number} lon1
+   * @param {number} lat2
+   * @param {number} lon2
+   *
+   * @returns {number}
+   */
   haversine(lat1, lon1, lat2, lon2) {
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -34,6 +44,16 @@ class Mission {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
+  /**
+   * Calculates the forward azimuth bearing in degrees between two lat/lng points.
+   *
+   * @param {number} lat1
+   * @param {number} lon1
+   * @param {number} lat2
+   * @param {number} lon2
+   *
+   * @returns {number}
+   */
   bearing(lat1, lon1, lat2, lon2) {
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
@@ -42,6 +62,14 @@ class Mission {
     return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
   }
 
+  /**
+   * Calculates the gimbal pitch angle (degrees) needed to aim the camera from a waypoint at a POI.
+   *
+   * @param {Object} wp
+   * @param {Object} poi
+   *
+   * @returns {number}
+   */
   calcGimbalPitch(wp, poi) {
     const horizDist = this.haversine(wp.lat, wp.lng, poi.lat, poi.lng);
     const altDelta = (poi.alt || 0) - wp.alt;
@@ -53,14 +81,35 @@ class Mission {
   // The FPV scene is flat at y=0, so the center ray with this pitch intersects
   // the ground at: dist * alt/(alt-poi.alt) — naturally beyond the POI for
   // above-ground POIs and before it for underground ones, matching real camera geometry.
+  /**
+   * Returns the gimbal pitch for FPV display — identical to calcGimbalPitch for geometric accuracy.
+   *
+   * @param {Object} wp
+   * @param {Object} poi
+   *
+   * @returns {*}
+   */
   calcFpvGimbalPitch(wp, poi) {
     return this.calcGimbalPitch(wp, poi);
   }
 
+  /**
+   * Calculates the compass bearing (degrees) from a waypoint to a POI.
+   *
+   * @param {Object} wp
+   * @param {Object} poi
+   *
+   * @returns {*}
+   */
   calcHeading(wp, poi) {
     return this.bearing(wp.lat, wp.lng, poi.lat, poi.lng);
   }
 
+  /**
+   * Sums the Haversine distances of all inter-waypoint segments in metres.
+   *
+   * @returns {*}
+   */
   totalDistance() {
     let d = 0;
     for (let i = 1; i < this.waypoints.length; i++) {
@@ -95,6 +144,15 @@ class Mission {
     return /^\d+$/.test(raw);
   }
 
+  /**
+   * Creates a new waypoint plain object with default values.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   * @param {Object} options [default: {}]
+   *
+   * @returns {Object}
+   */
   createWaypoint(lat, lng, options = {}) {
     const altitude = Number.isFinite(options.altitude) ? options.altitude : 80;
     const speed = Number.isFinite(options.speed) ? options.speed : 8;
@@ -115,6 +173,14 @@ class Mission {
     };
   }
 
+  /**
+   * Create p o i.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   *
+   * @returns {Object}
+   */
   createPOI(lat, lng) {
     const poiNumber = ++this.poiCounter;
     return {
@@ -126,20 +192,49 @@ class Mission {
     };
   }
 
+  /**
+   * Finds and returns a waypoint by ID, or null if not found.
+   *
+   * @param {string} id
+   *
+   * @returns {*}
+   */
   findWaypoint(id) {
     return this.waypoints.find(wp => wp.id === id);
   }
 
+  /**
+   * Finds and returns a POI by ID, or null if not found.
+   *
+   * @param {string} id
+   *
+   * @returns {*}
+   */
   findPOI(id) {
     return this.pois.find(poi => poi.id === id);
   }
 
+  /**
+   * Appends a new waypoint to the mission and assigns it a unique ID.
+   *
+   * @param {Object} wp
+   *
+   * @returns {*}
+   */
   addWaypoint(wp) {
     this.waypoints.push(wp);
     this.recomputePOI(wp);
     return wp;
   }
 
+  /**
+   * Insert waypoint at.
+   *
+   * @param {number} index
+   * @param {Object} wp
+   *
+   * @returns {*}
+   */
   insertWaypointAt(index, wp) {
     const safeIndex = Math.max(0, Math.min(index, this.waypoints.length));
     this.waypoints.splice(safeIndex, 0, wp);
@@ -147,6 +242,13 @@ class Mission {
     return wp;
   }
 
+  /**
+   * Appends a new POI to the mission.
+   *
+   * @param {Object} poi
+   *
+   * @returns {*}
+   */
   addPOI(poi) {
     const shouldRenumber = Mission.isAutoPoiName(poi && poi.name);
     this.pois.push(poi);
@@ -156,6 +258,13 @@ class Mission {
     return poi;
   }
 
+  /**
+   * Recalculates the stored gimbal pitch, heading, and poiAlt for one waypoint based on its assigned POI.
+   *
+   * @param {Object} wp
+   *
+   * @returns {*}
+   */
   recomputePOI(wp) {
     if (!wp.poiId) {
       return;
@@ -173,16 +282,35 @@ class Mission {
     wp.poiLng = poi.lng;
   }
 
+  /**
+   * Recalculates gimbal pitch and heading for all waypoints that have a POI assigned.
+   *
+   * @returns {*}
+   */
   recomputeAllPOI() {
     this.waypoints.forEach(wp => this.recomputePOI(wp));
   }
 
+  /**
+   * Removes a waypoint from the mission by ID.
+   *
+   * @param {string} id
+   *
+   * @returns {*}
+   */
   deleteWaypoint(id) {
     const waypoint = this.findWaypoint(id);
     this.waypoints = this.waypoints.filter(wp => wp.id !== id);
     return waypoint;
   }
 
+  /**
+   * Removes a POI from the mission by ID and unlinks it from any waypoints.
+   *
+   * @param {string} id
+   *
+   * @returns {*}
+   */
   deletePOI(id) {
     const poi = this.findPOI(id);
     this.pois = this.pois.filter(item => item.id !== id);
@@ -205,6 +333,11 @@ class Mission {
     return poi;
   }
 
+  /**
+   * Removes all waypoints and POIs from the mission and resets state.
+   *
+   * @returns {string}
+   */
   clear() {
     this.waypoints = [];
     this.pois = [];
@@ -216,10 +349,27 @@ class Mission {
     return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
+  /**
+   * Create action.
+   *
+   * @param {string} type
+   * @param {Object} params [default: {}]
+   *
+   * @returns {Object}
+   */
   createAction(type, params = {}) {
     return { id: Mission._actionId(), type, params: { ...params } };
   }
 
+  /**
+   * Appends an action to a waypoint's action list and assigns it a unique action ID.
+   *
+   * @param {string} wpId
+   * @param {string} type
+   * @param {Object} params [default: {}]
+   *
+   * @returns {*}
+   */
   addWaypointAction(wpId, type, params = {}) {
     const wp = this.findWaypoint(wpId);
     if (!wp) return null;
@@ -229,12 +379,25 @@ class Mission {
     return action;
   }
 
+  /**
+   * Removes an action from a waypoint by action ID.
+   *
+   * @param {string} wpId
+   * @param {string} actionId
+   */
   removeWaypointAction(wpId, actionId) {
     const wp = this.findWaypoint(wpId);
     if (!wp || !Array.isArray(wp.actions)) return;
     wp.actions = wp.actions.filter(a => a.id !== actionId);
   }
 
+  /**
+   * Update waypoint action.
+   *
+   * @param {string} wpId
+   * @param {string} actionId
+   * @param {Object} params
+   */
   updateWaypointAction(wpId, actionId, params) {
     const wp = this.findWaypoint(wpId);
     if (!wp) return;
@@ -243,6 +406,12 @@ class Mission {
     Object.assign(action.params, params);
   }
 
+  /**
+   * Moves an action one position earlier in a waypoint's action list.
+   *
+   * @param {string} wpId
+   * @param {string} actionId
+   */
   moveWaypointActionUp(wpId, actionId) {
     const wp = this.findWaypoint(wpId);
     if (!wp || !Array.isArray(wp.actions)) return;
@@ -251,6 +420,12 @@ class Mission {
     [wp.actions[idx - 1], wp.actions[idx]] = [wp.actions[idx], wp.actions[idx - 1]];
   }
 
+  /**
+   * Moves an action one position later in a waypoint's action list.
+   *
+   * @param {string} wpId
+   * @param {string} actionId
+   */
   moveWaypointActionDown(wpId, actionId) {
     const wp = this.findWaypoint(wpId);
     if (!wp || !Array.isArray(wp.actions)) return;

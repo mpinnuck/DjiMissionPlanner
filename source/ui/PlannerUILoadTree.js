@@ -15,6 +15,13 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUILoadTree = {
+/**
+ * Show mission load dialog.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {*}
+ */
 showMissionLoadDialog({ rootLabel, nodes, initialExpandedPath, onCancel, onSelectFile, onDeleteFile, onRefresh, onChooseFolder, onOpenFromFiles }) {
   this.closeMissionLoadDialog();
   const expandedSegments = typeof initialExpandedPath === 'string' && initialExpandedPath.trim()
@@ -243,6 +250,17 @@ showMissionLoadDialog({ rootLabel, nodes, initialExpandedPath, onCancel, onSelec
   });
 },
 
+/**
+ * Create mission tree node.
+ *
+ * @param {*} node
+ * @param {Function} onSelectFile
+ * @param {Function} onDeleteFile
+ * @param {*} expandedFolderKeys [default: new Set()]
+ * @param {boolean} forceExpand [default: false]
+ *
+ * @returns {*}
+ */
 createMissionTreeNode(node, onSelectFile, onDeleteFile, expandedFolderKeys = new Set(), forceExpand = false) {
   const li = document.createElement('li');
   li.className = 'mission-tree-node';
@@ -311,10 +329,22 @@ createMissionTreeNode(node, onSelectFile, onDeleteFile, expandedFolderKeys = new
   return li;
 },
 
+/**
+ * Set status.
+ *
+ * @param {string} message
+ *
+ * @returns {*}
+ */
 setStatus(message) {
   this.sbStatus.textContent = message;
 },
 
+/**
+ * Ensure toast container.
+ *
+ * @returns {*}
+ */
 ensureToastContainer() {
   let container = document.getElementById('appToastContainer');
   if (!container) {
@@ -327,6 +357,13 @@ ensureToastContainer() {
   return container;
 },
 
+/**
+ * Hide toast.
+ *
+ * @param {string} toastOrId
+ *
+ * @returns {*}
+ */
 hideToast(toastOrId) {
   const toast = typeof toastOrId === 'string'
     ? document.getElementById(toastOrId)
@@ -341,6 +378,15 @@ hideToast(toastOrId) {
   }, 180);
 },
 
+/**
+ * Show toast.
+ *
+ * @param {string} message
+ * @param {string} tone [default: 'success']
+ * @param {Object} options [default: {}]
+ *
+ * @returns {*}
+ */
 showToast(message, tone = 'success', options = {}) {
   const {
     duration = 2200,
@@ -391,10 +437,25 @@ showToast(message, tone = 'success', options = {}) {
   return toast;
 },
 
+/**
+ * Set cursor.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ *
+ * @returns {string}
+ */
 setCursor(lat, lng) {
   this.sbCursor.textContent = `Lat: ${lat.toFixed(6)}  Lon: ${lng.toFixed(6)}`;
 },
 
+/**
+ * Format flythrough time.
+ *
+ * @param {*} totalSeconds
+ *
+ * @returns {string}
+ */
 formatFlythroughTime(totalSeconds) {
   const safeTotal = Number.isFinite(totalSeconds) && totalSeconds > 0
     ? totalSeconds

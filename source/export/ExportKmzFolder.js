@@ -15,6 +15,11 @@
 // Mixed into ExportKmz.prototype
 
 const ExportKmzFolder = {
+/**
+ * Open handle database.
+ *
+ * @returns {Promise<*>}
+ */
 async openHandleDatabase() {
   if (typeof indexedDB === 'undefined') {
     return null;
@@ -33,6 +38,13 @@ async openHandleDatabase() {
   });
 },
 
+/**
+ * Persist folder handle.
+ *
+ * @param {FileSystemHandle} handle
+ *
+ * @returns {Promise<*>}
+ */
 async persistFolderHandle(handle) {
   if (!handle) {
     return;
@@ -52,6 +64,11 @@ async persistFolderHandle(handle) {
   db.close();
 },
 
+/**
+ * Restore folder handle.
+ *
+ * @returns {Promise<*>}
+ */
 async restoreFolderHandle() {
   const db = await this.openHandleDatabase();
   if (!db) {
@@ -68,6 +85,11 @@ async restoreFolderHandle() {
   return handle;
 },
 
+/**
+ * Clear persisted folder handle.
+ *
+ * @returns {Promise<*>}
+ */
 async clearPersistedFolderHandle() {
   const db = await this.openHandleDatabase();
   if (!db) {
@@ -83,6 +105,11 @@ async clearPersistedFolderHandle() {
   db.close();
 },
 
+/**
+ * Load folder handle.
+ *
+ * @returns {Promise<*>}
+ */
 async loadFolderHandle() {
   try {
     this.folderHandle = await this.restoreFolderHandle();
@@ -93,6 +120,13 @@ async loadFolderHandle() {
   return this.folderHandle;
 },
 
+/**
+ * Ensure permission.
+ *
+ * @param {FileSystemHandle} handle
+ *
+ * @returns {Promise<*>}
+ */
 async ensurePermission(handle) {
   const options = { mode: 'readwrite' };
   if (typeof handle?.queryPermission === 'function') {
@@ -108,14 +142,29 @@ async ensurePermission(handle) {
   return !!handle;
 },
 
+/**
+ * Has saved folder.
+ *
+ * @returns {*}
+ */
 hasSavedFolder() {
   return !!this.folderHandle || localStorage.getItem(this.folderHandleKey) !== null;
 },
 
+/**
+ * Can choose folder.
+ *
+ * @returns {*}
+ */
 canChooseFolder() {
   return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
 },
 
+/**
+ * Prompt for folder.
+ *
+ * @returns {Promise<*>}
+ */
 async promptForFolder() {
   try {
     const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
@@ -136,6 +185,11 @@ async promptForFolder() {
   }
 },
 
+/**
+ * Clear saved folder.
+ *
+ * @returns {Promise<*>}
+ */
 async clearSavedFolder() {
   localStorage.removeItem(this.folderHandleKey);
   this.folderHandle = null;
@@ -146,6 +200,11 @@ async clearSavedFolder() {
   }
 },
 
+/**
+ * Get export folder.
+ *
+ * @returns {Promise<*>}
+ */
 async getExportFolder() {
   if (this.folderHandleRestorePromise) {
     await this.folderHandleRestorePromise;
@@ -171,6 +230,11 @@ async getExportFolder() {
   return await this.promptForFolder();
 },
 
+/**
+ * Get saved export folder.
+ *
+ * @returns {Promise<*>}
+ */
 async getSavedExportFolder() {
   if (this.folderHandleRestorePromise) {
     await this.folderHandleRestorePromise;

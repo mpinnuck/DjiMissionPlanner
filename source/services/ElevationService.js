@@ -17,6 +17,15 @@ class ElevationService {
 
   // Public methods
 
+  /**
+   * Looks up the elevation for a specific lat/lng from a previously fetched elevations response.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   * @param {*} elevations [default: null]
+   *
+   * @returns {*}
+   */
   getElevation(lat, lng, elevations = null) {
     // Prefer a caller-provided result map from getElevations() so a single fetch batch
     // can be reused without waiting for cache propagation checks in caller logic.
@@ -28,6 +37,13 @@ class ElevationService {
     return this.cache.has(key) ? this.cache.get(key) : null;
   }
 
+  /**
+   * Fetches terrain elevation in metres ASL for a batch of lat/lng points.
+   *
+   * @param {Object} points [default: []]
+   *
+   * @returns {Promise<*>}
+   */
   async getElevations(points = []) {
     const result = new Map();
     const unique = [];
@@ -94,10 +110,26 @@ class ElevationService {
 
   // Private members
 
+  /**
+   * Key.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   *
+   * @returns {string}
+   */
   _key(lat, lng) {
     return `${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`;
   }
 
+  /**
+   * Chunk.
+   *
+   * @param {*} list
+   * @param {*} chunkSize
+   *
+   * @returns {*}
+   */
   _chunk(list, chunkSize) {
     const chunks = [];
     for (let i = 0; i < list.length; i += chunkSize) {

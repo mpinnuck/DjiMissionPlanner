@@ -11,6 +11,11 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUIPOIDialog = {
+/**
+ * Show p o i options dialog.
+ *
+ * @param {Object} options - Named options object.
+ */
 showPOIOptionsDialog({
   poiLabel,
   positionText,

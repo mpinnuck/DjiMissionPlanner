@@ -14,6 +14,14 @@
 // Mixed into App.prototype in App.js
 
 const AppLoadPath = {
+/**
+ * Get mission folder path.
+ *
+ * @param {string} path
+ * @param {string} rootLabel
+ *
+ * @returns {string}
+ */
 getMissionFolderPath(path, rootLabel) {
   const normalizedPath = String(path || '').replace(/\\/g, '/');
   const normalizedRoot = String(rootLabel || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
@@ -26,6 +34,13 @@ getMissionFolderPath(path, rootLabel) {
   return parts.join('/');
 },
 
+/**
+ * Normalize cloud display path.
+ *
+ * @param {*} pathValue
+ *
+ * @returns {string}
+ */
 normalizeCloudDisplayPath(pathValue) {
   const normalized = String(pathValue || '').replace(/\\/g, '/').trim();
   if (!normalized) {
@@ -65,6 +80,14 @@ normalizeCloudDisplayPath(pathValue) {
   return normalized;
 },
 
+/**
+ * Get loaded mission display path.
+ *
+ * @param {string} path
+ * @param {string} rootLabel
+ *
+ * @returns {*}
+ */
 getLoadedMissionDisplayPath(path, rootLabel) {
   const normalizedPath = this.normalizeCloudDisplayPath(path).replace(/^\/+/, '');
   const normalizedRoot = this.normalizeCloudDisplayPath(rootLabel).replace(/^\/+|\/+$/g, '');
@@ -83,6 +106,15 @@ getLoadedMissionDisplayPath(path, rootLabel) {
   return `${normalizedRoot}/${normalizedPath}`;
 },
 
+/**
+ * Get loaded mission display path for picker.
+ *
+ * @param {*} selected
+ * @param {string} fallbackPath
+ * @param {*} debugContext [default: null]
+ *
+ * @returns {string}
+ */
 getLoadedMissionDisplayPathForPicker(selected, fallbackPath, debugContext = null) {
   const loadedPath = String(fallbackPath || selected?.path || selected?.name || 'mission.json');
   const rootLabel = this.normalizeCloudDisplayPath(selected?.rootLabel || selected?.startRootLabel || '');
@@ -120,6 +152,13 @@ getLoadedMissionDisplayPathForPicker(selected, fallbackPath, debugContext = null
   return loadedPath;
 },
 
+/**
+ * Get load picker context text.
+ *
+ * @param {string} debugContext
+ *
+ * @returns {string}
+ */
 getLoadPickerContextText(debugContext) {
   if (!debugContext || typeof debugContext !== 'object') {
     return '';
@@ -144,6 +183,12 @@ getLoadPickerContextText(debugContext) {
   return `${rootLabel} | ${folderPath} | last file: ${lastFileName}`;
 },
 
+/**
+ * Get load picker context suffix.
+ *
+ * @param {*} selected
+ * @param {*} debugContext [default: null]
+ */
 getLoadPickerContextSuffix(selected, debugContext = null) {
   const source = selected && selected.startInSource ? String(selected.startInSource) : 'unknown';
   const selectedRoot = this.normalizeCloudDisplayPath(selected?.rootLabel || selected?.startRootLabel || '');

@@ -14,6 +14,9 @@
 // AppMapHandlers.js
 // Mixed into App.prototype in App.js
 const AppMapHandlers = {
+/**
+ * Refreshes the desktop stats strip and mobile stats bar with current waypoint count, distance, and elapsed time.
+ */
 updateStats() {
   const distanceMeters = this.mission.totalDistance();
   const totalSeconds = this.flythrough ? this.flythrough.totalTime : 0;
@@ -29,10 +32,16 @@ updateStats() {
   });
 },
 
+/**
+ * Initiates a multi-stage geolocation request with watchPosition, high-accuracy, and fallback.
+ */
 locateUser() {
   this.locationService.locateUser();
 },
 
+/**
+ * Refreshes the numeric index labels on all waypoint markers after add/delete/reorder.
+ */
 refreshMarkerLabels() {
   this.mapController.refreshWaypointLabels(
     this.waypoints,
@@ -54,6 +63,14 @@ refreshMarkerLabels() {
   );
 },
 
+/**
+ * Creates a Leaflet marker for a newly placed waypoint and wires click/drag events.
+ *
+ * @param {Object} wp
+ * @param {number} idx
+ *
+ * @returns {*}
+ */
 addWaypointMarker(wp, idx) {
   const m = this.mapController.addWaypointMarker(wp, idx);
 
@@ -108,6 +125,11 @@ addWaypointMarker(wp, idx) {
   return m;
 },
 
+/**
+ * On waypoint marker click.
+ *
+ * @param {string} waypointId
+ */
 onWaypointMarkerClick(waypointId) {
   if (this.isMobileScreen && this.mode === 'select') {
     this.selectedWaypointIds.add(waypointId);
@@ -180,6 +202,9 @@ onWaypointMarkerClick(waypointId) {
   // Tooltip/options shown on long press, not single-click
 },
 
+/**
+ * Close waypoint tooltip.
+ */
 closeWaypointTooltip() {
   this.activeWaypointTooltipId = null;
   if (this.activeWaypointPopup && this.mapController && this.mapController.map) {
@@ -188,6 +213,9 @@ closeWaypointTooltip() {
   }
 },
 
+/**
+ * Close p o i tooltip.
+ */
 closePOITooltip() {
   if (this.activePOIPopup && this.mapController && this.mapController.map) {
     this.mapController.map.closePopup(this.activePOIPopup);
@@ -195,6 +223,11 @@ closePOITooltip() {
   }
 },
 
+/**
+ * Show p o i tooltip.
+ *
+ * @param {string} poiId
+ */
 showPOITooltip(poiId) {
   const poi = this.mission.findPOI(poiId);
   const marker = this.poiMarkers.get(poiId);
@@ -233,6 +266,16 @@ showPOITooltip(poiId) {
 
   this.activePOIPopup = popup;
 
+  /**
+   * Request animation frame.
+   *
+   * @param {*} () [default: > {
+      const popupElement = popup ? popup.getElement() : null;
+      const button = popupElement ? popupElement.querySelector('.wp-map-tooltip-options') : null;
+      if (!button]
+   *
+   * @returns {string}
+   */
   requestAnimationFrame(() => {
     const popupElement = popup ? popup.getElement() : null;
     const button = popupElement ? popupElement.querySelector('.wp-map-tooltip-options') : null;
@@ -248,6 +291,13 @@ showPOITooltip(poiId) {
   });
 },
 
+/**
+ * Format waypoint time.
+ *
+ * @param {number} seconds
+ *
+ * @returns {string}
+ */
 formatWaypointTime(seconds) {
   const safe = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
   const mins = Math.floor(safe / 60);
@@ -255,6 +305,13 @@ formatWaypointTime(seconds) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 },
 
+/**
+ * Get waypoint metrics.
+ *
+ * @param {number} targetIndex
+ *
+ * @returns {Object}
+ */
 getWaypointMetrics(targetIndex) {
   let cumulativeDistance = 0;
   let cumulativeTime = 0;
@@ -287,6 +344,11 @@ getWaypointMetrics(targetIndex) {
   };
 },
 
+/**
+ * Show waypoint tooltip.
+ *
+ * @param {string} waypointId
+ */
 showWaypointTooltip(waypointId) {
   const wp = this.mission.findWaypoint(waypointId);
   const marker = this.waypointMarkers.get(waypointId);
@@ -349,6 +411,14 @@ showWaypointTooltip(waypointId) {
   this.activeWaypointTooltipId = waypointId;
   this.activeWaypointPopup = popup;
 
+  /**
+   * Request animation frame.
+   *
+   * @param {*} () [default: > {
+      const popupElement = popup ? popup.getElement() : null;
+      const button = popupElement ? popupElement.querySelector('.wp-map-tooltip-options') : null;
+      if (!button]
+   */
   requestAnimationFrame(() => {
     const popupElement = popup ? popup.getElement() : null;
     const button = popupElement ? popupElement.querySelector('.wp-map-tooltip-options') : null;
@@ -364,6 +434,12 @@ showWaypointTooltip(waypointId) {
   });
 },
 
+/**
+ * Opens the waypoint options floating dialog for the specified waypoint ID.
+ *
+ * @param {string} waypointId
+ * @param {Object} options [default: {}]
+ */
 openWaypointOptionsDialog(waypointId, options = {}) {
   const wp = this.mission.findWaypoint(waypointId);
   if (!wp) {

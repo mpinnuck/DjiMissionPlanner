@@ -128,37 +128,77 @@ class PlannerUI {
 
   // Public methods
 
+  /**
+   * Get mission name.
+   *
+   * @returns {*}
+   */
   getMissionName() {
     return this.missionNameInput.value || 'Mission';
   }
 
+  /**
+   * Get default altitude.
+   *
+   * @returns {number}
+   */
   getDefaultAltitude() {
     return parseFloat(this.defaultAltitudeInput.value) || 80;
   }
 
+  /**
+   * Get default speed.
+   *
+   * @returns {*}
+   */
   getDefaultSpeed() {
     const speedKmh = parseFloat(this.defaultSpeedInput.value);
     return Number.isFinite(speedKmh) ? Number((speedKmh / 3.6).toFixed(2)) : 8;
   }
 
+  /**
+   * Get takeoff elevation.
+   *
+   * @returns {*}
+   */
   getTakeoffElevation() {
     const v = parseFloat(this.takeoffElevationInput?.value);
     return Number.isFinite(v) && v >= 0 ? v : 0;
   }
 
+  /**
+   * Get constant height above ground.
+   *
+   * @returns {number}
+   */
   getConstantHeightAboveGround() {
     return parseFloat(this.defaultConstHagInput?.value);
   }
 
+  /**
+   * Get drone profile id.
+   *
+   * @returns {*}
+   */
   getDroneProfileId() {
     return this.droneProfileSelect ? this.droneProfileSelect.value : 'air3s';
   }
 
+  /**
+   * Get camera hfov.
+   *
+   * @returns {*}
+   */
   getCameraHfov() {
     const value = parseFloat(this.cameraHfovInput?.value);
     return Number.isFinite(value) ? value : 82;
   }
 
+  /**
+   * Update drone inputs state.
+   *
+   * @returns {*}
+   */
   updateDroneInputsState() {
     if (!this.cameraHfovInput) {
       return;
@@ -170,18 +210,38 @@ class PlannerUI {
     }
   }
 
+  /**
+   * Get finish action.
+   *
+   * @returns {*}
+   */
   getFinishAction() {
     return this.finishActionSelect.value;
   }
 
+  /**
+   * Get heading mode.
+   *
+   * @returns {*}
+   */
   getHeadingMode() {
     return this.headingModeSelect.value;
   }
 
+  /**
+   * Get rc lost action.
+   *
+   * @returns {*}
+   */
   getRcLostAction() {
     return this.rcLostActionSelect.value;
   }
 
+  /**
+   * Get mission settings.
+   *
+   * @returns {Object}
+   */
   getMissionSettings() {
     return {
       missionName: this.getMissionName(),
@@ -196,6 +256,11 @@ class PlannerUI {
     };
   }
 
+  /**
+   * Apply mission settings.
+   *
+   * @param {Object} settings [default: {}]
+   */
   applyMissionSettings(settings = {}) {
     if (typeof settings.missionName === 'string') {
       this.missionNameInput.value = settings.missionName;
@@ -228,6 +293,11 @@ class PlannerUI {
     this.updateDroneInputsState();
   }
 
+  /**
+   * Bind toolbar events.
+   *
+   * @param {*} handlers
+   */
   bindToolbarEvents(handlers) {
     this.btnAddWP.addEventListener('click', handlers.onAddWaypoint);
     this.btnAddPOI.addEventListener('click', handlers.onAddPOI);

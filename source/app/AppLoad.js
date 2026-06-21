@@ -13,6 +13,9 @@
 // Mixed into App.prototype in App.js
 
 const AppLoad = {
+/**
+ * Apply default altitude to all waypoints.
+ */
 applyDefaultAltitudeToAllWaypoints() {
   if (this.waypoints.length === 0) {
     this.showStatus('No waypoints to update.');
@@ -39,6 +42,11 @@ applyDefaultAltitudeToAllWaypoints() {
   this.showStatus(`Applied ${Math.round(altitude)} m altitude to ${this.waypoints.length} waypoints.`);
 },
 
+/**
+ * Apply constant height above ground.
+ *
+ * @returns {Promise<void>}
+ */
 async applyConstantHeightAboveGround() {
   if (!this.elevationService) {
     this.showStatus('Elevation service unavailable.');
@@ -105,6 +113,11 @@ async applyConstantHeightAboveGround() {
   this.showStatus(`Applied ${targetHag} m HAG to ${updatedCount} waypoints.`);
 },
 
+/**
+ * Is typing in editable control.
+ *
+ * @returns {*}
+ */
 isTypingInEditableControl() {
   const active = document.activeElement;
   if (!active) {
@@ -119,6 +132,11 @@ isTypingInEditableControl() {
   return !!active.isContentEditable;
 },
 
+/**
+ * Copy selected waypoints to clipboard.
+ *
+ * @returns {Promise<void>}
+ */
 async copySelectedWaypointsToClipboard() {
   const selectedWaypoints = this.waypoints.filter(waypoint => this.selectedWaypointIds.has(waypoint.id));
   if (selectedWaypoints.length < 2) {
@@ -172,6 +190,9 @@ async copySelectedWaypointsToClipboard() {
   }
 },
 
+/**
+ * Delete selection from keyboard.
+ */
 deleteSelectionFromKeyboard() {
   if (this.selectedWaypointIds.size >= 1) {
     const waypointIds = [...this.selectedWaypointIds];
@@ -188,6 +209,11 @@ deleteSelectionFromKeyboard() {
   return false;
 },
 
+/**
+ * Open load mission dialog.
+ *
+ * @returns {Promise<void>}
+ */
 async openLoadMissionDialog() {
   try {
     if (!this.lastLoadedMissionFolder) {
@@ -277,6 +303,11 @@ async openLoadMissionDialog() {
   }
 },
 
+/**
+ * Do load mission.
+ *
+ * @returns {Promise<void>}
+ */
 async doLoadMission() {
   if (this.storage.canOpenMissionFileDialog()) {
     try {

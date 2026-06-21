@@ -14,6 +14,11 @@
 // Mixed into App.prototype in App.js
 
 const AppTerrain = {
+/**
+ * Returns the POI that serves as the takeoff datum (POI 1 by convention, else first POI).
+ *
+ * @returns {*}
+ */
 getTakeoffPoi() {
   const poi1 = this.pois.find(poi => poi.id === 'poi_1');
   if (poi1) {
@@ -30,6 +35,9 @@ getTakeoffPoi() {
   return this.pois[0] || null;
 },
 
+/**
+ * Debounces a call to refreshHeightAboveGround by 120 ms to avoid API flooding.
+ */
 scheduleHeightAboveGroundRefresh() {
   if (!this.elevationService) {
     return;
@@ -45,6 +53,13 @@ scheduleHeightAboveGroundRefresh() {
   }, 120);
 },
 
+/**
+ * Fetches terrain elevation for a new POI and sets poi.alt so HAG = 0 at ground level.
+ *
+ * @param {Object} poi
+ *
+ * @returns {Promise<void>}
+ */
 async _initPoiAltitudeToGroundLevel(poi) {
   if (!this.elevationService) {
     return;
@@ -97,6 +112,11 @@ async _initPoiAltitudeToGroundLevel(poi) {
   }
 },
 
+/**
+ * Fetches terrain elevations for all waypoints and POIs and updates the HAG maps.
+ *
+ * @returns {Promise<void>}
+ */
 async refreshHeightAboveGround() {
   if (!this.elevationService || (this.waypoints.length === 0 && this.pois.length === 0)) {
     return;

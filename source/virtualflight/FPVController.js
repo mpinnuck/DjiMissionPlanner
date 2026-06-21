@@ -57,6 +57,11 @@ class FPVController {
     this._initHUD();
   }
 
+  /**
+   * Updates the drone profile (HFOV, aspect ratio) used for FOV cone rendering.
+   *
+   * @param {*} droneConfig
+   */
   setDroneConfig(droneConfig) {
     const hfov = Number(droneConfig && droneConfig.hfovDeg);
     const aspect = Number(droneConfig && droneConfig.aspect);
@@ -117,6 +122,11 @@ class FPVController {
     }
   }
 
+  /**
+   * Set graph height above ground.
+   *
+   * @param {string} heightAboveGroundByWaypointId
+   */
   setGraphHeightAboveGround(heightAboveGroundByWaypointId) {
     this._graphHeightAboveGroundByWaypointId = heightAboveGroundByWaypointId;
     if (this._visible) {
@@ -161,6 +171,9 @@ class FPVController {
     this._drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId);
   }
 
+  /**
+   * Shows the flight graph overlay for the given waypoints and renders the initial frame.
+   */
   show() {
     this._container.style.display = 'block';
     this._visible = true;
@@ -169,6 +182,9 @@ class FPVController {
     this._refreshGraph();
   }
 
+  /**
+   * Hides the flight graph overlay.
+   */
   hide() {
     this._container.style.display = 'none';
     this._visible = false;
@@ -179,8 +195,17 @@ class FPVController {
     }
   }
 
+  /**
+   * Resize.
+   */
   resize() { this._resize(); }
 
+  /**
+   * Update graph cursor.
+   *
+   * @param {*} currentTime
+   * @param {*} totalTime
+   */
   updateGraphCursor(currentTime, totalTime) {
     this._graphCurrentTime = Number.isFinite(currentTime) ? currentTime : this._graphCurrentTime;
     this._graphTotalTime = Number.isFinite(totalTime) ? totalTime : this._graphTotalTime;
@@ -189,6 +214,9 @@ class FPVController {
     }
   }
 
+  /**
+   * Stops playback and removes all flythrough layers from the map.
+   */
   destroy() {
     this._clearTiles();
     this._renderer?.dispose();
@@ -198,6 +226,9 @@ class FPVController {
 
   // ── Three.js init ─────────────────────────────────────────────────────────
 
+  /**
+   * Init three.
+   */
   _initThree() {
     // Scene
     this._scene = new THREE.Scene();
@@ -238,6 +269,9 @@ class FPVController {
 
   // ── HUD overlay ───────────────────────────────────────────────────────────
 
+  /**
+   * Init h u d.
+   */
   _initHUD() {
     const hud = document.createElement('canvas');
     hud.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
@@ -246,6 +280,17 @@ class FPVController {
     this._hudCtx    = hud.getContext('2d');
   }
 
+  /**
+   * Draw h u d.
+   *
+   * @param {number} alt
+   * @param {*} heading
+   * @param {*} gimbalPitch
+   * @param {number} speed
+   * @param {*} distance
+   * @param {number} segmentIndex
+   * @param {string} poiId
+   */
   _drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId) {
     const c   = this._hudCtx;
     const w   = this._hudCanvas.width;
@@ -363,6 +408,13 @@ class FPVController {
     c.stroke();
   }
 
+  /**
+   * Heading label.
+   *
+   * @param {*} deg
+   *
+   * @returns {number}
+   */
   _headingLabel(deg) {
     const norm = ((deg % 360) + 360) % 360;
     const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
@@ -372,6 +424,14 @@ class FPVController {
 
   // ── Satellite tile loading ─────────────────────────────────────────────────
 
+  /**
+   * Load tiles for bounds.
+   *
+   * @param {*} minLat
+   * @param {*} maxLat
+   * @param {*} minLng
+   * @param {*} maxLng
+   */
   _loadTilesForBounds(minLat, maxLat, minLng, maxLng) {
     const Z    = FPVController.TILE_ZOOM;
     const BUF  = 3;   // extra tile buffer outside bbox
@@ -386,6 +446,13 @@ class FPVController {
     }
   }
 
+  /**
+   * Load tile.
+   *
+   * @param {*} tx
+   * @param {*} ty
+   * @param {number} zoom
+   */
   _loadTile(tx, ty, zoom) {
     const key = `${zoom}/${tx}/${ty}`;
     if (this._tileCache.has(key)) return;
@@ -427,6 +494,11 @@ class FPVController {
     });
   }
 
+  /**
+   * Clear tiles.
+   *
+   * @returns {Object}
+   */
   _clearTiles() {
     this._tileCache.forEach(mesh => {
       if (!mesh) return;
@@ -450,6 +522,15 @@ class FPVController {
     };
   }
 
+  /**
+   * Lat lng to tile.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   * @param {number} zoom
+   *
+   * @returns {Object}
+   */
   _latLngToTile(lat, lng, zoom) {
     const n      = Math.pow(2, zoom);
     const latRad = lat * Math.PI / 180;
@@ -459,6 +540,15 @@ class FPVController {
     };
   }
 
+  /**
+   * Tile to lat lng.
+   *
+   * @param {*} tx
+   * @param {*} ty
+   * @param {number} zoom
+   *
+   * @returns {Object}
+   */
   _tileToLatLng(tx, ty, zoom) {
     const n      = Math.pow(2, zoom);
     const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / n)));
@@ -470,6 +560,9 @@ class FPVController {
 
   // ── Resize ────────────────────────────────────────────────────────────────
 
+  /**
+   * Resize.
+   */
   _resize() {
     const w = this._container.offsetWidth;
     const h = this._container.offsetHeight;
@@ -483,6 +576,9 @@ class FPVController {
     this._syncGraphOverlapClass();
   }
 
+  /**
+   * Refresh graph.
+   */
   _refreshGraph() {
     if (!this._flightGraph) {
       document.body.classList.remove('fpv-graph-active');
@@ -506,6 +602,9 @@ class FPVController {
     requestAnimationFrame(() => this._syncGraphOverlapClass());
   }
 
+  /**
+   * Sync graph overlap class.
+   */
   _syncGraphOverlapClass() {
     const graphOverlay = this._flightGraph && this._flightGraph.overlayElement;
 

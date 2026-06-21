@@ -16,6 +16,11 @@
 // Mixed into FlythroughController.prototype
 
 const FlythroughMarkers = {
+/**
+ * Build drone icon.
+ *
+ * @returns {*}
+ */
 _buildDroneIcon() {
   // Created once — rotation is applied via CSS transform on .ft-drone-inner.
   return L.divIcon({
@@ -37,6 +42,9 @@ _buildDroneIcon() {
   });
 },
 
+/**
+ * Bind drone interactions.
+ */
 _bindDroneInteractions() {
   if (!this._droneLayer) {
     return;
@@ -99,6 +107,11 @@ _bindDroneInteractions() {
   });
 },
 
+/**
+ * Show telemetry popup.
+ *
+ * @param {Object} frame
+ */
 _showTelemetryPopup(frame) {
   if (!frame || !this._droneLayer) {
     return;
@@ -122,11 +135,26 @@ _showTelemetryPopup(frame) {
   this._attachTelemetryPopupActions();
 },
 
+/**
+ * Attach telemetry popup actions.
+ *
+ * @returns {string}
+ */
 _attachTelemetryPopupActions() {
   if (!this._telemetryPopup) {
     return;
   }
 
+  /**
+   * Request animation frame.
+   *
+   * @param {*} () [default: > {
+      const popupElement = this._telemetryPopup ? this._telemetryPopup.getElement() : null;
+      const startButton = popupElement ? popupElement.querySelector('.ft-telemetry-start') : null;
+      if (!startButton]
+   *
+   * @returns {string}
+   */
   requestAnimationFrame(() => {
     const popupElement = this._telemetryPopup ? this._telemetryPopup.getElement() : null;
     const startButton = popupElement ? popupElement.querySelector('.ft-telemetry-start') : null;
@@ -143,12 +171,24 @@ _attachTelemetryPopupActions() {
   });
 },
 
+/**
+ * Close telemetry popup.
+ *
+ * @returns {string}
+ */
 _closeTelemetryPopup() {
   if (this._telemetryPopup) {
     this._map.closePopup(this._telemetryPopup);
   }
 },
 
+/**
+ * Build telemetry html.
+ *
+ * @param {Object} frame
+ *
+ * @returns {string}
+ */
 _buildTelemetryHtml(frame) {
   const totalDistance = this._timeline.length ? this._timeline[this._timeline.length - 1].distance : 0;
   const distance = Number.isFinite(frame.distance) ? frame.distance : 0;
@@ -174,6 +214,13 @@ _buildTelemetryHtml(frame) {
   `;
 },
 
+/**
+ * Format time.
+ *
+ * @param {*} totalSeconds
+ *
+ * @returns {string}
+ */
 _formatTime(totalSeconds) {
   const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0;
   const mins = Math.floor(safe / 60);
@@ -181,6 +228,13 @@ _formatTime(totalSeconds) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 },
 
+/**
+ * Find nearest frame.
+ *
+ * @param {*} latlng
+ *
+ * @returns {*}
+ */
 _findNearestFrame(latlng) {
   if (!latlng || !this._timeline.length) {
     return null;
@@ -205,6 +259,16 @@ _findNearestFrame(latlng) {
 //
 // Returns null when the pitch is too shallow (footprint becomes enormous).
 
+/**
+ * Compute f o v.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {*} altM
+ * @param {*} headingDeg
+ * @param {*} gimbalPitchDeg
+ * @param {number} poiAlt [default: 0]
+ */
 _computeFOV(lat, lng, altM, headingDeg, gimbalPitchDeg, poiAlt = 0) {
   if (!Number.isFinite(altM) || altM <= 0) return null;
 

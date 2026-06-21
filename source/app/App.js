@@ -163,6 +163,13 @@ class App {
     return this._mobileScreenMql ? this._mobileScreenMql.matches : false;
   }
 
+  /**
+   * Updates the status bar text and fires the onStatus callback if set.
+   *
+   * @param {string} message
+   *
+   * @returns {Object}
+   */
   showStatus(message) {
     this.ui.setStatus(message);
 
@@ -171,6 +178,11 @@ class App {
     }
   }
 
+  /**
+   * Returns the active drone profile object based on the current UI selection.
+   *
+   * @returns {Object}
+   */
   getActiveDroneConfig() {
     const selectedProfileId = this.ui && typeof this.ui.getDroneProfileId === 'function'
       ? this.ui.getDroneProfileId()
@@ -196,6 +208,11 @@ class App {
     return this.droneProfiles[selectedProfileId] || this.droneProfiles.air3s;
   }
 
+  /**
+   * Applies the selected drone profile to the FPV and flythrough controllers.
+   *
+   * @param {boolean} showFeedback [default: true]
+   */
   applyDroneConfiguration(showFeedback = true) {
     this.activeDroneConfig = this.getActiveDroneConfig();
 
@@ -212,6 +229,9 @@ class App {
     }
   }
 
+  /**
+   * Propagates a default speed change to all waypoints that were still at the previous default.
+   */
   handleDefaultSpeedChange() {
     const previousDefaultSpeed = this.currentMissionDefaultSpeedMps;
     const nextDefaultSpeed = this.ui.getDefaultSpeed();
@@ -239,6 +259,9 @@ class App {
     this.currentMissionDefaultSpeedMps = nextDefaultSpeed;
   }
 
+  /**
+   * Sets every waypoint's speed to the current default speed value.
+   */
   applyDefaultSpeedToAllWaypoints() {
     if (this.waypoints.length === 0) {
       this.showStatus('No waypoints to update.');

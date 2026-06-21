@@ -17,6 +17,11 @@
 
 const FileSystemBackendDir = {
 
+/**
+ * Choose root directory.
+ *
+ * @returns {Promise<*>}
+ */
 async chooseRootDirectory() {
   if (!this.canChooseRootDirectory()) {
     throw new Error('This browser does not support folder access. Use Chrome, Edge, or another Chromium browser over localhost/HTTPS.');
@@ -31,6 +36,14 @@ async chooseRootDirectory() {
   return this.rootDirectoryHandle;
 },
 
+/**
+ * Ensure permission.
+ *
+ * @param {FileSystemHandle} handle
+ * @param {string} mode
+ *
+ * @returns {Promise<*>}
+ */
 async ensurePermission(handle, mode) {
   const options = { mode };
   if (typeof handle.queryPermission === 'function') {
@@ -46,6 +59,13 @@ async ensurePermission(handle, mode) {
   return false;
 },
 
+/**
+ * Ensure root directory.
+ *
+ * @param {string} preferredRootLabel [default: '']
+ *
+ * @returns {Promise<void>}
+ */
 async ensureRootDirectory(preferredRootLabel = '') {
   if (preferredRootLabel) {
     const currentLabel = this.rootDirectoryHandle && this.rootDirectoryHandle.name
@@ -116,6 +136,13 @@ async ensureRootDirectory(preferredRootLabel = '') {
   return this.rootDirectoryHandle;
 },
 
+/**
+ * Open mission file dialog.
+ *
+ * @param {string} preferredRootLabel [default: '']
+ *
+ * @returns {Promise<void>}
+ */
 async openMissionFileDialog(preferredRootLabel = '') {
   if (!this.canOpenMissionFileDialog()) {
     throw new Error('This browser does not support file picker dialogs.');
@@ -272,6 +299,15 @@ async openMissionFileDialog(preferredRootLabel = '') {
   };
 },
 
+/**
+ * Resolve directory handle from path.
+ *
+ * @param {string} relativePath
+ * @param {boolean} create [default: false]
+ * @param {*} baseDirectoryHandle [default: null]
+ *
+ * @returns {Promise<*>}
+ */
 async resolveDirectoryHandleFromPath(relativePath, create = false, baseDirectoryHandle = null) {
   const missionDir = baseDirectoryHandle || await this.getMissionDirectoryHandle(create);
   const normalized = this.normalizeFolderPath(relativePath);
@@ -287,12 +323,29 @@ async resolveDirectoryHandleFromPath(relativePath, create = false, baseDirectory
   return directory;
 },
 
+/**
+ * Get mission directory handle.
+ *
+ * @param {boolean} create [default: true]
+ * @param {string} preferredRootLabel [default: '']
+ *
+ * @returns {Promise<*>}
+ */
 async getMissionDirectoryHandle(create = true, preferredRootLabel = '') {
   const root = await this.ensureRootDirectory(preferredRootLabel);
   this.rootLabel = root && root.name ? root.name : this.rootLabel;
   return root;
 },
 
+/**
+ * Resolve directory for path.
+ *
+ * @param {string} relativePath
+ * @param {boolean} create [default: true]
+ * @param {string} preferredRootLabel [default: '']
+ *
+ * @returns {Promise<Object>}
+ */
 async resolveDirectoryForPath(relativePath, create = true, preferredRootLabel = '') {
   const missionDir = await this.getMissionDirectoryHandle(create, preferredRootLabel);
   const normalized = this.normalizePath(relativePath);

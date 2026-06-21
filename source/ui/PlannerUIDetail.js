@@ -14,6 +14,13 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUIDetail = {
+/**
+ * Show waypoint detail.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {string}
+ */
 showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, onSpeedChange, onPoiChange, targetElement = null }) {
   const detailTarget = this.resolveDetailContainer(targetElement);
   const poiOptions = pois.map((poi, index) => {
@@ -70,6 +77,11 @@ showWaypointDetail({ wp, waypointIndex, pois, distanceText, onAltitudeChange, on
   });
 },
 
+/**
+ * Show p o i detail.
+ *
+ * @param {Object} options - Named options object.
+ */
 showPOIDetail({ poi, onNameChange, onAltitudeChange, targetElement = null }) {
   const detailTarget = this.resolveDetailContainer(targetElement);
   const isTakeoffPoi = poi.id === 'poi_1' || Mission.formatPoiDisplayName(poi.name, '') === '1';
@@ -98,6 +110,13 @@ showPOIDetail({ poi, onNameChange, onAltitudeChange, targetElement = null }) {
   });
 },
 
+/**
+ * Show bulk waypoint detail.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {string}
+ */
 showBulkWaypointDetail({ selectedCount, pois, onApply, onApplyAll, onClearSelection, targetElement = null }) {
   const detailTarget = this.resolveDetailContainer(targetElement);
   const poiOptions = pois.map((poi, index) => {

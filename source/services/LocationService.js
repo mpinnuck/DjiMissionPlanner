@@ -23,16 +23,37 @@ class LocationService {
 
   // Public methods
 
+  /**
+   * Set pending.
+   *
+   * @param {boolean} isPending
+   *
+   * @returns {Object}
+   */
   setPending(isPending) {
     if (typeof this.onPending === 'function') {
       this.onPending(isPending);
     }
   }
 
+  /**
+   * Request position.
+   *
+   * @param {*} requestOptions
+   * @param {Function} onSuccess
+   * @param {Function} onFailure
+   *
+   * @returns {Object}
+   */
   requestPosition(requestOptions, onSuccess, onFailure) {
     navigator.geolocation.getCurrentPosition(onSuccess, onFailure, requestOptions);
   }
 
+  /**
+   * Clear watch.
+   *
+   * @returns {Object}
+   */
   clearWatch() {
     if (this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
@@ -40,6 +61,13 @@ class LocationService {
     }
   }
 
+  /**
+   * Emit location.
+   *
+   * @param {*} pos
+   *
+   * @returns {Object}
+   */
   emitLocation(pos) {
     this.setPending(false);
     const location = {
@@ -51,6 +79,13 @@ class LocationService {
     this.onLocated(location);
   }
 
+  /**
+   * Save last known location.
+   *
+   * @param {Object} location
+   *
+   * @returns {Object}
+   */
   saveLastKnownLocation(location) {
     try {
       const payload = {
@@ -65,6 +100,11 @@ class LocationService {
     }
   }
 
+  /**
+   * Get last known location.
+   *
+   * @returns {Object}
+   */
   getLastKnownLocation() {
     try {
       const raw = window.localStorage.getItem(this.locationCacheKey);
@@ -88,6 +128,14 @@ class LocationService {
     }
   }
 
+  /**
+   * Request watch fallback.
+   *
+   * @param {Function} onSuccess
+   * @param {Function} onFailure
+   *
+   * @returns {string}
+   */
   requestWatchFallback(onSuccess, onFailure) {
     this.clearWatch();
 
@@ -137,6 +185,11 @@ class LocationService {
     );
   }
 
+  /**
+   * Get context error.
+   *
+   * @returns {string}
+   */
   getContextError() {
     if (window.location.protocol === 'file:') {
       return 'Location requires a secure page. This app was opened as a local file, so run it from localhost or HTTPS instead.';
@@ -149,6 +202,9 @@ class LocationService {
     return null;
   }
 
+  /**
+   * Initiates a multi-stage geolocation request with watchPosition, high-accuracy, and fallback.
+   */
   locateUser() {
     if (!('geolocation' in navigator)) {
       this.setPending(false);
@@ -234,6 +290,11 @@ class LocationService {
     );
   }
 
+  /**
+   * Handle location error.
+   *
+   * @param {*} err
+   */
   handleLocationError(err) {
     this.setPending(false);
     const cachedLocation = this.getLastKnownLocation();

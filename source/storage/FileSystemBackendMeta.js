@@ -16,6 +16,13 @@
 
 const FileSystemBackendMeta = {
 
+/**
+ * Directory handle key for root label.
+ *
+ * @param {string} rootLabel
+ *
+ * @returns {*}
+ */
 directoryHandleKeyForRootLabel(rootLabel) {
   const normalized = String(rootLabel || '').trim();
   if (!normalized) {
@@ -25,18 +32,40 @@ directoryHandleKeyForRootLabel(rootLabel) {
   return `${this.directoryHandleKey}::${encodeURIComponent(normalized)}`;
 },
 
+/**
+ * Can choose root directory.
+ *
+ * @returns {*}
+ */
 canChooseRootDirectory() {
   return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
 },
 
+/**
+ * Can open mission file dialog.
+ *
+ * @returns {*}
+ */
 canOpenMissionFileDialog() {
   return typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function';
 },
 
+/**
+ * Get last loaded mission folder.
+ *
+ * @returns {*}
+ */
 getLastLoadedMissionFolder() {
   return this.getLastLoadedMissionLocation().folderPath;
 },
 
+/**
+ * Set last loaded mission folder.
+ *
+ * @param {string} path
+ *
+ * @returns {string}
+ */
 setLastLoadedMissionFolder(path) {
   this.setLastLoadedMissionLocation({
     rootLabel: this.rootLabel,
@@ -44,6 +73,11 @@ setLastLoadedMissionFolder(path) {
   });
 },
 
+/**
+ * Get last loaded mission root label.
+ *
+ * @returns {string}
+ */
 getLastLoadedMissionRootLabel() {
   if (typeof window === 'undefined' || !window.localStorage) {
     return '';
@@ -52,6 +86,13 @@ getLastLoadedMissionRootLabel() {
   return String(window.localStorage.getItem(this.lastLoadedRootLabelKey) || '').trim();
 },
 
+/**
+ * Set last loaded mission root label.
+ *
+ * @param {string} rootLabel
+ *
+ * @returns {Object}
+ */
 setLastLoadedMissionRootLabel(rootLabel) {
   if (typeof window === 'undefined' || !window.localStorage) {
     return;
@@ -66,6 +107,11 @@ setLastLoadedMissionRootLabel(rootLabel) {
   window.localStorage.setItem(this.lastLoadedRootLabelKey, normalized);
 },
 
+/**
+ * Get last loaded mission location.
+ *
+ * @returns {Object}
+ */
 getLastLoadedMissionLocation() {
   if (typeof window === 'undefined' || !window.localStorage) {
     return { rootLabel: '', folderPath: '' };
@@ -77,6 +123,13 @@ getLastLoadedMissionLocation() {
   };
 },
 
+/**
+ * Set last loaded mission location.
+ *
+ * @param {Object} location [default: {}]
+ *
+ * @returns {Object}
+ */
 setLastLoadedMissionLocation(location = {}) {
   if (typeof window === 'undefined' || !window.localStorage) {
     return;
@@ -100,6 +153,11 @@ setLastLoadedMissionLocation(location = {}) {
   return;
 },
 
+/**
+ * Mark current root as last loaded root.
+ *
+ * @returns {Promise<Object>}
+ */
 async markCurrentRootAsLastLoadedRoot() {
   if (!this.rootDirectoryHandle) {
     return;
@@ -108,6 +166,11 @@ async markCurrentRootAsLastLoadedRoot() {
   await this.persistLastLoadedRootDirectoryHandle(this.rootDirectoryHandle);
 },
 
+/**
+ * Get debug context.
+ *
+ * @returns {Promise<Object>}
+ */
 async getDebugContext() {
   const savedLocation = this.getLastLoadedMissionLocation();
   const genericHandle = await this.restoreRootDirectoryHandle('');
@@ -133,6 +196,13 @@ async getDebugContext() {
   };
 },
 
+/**
+ * Normalize folder path.
+ *
+ * @param {string} path
+ *
+ * @returns {string}
+ */
 normalizeFolderPath(path) {
   return String(path || '')
     .replace(/\\/g, '/')
@@ -141,10 +211,22 @@ normalizeFolderPath(path) {
     .join('/');
 },
 
+/**
+ * Returns a human-readable description of the active storage backend.
+ *
+ * @returns {string}
+ */
 getDescription() {
   return 'Filesystem storage';
 },
 
+/**
+ * Sanitize mission name.
+ *
+ * @param {string} name
+ *
+ * @returns {*}
+ */
 sanitizeMissionName(name) {
   const base = (name || 'Mission').trim();
   const sanitized = base
@@ -155,6 +237,13 @@ sanitizeMissionName(name) {
   return sanitized || 'Mission';
 },
 
+/**
+ * Normalize path.
+ *
+ * @param {string} name
+ *
+ * @returns {string}
+ */
 normalizePath(name) {
   const raw = String(name || '').trim().replace(/\\/g, '/');
   if (!raw) {

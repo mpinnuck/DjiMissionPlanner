@@ -35,6 +35,13 @@ class FlightGraph {
     return this._overlay;
   }
 
+  /**
+   * Computes graph data points (alt, HAG, speed vs time) from the mission waypoints.
+   *
+   * @param {Object} options - Named options object.
+   *
+   * @returns {*}
+   */
   buildData({ waypoints, mission, heightAboveGroundByWaypointId = null }) {
     if (!Array.isArray(waypoints) || waypoints.length < 2 || !mission || typeof mission.haversine !== 'function') {
       return null;
@@ -119,6 +126,11 @@ class FlightGraph {
     };
   }
 
+  /**
+   * Shows the flight graph overlay for the given waypoints and renders the initial frame.
+   *
+   * @param {Object} options - Named options object.
+   */
   show({ waypoints, mission, cursorTime = 0, heightAboveGroundByWaypointId = null }) {
     if (!this._overlay || !this._canvas) {
       return;
@@ -136,6 +148,9 @@ class FlightGraph {
     this.draw(cursorTime);
   }
 
+  /**
+   * Hides the flight graph overlay.
+   */
   hide() {
     if (!this._overlay) {
       return;
@@ -144,6 +159,11 @@ class FlightGraph {
     this._visible = false;
   }
 
+  /**
+   * Re-renders the graph with updated waypoints if currently visible.
+   *
+   * @param {Object} options - Named options object.
+   */
   refresh({ waypoints, mission, cursorTime = 0 }) {
     if (!this._visible) {
       return;
@@ -151,6 +171,12 @@ class FlightGraph {
     this.show({ waypoints, mission, cursorTime });
   }
 
+  /**
+   * Redraws the time cursor line and readout at the given playhead time.
+   *
+   * @param {*} currentTime
+   * @param {*} totalTime
+   */
   updateCursor(currentTime, totalTime) {
     if (!this._visible || !this._data) {
       return;
@@ -168,6 +194,11 @@ class FlightGraph {
     this.draw(currentTime);
   }
 
+  /**
+   * Renders the complete graph to the canvas at the given cursor time.
+   *
+   * @param {number} cursorTime [default: 0]
+   */
   draw(cursorTime = 0) {
     if (!this._visible || !this._canvas || !this._data) {
       return;
@@ -218,6 +249,14 @@ class FlightGraph {
 
   // Private members
 
+  /**
+   * Compute layout.
+   *
+   * @param {*} width
+   * @param {*} height
+   *
+   * @returns {Object}
+   */
   _computeLayout(width, height) {
     const padLeft = 38;
     const padRight = 54;
@@ -241,6 +280,15 @@ class FlightGraph {
     };
   }
 
+  /**
+   * Compute scale fns.
+   *
+   * @param {*} layout
+   * @param {Object} data
+   * @param {*} totalTimeInput
+   *
+   * @returns {number}
+   */
   _computeScaleFns(layout, data, totalTimeInput) {
     const totalTime = Math.max(1, Number(totalTimeInput) || 0);
     const rawAltRange = data.maxAlt - data.minAlt;
@@ -277,6 +325,13 @@ class FlightGraph {
     };
   }
 
+  /**
+   * Draw grid.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} layout
+   * @param {Object} data
+   */
   _drawGrid(ctx, layout, data) {
     const axisTickCount = 4;
     for (let i = 0; i <= axisTickCount; i += 1) {
@@ -315,6 +370,12 @@ class FlightGraph {
     }
   }
 
+  /**
+   * Draw axes.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} layout
+   */
   _drawAxes(ctx, layout) {
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 1;
@@ -325,6 +386,13 @@ class FlightGraph {
     ctx.stroke();
   }
 
+  /**
+   * Draw altitude line.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} scaleFns
+   * @param {Object} data
+   */
   _drawAltitudeLine(ctx, scaleFns, data) {
     ctx.strokeStyle = 'rgba(0, 212, 255, 0.95)';
     ctx.lineWidth = 2;
@@ -338,6 +406,13 @@ class FlightGraph {
     ctx.stroke();
   }
 
+  /**
+   * Draw hag line.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} scaleFns
+   * @param {Object} data
+   */
   _drawHagLine(ctx, scaleFns, data) {
     if (!data.hasHag) {
       return;
@@ -367,6 +442,13 @@ class FlightGraph {
     ctx.stroke();
   }
 
+  /**
+   * Draw speed line.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} scaleFns
+   * @param {Object} data
+   */
   _drawSpeedLine(ctx, scaleFns, data) {
     ctx.strokeStyle = 'rgba(240, 165, 0, 0.95)';
     ctx.lineWidth = 2;
@@ -380,6 +462,14 @@ class FlightGraph {
     ctx.stroke();
   }
 
+  /**
+   * Draw x axis.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} layout
+   * @param {*} scaleFns
+   * @param {*} totalTime
+   */
   _drawXAxis(ctx, layout, scaleFns, totalTime) {
     const xTickStepSeconds = 30;
     const pixelsPer30s = (layout.plotW / Math.max(1, totalTime)) * xTickStepSeconds;
@@ -421,6 +511,13 @@ class FlightGraph {
     ctx.fillText(this._formatTime(totalTime), layout.padLeft + layout.plotW - 36, layout.padTop + layout.plotH + 14);
   }
 
+  /**
+   * Draw legend.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} layout
+   * @param {Object} data
+   */
   _drawLegend(ctx, layout, data) {
     const items = [
       { label: 'ALT', color: 'rgba(0, 212, 255, 0.95)' },
@@ -473,6 +570,17 @@ class FlightGraph {
     });
   }
 
+  /**
+   * Draw static graph.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} layout
+   * @param {*} scaleFns
+   * @param {Object} data
+   * @param {*} totalTime
+   *
+   * @returns {string}
+   */
   _drawStaticGraph(ctx, layout, scaleFns, data, totalTime) {
     this._drawGrid(ctx, layout, data);
     this._drawAxes(ctx, layout);
@@ -483,6 +591,13 @@ class FlightGraph {
     this._drawLegend(ctx, layout, data);
   }
 
+  /**
+   * Format time.
+   *
+   * @param {number} seconds
+   *
+   * @returns {string}
+   */
   _formatTime(seconds) {
     const safe = Math.max(0, Math.round(seconds));
     const mm = Math.floor(safe / 60);
@@ -490,6 +605,13 @@ class FlightGraph {
     return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
   }
 
+  /**
+   * Sample at time.
+   *
+   * @param {number} t
+   *
+   * @returns {Object}
+   */
   _sampleAtTime(t) {
     const data = this._data;
     if (!data || !Array.isArray(data.points) || data.points.length === 0) {
@@ -559,6 +681,14 @@ class FlightGraph {
     };
   }
 
+  /**
+   * Draw cursor.
+   *
+   * @param {HTMLElement} ctx
+   * @param {*} layout
+   * @param {*} scaleFns
+   * @param {*} cursorTime
+   */
   _drawCursor(ctx, layout, scaleFns, cursorTime) {
     const cursorX = scaleFns.xAt(cursorTime);
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';

@@ -20,6 +20,13 @@ class PersistentStorage {
 
   // Public methods
 
+  /**
+   * Create backend.
+   *
+   * @param {*} backendMode
+   *
+   * @returns {*}
+   */
   createBackend(backendMode) {
     if (backendMode === 'filesystem') {
       return new FileSystemBackend({ onStatus: this.onStatus, onError: this.onError });
@@ -138,14 +145,29 @@ class PersistentStorage {
     return this.backend && this.backend.constructor ? this.backend.constructor.name : 'UnknownBackend';
   }
 
+  /**
+   * Can choose root directory.
+   *
+   * @returns {*}
+   */
   canChooseRootDirectory() {
     return typeof this.backend.canChooseRootDirectory === 'function' && this.backend.canChooseRootDirectory();
   }
 
+  /**
+   * Can open mission file dialog.
+   *
+   * @returns {*}
+   */
   canOpenMissionFileDialog() {
     return typeof this.backend.canOpenMissionFileDialog === 'function' && this.backend.canOpenMissionFileDialog();
   }
 
+  /**
+   * Choose root directory.
+   *
+   * @returns {*}
+   */
   chooseRootDirectory() {
     if (typeof this.backend.chooseRootDirectory !== 'function') {
       return Promise.resolve(null);
@@ -153,6 +175,11 @@ class PersistentStorage {
     return this.backend.chooseRootDirectory();
   }
 
+  /**
+   * Open mission file dialog.
+   *
+   * @returns {*}
+   */
   openMissionFileDialog() {
     if (typeof this.backend.openMissionFileDialog !== 'function') {
       return Promise.reject(new Error('Mission file picker is not available with the current storage backend.'));
@@ -160,6 +187,11 @@ class PersistentStorage {
     return this.backend.openMissionFileDialog();
   }
 
+  /**
+   * Get last loaded mission folder.
+   *
+   * @returns {string}
+   */
   getLastLoadedMissionFolder() {
     if (typeof this.backend.getLastLoadedMissionFolder !== 'function') {
       return '';
@@ -167,6 +199,13 @@ class PersistentStorage {
     return this.backend.getLastLoadedMissionFolder();
   }
 
+  /**
+   * Set last loaded mission folder.
+   *
+   * @param {string} path
+   *
+   * @returns {Object}
+   */
   setLastLoadedMissionFolder(path) {
     if (typeof this.backend.setLastLoadedMissionFolder !== 'function') {
       return;
@@ -174,6 +213,11 @@ class PersistentStorage {
     this.backend.setLastLoadedMissionFolder(path);
   }
 
+  /**
+   * Get last loaded mission location.
+   *
+   * @returns {Object}
+   */
   getLastLoadedMissionLocation() {
     if (typeof this.backend.getLastLoadedMissionLocation !== 'function') {
       return { rootLabel: '', folderPath: '' };
@@ -181,6 +225,13 @@ class PersistentStorage {
     return this.backend.getLastLoadedMissionLocation();
   }
 
+  /**
+   * Set last loaded mission location.
+   *
+   * @param {Object} location
+   *
+   * @returns {*}
+   */
   setLastLoadedMissionLocation(location) {
     if (typeof this.backend.setLastLoadedMissionLocation !== 'function') {
       return;
@@ -188,6 +239,11 @@ class PersistentStorage {
     this.backend.setLastLoadedMissionLocation(location);
   }
 
+  /**
+   * Mark current root as last loaded root.
+   *
+   * @returns {*}
+   */
   markCurrentRootAsLastLoadedRoot() {
     if (typeof this.backend.markCurrentRootAsLastLoadedRoot !== 'function') {
       return Promise.resolve();
@@ -195,6 +251,11 @@ class PersistentStorage {
     return this.backend.markCurrentRootAsLastLoadedRoot();
   }
 
+  /**
+   * Get debug context.
+   *
+   * @returns {Promise<*>}
+   */
   async getDebugContext() {
     if (typeof this.backend.getDebugContext === 'function') {
       return this.backend.getDebugContext();
@@ -206,12 +267,22 @@ class PersistentStorage {
     };
   }
 
+  /**
+   * Returns a human-readable description of the active storage backend.
+   *
+   * @returns {*}
+   */
   getDescription() {
     return typeof this.backend.getDescription === 'function'
       ? this.backend.getDescription()
       : 'Persistent storage';
   }
 
+  /**
+   * Get last loaded file handle.
+   *
+   * @returns {Promise<*>}
+   */
   async getLastLoadedFileHandle() {
     if (typeof this.backend.restoreLastLoadedFileHandle !== 'function') {
       return null;
@@ -219,22 +290,56 @@ class PersistentStorage {
     return this.backend.restoreLastLoadedFileHandle();
   }
 
+  /**
+   * Save.
+   *
+   * @param {string} name
+   * @param {string} jsonText
+   *
+   * @returns {Promise<*>}
+   */
   async save(name, jsonText) {
     return this.backend.save(name, jsonText);
   }
 
+  /**
+   * Load.
+   *
+   * @param {string} name
+   *
+   * @returns {Promise<*>}
+   */
   async load(name) {
     return this.backend.load(name);
   }
 
+  /**
+   * Delete.
+   *
+   * @param {string} name
+   *
+   * @returns {Promise<*>}
+   */
   async delete(name) {
     return this.backend.delete(name);
   }
 
+  /**
+   * List.
+   *
+   * @returns {Promise<*>}
+   */
   async list() {
     return this.backend.list();
   }
 
+  /**
+   * List tree.
+   *
+   * @param {string} preferredRootLabel [default: '']
+   *
+   * @returns {Promise<*>}
+   */
   async listTree(preferredRootLabel = '') {
     return this.backend.listTree(preferredRootLabel);
   }

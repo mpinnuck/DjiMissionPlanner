@@ -14,6 +14,13 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUIFlythrough = {
+/**
+ * Update flythrough progress.
+ *
+ * @param {*} currentSeconds
+ * @param {*} totalSeconds
+ * @param {*} progressFraction [default: null]
+ */
 updateFlythroughProgress(currentSeconds, totalSeconds, progressFraction = null) {
   const current = this.formatFlythroughTime(currentSeconds);
   const total = this.formatFlythroughTime(totalSeconds);
@@ -28,10 +35,18 @@ updateFlythroughProgress(currentSeconds, totalSeconds, progressFraction = null) 
   }
 },
 
+/**
+ * Set flythrough stopped.
+ */
 setFlythroughStopped() {
   this.updateFlythroughProgress(0, 0, 0);
 },
 
+/**
+ * Refreshes the desktop stats strip and mobile stats bar with current waypoint count, distance, and elapsed time.
+ *
+ * @param {Object} options - Named options object.
+ */
 updateStats({ waypointCount, poiCount, distanceMeters }) {
   this.statWP.textContent = waypointCount;
   this.statPOI.textContent = poiCount;
@@ -40,6 +55,11 @@ updateStats({ waypointCount, poiCount, distanceMeters }) {
     : Math.round(distanceMeters) + ' m';
 },
 
+/**
+ * Update mobile stats.
+ *
+ * @param {Object} options - Named options object.
+ */
 updateMobileStats({ wpCount, distanceMeters, elapsedSeconds } = {}) {
   if (this.mbStatWP && Number.isFinite(wpCount)) {
     this.mbStatWP.textContent = `WP ${wpCount}`;
@@ -56,6 +76,11 @@ updateMobileStats({ wpCount, distanceMeters, elapsedSeconds } = {}) {
   }
 },
 
+/**
+ * Sets the interaction mode (select / addWaypoint / addPOI) and updates the UI.
+ *
+ * @param {string} mode
+ */
 setMode(mode) {
   this.mapElement.classList.toggle('placing-wp', mode === 'wp');
   this.mapElement.classList.toggle('placing-poi', mode === 'poi');
@@ -68,6 +93,11 @@ setMode(mode) {
   this.sbMode.className = classes[mode];
 },
 
+/**
+ * Set mobile mode active.
+ *
+ * @param {string} mode
+ */
 setMobileModeActive(mode) {
   const map = { wp: this.mbAddWp, poi: this.mbAddPoi, select: this.mbSelect };
   [this.mbAddWp, this.mbAddPoi, this.mbSelect].forEach(button => {
@@ -80,6 +110,11 @@ setMobileModeActive(mode) {
   }
 },
 
+/**
+ * Set flythrough play state.
+ *
+ * @param {*} state
+ */
 setFlythroughPlayState(state) {
   if (!this.btnFTPlay) {
     return;
@@ -93,6 +128,11 @@ setFlythroughPlayState(state) {
   }
 },
 
+/**
+ * Set mobile play state.
+ *
+ * @param {*} state
+ */
 setMobilePlayState(state) {
   if (!this.mbPlay) {
     return;

@@ -13,6 +13,11 @@
 // Mixed into App.prototype in App.js
 
 const AppExport = {
+/**
+ * Export mission json.
+ *
+ * @returns {*}
+ */
 exportMissionJson() {
   return MissionSerializer.stringify({
     mission: this.mission,
@@ -20,6 +25,11 @@ exportMissionJson() {
   });
 },
 
+/**
+ * Import mission json.
+ *
+ * @param {string} jsonText
+ */
 importMissionJson(jsonText) {
   const state = MissionSerializer.parse(jsonText);
 
@@ -54,6 +64,9 @@ importMissionJson(jsonText) {
   this.showStatus(`Mission loaded (${this.waypoints.length} WPs, ${this.pois.length} POIs)`);
 },
 
+/**
+ * Do export.
+ */
 doExport() {
   this.kmzExporter.export({
     waypoints: this.waypoints,
@@ -66,6 +79,9 @@ doExport() {
   });
 },
 
+/**
+ * Export kmz as.
+ */
 exportKmzAs() {
   this.kmzExporter.exportAs({
     waypoints: this.waypoints,
@@ -78,6 +94,11 @@ exportKmzAs() {
   });
 },
 
+/**
+ * Do mobile export.
+ *
+ * @returns {Promise<void>}
+ */
 async doMobileExport() {
   const canChooseFolder = typeof this.kmzExporter.canChooseFolder === 'function'
     ? this.kmzExporter.canChooseFolder()
@@ -95,6 +116,11 @@ async doMobileExport() {
   this.doExport();
 },
 
+/**
+ * Change export folder.
+ *
+ * @returns {Promise<void>}
+ */
 async changeExportFolder() {
   try {
     const dirHandle = await this.kmzExporter.promptForFolder();

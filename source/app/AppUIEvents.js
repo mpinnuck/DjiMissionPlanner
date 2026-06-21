@@ -13,6 +13,9 @@
 // AppUIEvents.js
 // Mixed into App.prototype in App.js
 const AppUIEvents = {
+/**
+ * Bind u i events.
+ */
 bindUIEvents() {
   this.ui.bindToolbarEvents({
     onAddWaypoint: () => this.setMode('wp'),
@@ -122,6 +125,9 @@ bindUIEvents() {
   this.bindMobileUIEvents();
 },
 
+/**
+ * Bind mobile u i events.
+ */
 bindMobileUIEvents() {
   this.ui.bindMobileEvents({
     onMobileMissionSettings: () => this.ui.toggleMobileMissionSettings(),
@@ -166,6 +172,9 @@ bindMobileUIEvents() {
   window.addEventListener('resize', applyScreenSm);
 },
 
+/**
+ * Toggle f p v.
+ */
 toggleFPV() {
   if (!this.fpv) {
     this.showStatus('FPV view unavailable (Three.js not loaded).');
@@ -185,6 +194,13 @@ toggleFPV() {
   }
 },
 
+/**
+ * Appends an action to a waypoint's action list and assigns it a unique action ID.
+ *
+ * @param {string} wpId
+ * @param {string} type
+ * @param {Object} params
+ */
 addWaypointAction(wpId, type, params) {
   const action = this.mission.addWaypointAction(wpId, type, params);
   if (!action) return;
@@ -197,6 +213,12 @@ addWaypointAction(wpId, type, params) {
   this.showStatus(`Action '${type}' added to waypoint.`);
 },
 
+/**
+ * Delete waypoint action.
+ *
+ * @param {string} wpId
+ * @param {string} actionId
+ */
 deleteWaypointAction(wpId, actionId) {
   this.mission.removeWaypointAction(wpId, actionId);
   this.renderList();
@@ -205,6 +227,12 @@ deleteWaypointAction(wpId, actionId) {
   this.showStatus('Action removed.');
 },
 
+/**
+ * Moves an action one position earlier in a waypoint's action list.
+ *
+ * @param {string} wpId
+ * @param {string} actionId
+ */
 moveWaypointActionUp(wpId, actionId) {
   this.mission.moveWaypointActionUp(wpId, actionId);
   this.renderList();
@@ -212,6 +240,12 @@ moveWaypointActionUp(wpId, actionId) {
   this.updateStats();
 },
 
+/**
+ * Moves an action one position later in a waypoint's action list.
+ *
+ * @param {string} wpId
+ * @param {string} actionId
+ */
 moveWaypointActionDown(wpId, actionId) {
   this.mission.moveWaypointActionDown(wpId, actionId);
   this.renderList();
@@ -219,6 +253,11 @@ moveWaypointActionDown(wpId, actionId) {
   this.updateStats();
 },
 
+/**
+ * Refresh dialog actions.
+ *
+ * @param {Object} wp
+ */
 _refreshDialogActions(wp) {
 
 }

@@ -13,6 +13,11 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUIEvents = {
+/**
+ * Bind flythrough events.
+ *
+ * @param {Object} handlers [default: {}]
+ */
 bindFlythroughEvents(handlers = {}) {
   if (this.btnFTPlay) {
     let _clickTimer = null;
@@ -76,6 +81,11 @@ bindFlythroughEvents(handlers = {}) {
   }
 },
 
+/**
+ * Bind mobile events.
+ *
+ * @param {Object} handlers [default: {}]
+ */
 bindMobileEvents(handlers = {}) {
   const wire = (el, fn) => el && fn && el.addEventListener('click', fn);
   wire(this.mbMission, handlers.onMobileMissionSettings);
@@ -144,6 +154,9 @@ bindMobileEvents(handlers = {}) {
   }
 },
 
+/**
+ * Close mission load dialog.
+ */
 closeMissionLoadDialog() {
   const existing = document.getElementById('missionLoadModal');
   if (existing) {
@@ -151,6 +164,9 @@ closeMissionLoadDialog() {
   }
 },
 
+/**
+ * Close export options dialog.
+ */
 closeExportOptionsDialog() {
   const existing = document.getElementById('exportOptionsModal');
   if (existing) {

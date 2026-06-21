@@ -14,6 +14,13 @@
 
 const ExportKmzBuilder = {
 
+/**
+ * Constructs the full WPML KMZ zip archive from a waypoint array.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {number}
+ */
 _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, defaultSpeed, droneConfig = null }) {
   if (waypoints.length < 1) {
     this.onError('Add at least one waypoint before exporting.');

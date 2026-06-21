@@ -12,6 +12,11 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUIWpDialog = {
+/**
+ * Show waypoint options dialog.
+ *
+ * @param {Object} options - Named options object.
+ */
 showWaypointOptionsDialog({
   waypointLabel,
   positionText,

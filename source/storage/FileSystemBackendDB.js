@@ -16,6 +16,11 @@
 // Mixed into FileSystemBackend.prototype
 
 const FileSystemBackendDB = {
+/**
+ * Open handle database.
+ *
+ * @returns {Promise<*>}
+ */
 async openHandleDatabase() {
   if (typeof indexedDB === 'undefined') {
     return null;
@@ -34,6 +39,13 @@ async openHandleDatabase() {
   });
 },
 
+/**
+ * Persist root directory handle.
+ *
+ * @param {FileSystemHandle} handle
+ *
+ * @returns {Promise<*>}
+ */
 async persistRootDirectoryHandle(handle) {
   if (!handle) {
     return;
@@ -59,6 +71,13 @@ async persistRootDirectoryHandle(handle) {
   db.close();
 },
 
+/**
+ * Restore root directory handle.
+ *
+ * @param {string} rootLabel [default: '']
+ *
+ * @returns {Promise<*>}
+ */
 async restoreRootDirectoryHandle(rootLabel = '') {
   const db = await this.openHandleDatabase();
   if (!db) {
@@ -77,6 +96,13 @@ async restoreRootDirectoryHandle(rootLabel = '') {
   return handle;
 },
 
+/**
+ * Clear persisted root directory handle.
+ *
+ * @param {string} rootLabel [default: '']
+ *
+ * @returns {Promise<*>}
+ */
 async clearPersistedRootDirectoryHandle(rootLabel = '') {
   const db = await this.openHandleDatabase();
   if (!db) {
@@ -94,6 +120,13 @@ async clearPersistedRootDirectoryHandle(rootLabel = '') {
   db.close();
 },
 
+/**
+ * Persist last loaded root directory handle.
+ *
+ * @param {FileSystemHandle} handle
+ *
+ * @returns {Promise<*>}
+ */
 async persistLastLoadedRootDirectoryHandle(handle) {
   if (!handle) {
     return;
@@ -113,6 +146,11 @@ async persistLastLoadedRootDirectoryHandle(handle) {
   db.close();
 },
 
+/**
+ * Restore last loaded root directory handle.
+ *
+ * @returns {Promise<*>}
+ */
 async restoreLastLoadedRootDirectoryHandle() {
   const db = await this.openHandleDatabase();
   if (!db) {
@@ -129,6 +167,13 @@ async restoreLastLoadedRootDirectoryHandle() {
   return handle;
 },
 
+/**
+ * Persist last loaded file handle.
+ *
+ * @param {FileSystemHandle} fileHandle
+ *
+ * @returns {Promise<*>}
+ */
 async persistLastLoadedFileHandle(fileHandle) {
   if (!fileHandle) {
     return;
@@ -148,6 +193,11 @@ async persistLastLoadedFileHandle(fileHandle) {
   db.close();
 },
 
+/**
+ * Restore last loaded file handle.
+ *
+ * @returns {Promise<*>}
+ */
 async restoreLastLoadedFileHandle() {
   const db = await this.openHandleDatabase();
   if (!db) {

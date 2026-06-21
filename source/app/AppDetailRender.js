@@ -12,6 +12,12 @@
 // Mixed into App.prototype in App.js
 
 const AppDetailRender = {
+/**
+ * Opens the appropriate mobile dialog (waypoint or POI options) for the selected item.
+ *
+ * @param {string} id
+ * @param {string} type
+ */
 _showMobileDetail(id, type) {
   this.ui.closeMobileMissionSettings();
   if (type === 'wp') {
@@ -21,6 +27,13 @@ _showMobileDetail(id, type) {
   this.openPOIOptionsDialog(id);
 },
 
+/**
+ * Renders the full detail form for a waypoint or POI in the desktop sidebar panel.
+ *
+ * @param {string} id
+ * @param {string} type
+ * @param {*} targetElement [default: null]
+ */
 _renderDetail(id, type, targetElement = null) {
   if (type === 'wp') {
     const wp = this.mission.findWaypoint(id);

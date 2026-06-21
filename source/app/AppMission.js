@@ -11,6 +11,13 @@
 // AppMission.js
 // Mixed into App.prototype in App.js
 const AppMission = {
+/**
+ * Creates and adds a Leaflet marker for a POI.
+ *
+ * @param {Object} poi
+ *
+ * @returns {*}
+ */
 addPOIMarker(poi) {
   const poiIndex = this.pois.findIndex(item => item.id === poi.id);
   const m = this.mapController.addPOIMarker(poi, {
@@ -62,6 +69,12 @@ addPOIMarker(poi) {
   return m;
 },
 
+/**
+ * Opens the POI options floating dialog for the specified POI ID.
+ *
+ * @param {string} poiId
+ * @param {Object} options [default: {}]
+ */
 openPOIOptionsDialog(poiId, options = {}) {
   const poi = this.mission.findPOI(poiId);
   if (!poi) {
@@ -133,14 +146,25 @@ openPOIOptionsDialog(poiId, options = {}) {
   });
 },
 
+/**
+ * Recalculates the stored gimbal pitch, heading, and poiAlt for one waypoint based on its assigned POI.
+ *
+ * @param {Object} wp
+ */
 recomputePOI(wp) {
   this.mission.recomputePOI(wp);
 },
 
+/**
+ * Recalculates gimbal pitch and heading for all waypoints that have a POI assigned.
+ */
 recomputeAllPOI() {
   this.mission.recomputeAllPOI();
 },
 
+/**
+ * Redraws the cubic spline route polyline through all current waypoints.
+ */
 updateRoute() {
   this.mapController.updateRoute(this.waypoints, {
     onInsertWaypoint: (insertIndex, latlng) => this.insertWaypointAt(insertIndex, latlng)
@@ -149,6 +173,9 @@ updateRoute() {
   this.scheduleHeightAboveGroundRefresh();
 },
 
+/**
+ * Sync flythrough mission.
+ */
 syncFlythroughMission() {
   if (!this.flythrough) {
     return;
@@ -172,6 +199,12 @@ syncFlythroughMission() {
   );
 },
 
+/**
+ * Insert waypoint at.
+ *
+ * @param {number} index
+ * @param {*} latlng
+ */
 insertWaypointAt(index, latlng) {
   const safeIndex = Math.max(0, Math.min(index, this.waypoints.length));
   const wp = this.mission.createWaypoint(latlng.lat, latlng.lng, {
@@ -191,6 +224,9 @@ insertWaypointAt(index, latlng) {
   this.showStatus(`Inserted waypoint ${safeIndex + 1}.`);
 },
 
+/**
+ * Bind map events.
+ */
 bindMapEvents() {
   this.mapController.onClick(e => {
     if (this.mode === 'wp') {

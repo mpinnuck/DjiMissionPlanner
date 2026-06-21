@@ -12,6 +12,12 @@
 // AppDetail.js
 // Mixed into App.prototype in App.js
 const AppDetail = {
+/**
+ * Routes item detail display to mobile bottom sheet or desktop detail panel based on screen size.
+ *
+ * @param {string} id
+ * @param {string} type
+ */
 showDetail(id, type) {
   if (this.isMobileScreen) {
     this._showMobileDetail(id, type);
@@ -22,6 +28,12 @@ showDetail(id, type) {
   this._renderDetail(id, type);
 },
 
+/**
+ * Removes a waypoint or POI, cleans up its marker, and refreshes the UI.
+ *
+ * @param {string} id
+ * @param {string} type
+ */
 deleteItem(id, type) {
   if (type === 'wp') {
     this.mission.deleteWaypoint(id);
@@ -63,12 +75,22 @@ deleteItem(id, type) {
   }
 },
 
+/**
+ * Sets the interaction mode (select / addWaypoint / addPOI) and updates the UI.
+ *
+ * @param {L.Map} m
+ */
 setMode(m) {
   this.mode = m;
   this.ui.setMode(m);
   this.ui.setMobileModeActive(m);
 },
 
+/**
+ * Prompts for confirmation then clears all waypoints and POIs from the mission.
+ *
+ * @returns {Promise<void>}
+ */
 async clearAll() {
   const confirmed = await this.ui.showConfirmDialog({
     title: 'Clear Mission?',
@@ -85,9 +107,15 @@ async clearAll() {
   this._doClear();
 },
 
+/**
+ * Immediately clears all waypoints and POIs without a confirmation dialog.
+ */
 clearAllWithoutPrompt() {
   this._doClear();
 },
+/**
+ * Removes all markers, resets all mission state, and refreshes the UI.
+ */
 _doClear() {
   this.waypointMarkers.forEach(marker => this.mapController.removeLayer(marker));
   this.poiMarkers.forEach(marker => this.mapController.removeLayer(marker));

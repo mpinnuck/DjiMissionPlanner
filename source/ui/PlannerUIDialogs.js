@@ -12,6 +12,13 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUIDialogs = {
+/**
+ * Show export options dialog.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {Promise<*>}
+ */
 showExportOptionsDialog({ canChooseFolder = true } = {}) {
   this.closeExportOptionsDialog();
 
@@ -80,6 +87,11 @@ showExportOptionsDialog({ canChooseFolder = true } = {}) {
   });
 },
 
+/**
+ * Close save options dialog.
+ *
+ * @returns {Promise<*>}
+ */
 closeSaveOptionsDialog() {
   const existing = document.getElementById('saveOptionsModal');
   if (existing) {
@@ -87,6 +99,13 @@ closeSaveOptionsDialog() {
   }
 },
 
+/**
+ * Show save options dialog.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {Promise<*>}
+ */
 showSaveOptionsDialog({ canChooseFolder = true, canSaveToFiles = true } = {}) {
   this.closeSaveOptionsDialog();
 
@@ -164,6 +183,11 @@ showSaveOptionsDialog({ canChooseFolder = true, canSaveToFiles = true } = {}) {
   });
 },
 
+/**
+ * Close waypoint options dialog.
+ *
+ * @returns {Promise<*>}
+ */
 closeWaypointOptionsDialog() {
   const existing = document.getElementById('waypointOptionsModal');
   if (existing) {
@@ -171,6 +195,11 @@ closeWaypointOptionsDialog() {
   }
 },
 
+/**
+ * Close p o i options dialog.
+ *
+ * @returns {Promise<*>}
+ */
 closePOIOptionsDialog() {
   const existing = document.getElementById('poiOptionsModal');
   if (existing) {
@@ -178,6 +207,11 @@ closePOIOptionsDialog() {
   }
 },
 
+/**
+ * Close confirm dialog.
+ *
+ * @returns {Promise<*>}
+ */
 closeConfirmDialog() {
   const existing = document.getElementById('confirmModal');
   if (existing) {
@@ -185,6 +219,13 @@ closeConfirmDialog() {
   }
 },
 
+/**
+ * Show confirm dialog.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {Promise<*>}
+ */
 showConfirmDialog({
   title = 'Confirm',
   message = '',
@@ -264,6 +305,11 @@ showConfirmDialog({
   });
 },
 
+/**
+ * Close bulk waypoint action dialog.
+ *
+ * @returns {Promise<*>}
+ */
 closeBulkWaypointActionDialog() {
   const existing = document.getElementById('bulkWaypointActionModal');
   if (existing) {
@@ -271,6 +317,13 @@ closeBulkWaypointActionDialog() {
   }
 },
 
+/**
+ * Show bulk waypoint action dialog.
+ *
+ * @param {Object} options - Named options object.
+ *
+ * @returns {Promise<*>}
+ */
 showBulkWaypointActionDialog({ selectedCount, pois = [] }) {
   this.closeBulkWaypointActionDialog();
 

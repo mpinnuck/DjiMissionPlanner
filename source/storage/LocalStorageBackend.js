@@ -22,18 +22,40 @@ class LocalStorageBackend {
 
   // Public methods
 
+  /**
+   * Can choose root directory.
+   *
+   * @returns {string}
+   */
   canChooseRootDirectory() {
     return false;
   }
 
+  /**
+   * Returns a human-readable description of the active storage backend.
+   *
+   * @returns {string}
+   */
   getDescription() {
     return 'Browser storage';
   }
 
+  /**
+   * Choose root directory.
+   *
+   * @returns {Promise<*>}
+   */
   async chooseRootDirectory() {
     return null;
   }
 
+  /**
+   * Sanitize mission name.
+   *
+   * @param {string} name
+   *
+   * @returns {*}
+   */
   sanitizeMissionName(name) {
     const base = (name || 'Mission').trim();
     const sanitized = base
@@ -44,6 +66,13 @@ class LocalStorageBackend {
     return sanitized || 'Mission';
   }
 
+  /**
+   * Normalize path.
+   *
+   * @param {string} name
+   *
+   * @returns {string}
+   */
   normalizePath(name) {
     const raw = String(name || '').trim().replace(/\\/g, '/');
     if (!raw) {
@@ -64,16 +93,38 @@ class LocalStorageBackend {
     return `${this.rootLabel}/${safeName}.json`;
   }
 
+  /**
+   * Key for path.
+   *
+   * @param {string} path
+   *
+   * @returns {string}
+   */
   keyForPath(path) {
     return `${this.storagePrefix}${path}`;
   }
 
+  /**
+   * Save.
+   *
+   * @param {string} name
+   * @param {string} jsonText
+   *
+   * @returns {Promise<*>}
+   */
   async save(name, jsonText) {
     const path = this.normalizePath(name);
     this.storage.setItem(this.keyForPath(path), jsonText);
     return path;
   }
 
+  /**
+   * Load.
+   *
+   * @param {string} name
+   *
+   * @returns {Promise<*>}
+   */
   async load(name) {
     const path = this.normalizePath(name);
     const jsonText = this.storage.getItem(this.keyForPath(path));
@@ -83,11 +134,23 @@ class LocalStorageBackend {
     return jsonText;
   }
 
+  /**
+   * Delete.
+   *
+   * @param {string} name
+   *
+   * @returns {Promise<*>}
+   */
   async delete(name) {
     const path = this.normalizePath(name);
     this.storage.removeItem(this.keyForPath(path));
   }
 
+  /**
+   * List.
+   *
+   * @returns {Promise<*>}
+   */
   async list() {
     const paths = [];
     for (let index = 0; index < this.storage.length; index += 1) {
@@ -99,6 +162,11 @@ class LocalStorageBackend {
     return paths.sort((left, right) => left.localeCompare(right));
   }
 
+  /**
+   * List tree.
+   *
+   * @returns {Promise<Object>}
+   */
   async listTree() {
     const paths = await this.list();
     const relativePaths = paths
@@ -111,6 +179,14 @@ class LocalStorageBackend {
     };
   }
 
+  /**
+   * Build tree nodes.
+   *
+   * @param {*} relativePaths
+   * @param {*} rootPrefix
+   *
+   * @returns {Object}
+   */
   buildTreeNodes(relativePaths, rootPrefix) {
     const root = { directories: new Map(), files: [] };
 

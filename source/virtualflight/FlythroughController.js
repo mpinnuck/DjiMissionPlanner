@@ -73,11 +73,17 @@ class FlythroughController {
   get currentTime() { return this._missionTime; }
   get isPlaying()   { return this._playing; }
 
+  /**
+   * Resets the playhead to zero and starts playback from the beginning.
+   */
   playFromStart() {
     this._missionTime = 0;
     this.play();
   }
 
+  /**
+   * Starts or resumes flythrough playback from the current position.
+   */
   play() {
     if (!this._timeline.length || this._playing) return;
     this.showAtCurrentTime();
@@ -99,6 +105,9 @@ class FlythroughController {
     this._rafHandle = requestAnimationFrame(ts => this._tick(ts));
   }
 
+  /**
+   * Pauses flythrough playback at the current position.
+   */
   pause() {
     if (!this._playing) return;
     this._playing = false;
@@ -106,12 +115,18 @@ class FlythroughController {
     this._rafHandle = null;
   }
 
+  /**
+   * Stops playback and removes the drone marker from the map.
+   */
   stop() {
     this.pause();
     this._missionTime = 0;
     this._clearLayers();
   }
 
+  /**
+   * Renders the drone at its current timeline position without starting playback.
+   */
   showAtCurrentTime() {
     if (!this._timeline.length) {
       return;
@@ -151,6 +166,11 @@ class FlythroughController {
     if (wasPlaying) this.play();
   }
 
+  /**
+   * Toggles visibility of the camera field-of-view cone on the map.
+   *
+   * @param {*} show
+   */
   setShowFOV(show) {
     this._showFOV = show;
     if (!show) {
@@ -168,6 +188,11 @@ class FlythroughController {
     }
   }
 
+  /**
+   * Updates the drone profile (HFOV, aspect ratio) used for FOV cone rendering.
+   *
+   * @param {*} droneConfig
+   */
   setDroneConfig(droneConfig) {
     const hfov = Number(droneConfig && droneConfig.hfovDeg);
     const aspect = Number(droneConfig && droneConfig.aspect);
@@ -190,6 +215,9 @@ class FlythroughController {
     }
   }
 
+  /**
+   * Stops playback and removes all flythrough layers from the map.
+   */
   destroy() {
     this.stop();
     this._clearLayers();

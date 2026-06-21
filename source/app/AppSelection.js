@@ -15,6 +15,13 @@
 // Mixed into App.prototype in App.js
 
 const AppSelection = {
+/**
+ * Select item.
+ *
+ * @param {string} id
+ * @param {string} type
+ * @param {Object} interaction [default: {}]
+ */
 selectItem(id, type, interaction = {}) {
   if (type === 'wp' && interaction.shiftKey && this.lastWaypointAnchorId) {
     this.applyWaypointRangeSelection(this.lastWaypointAnchorId, id, true);
@@ -41,6 +48,13 @@ selectItem(id, type, interaction = {}) {
   this.showDetail(id, type);
 },
 
+/**
+ * Toggle waypoint multi select.
+ *
+ * @param {string} id
+ * @param {*} isSelected
+ * @param {Object} options [default: {}]
+ */
 toggleWaypointMultiSelect(id, isSelected, options = {}) {
   if (options.shiftKey && this.lastWaypointAnchorId) {
     this.applyWaypointRangeSelection(this.lastWaypointAnchorId, id, isSelected);
@@ -54,6 +68,11 @@ toggleWaypointMultiSelect(id, isSelected, options = {}) {
   this.applyWaypointSelectionState();
 },
 
+/**
+ * Start waypoint touch range.
+ *
+ * @param {string} anchorId
+ */
 startWaypointTouchRange(anchorId) {
   this.touchRangeAnchorId = anchorId;
   this.applyWaypointRangeSelection(anchorId, anchorId, true);
@@ -61,6 +80,13 @@ startWaypointTouchRange(anchorId) {
   this.applyWaypointSelectionState();
 },
 
+/**
+ * Move waypoint touch range.
+ *
+ * @param {string} anchorId
+ * @param {string} targetId
+ * @param {boolean} isSelected [default: true]
+ */
 moveWaypointTouchRange(anchorId, targetId, isSelected = true) {
   if (!this.touchRangeAnchorId) {
     return;
@@ -71,10 +97,20 @@ moveWaypointTouchRange(anchorId, targetId, isSelected = true) {
   this.applyWaypointSelectionState();
 },
 
+/**
+ * End waypoint touch range.
+ */
 endWaypointTouchRange() {
   this.touchRangeAnchorId = null;
 },
 
+/**
+ * Apply waypoint range selection.
+ *
+ * @param {string} anchorId
+ * @param {string} targetId
+ * @param {*} isSelected
+ */
 applyWaypointRangeSelection(anchorId, targetId, isSelected) {
   const orderedWaypointIds = this.waypoints.map(wp => wp.id);
   const startIndex = orderedWaypointIds.indexOf(anchorId);
@@ -96,6 +132,9 @@ applyWaypointRangeSelection(anchorId, targetId, isSelected) {
   }
 },
 
+/**
+ * Apply waypoint selection state.
+ */
 applyWaypointSelectionState() {
   if (this.selectedWaypointIds.size > 1) {
     this.selectedId = null;
@@ -130,6 +169,9 @@ applyWaypointSelectionState() {
   this.ui.hideMobileSheet();
 },
 
+/**
+ * Clear waypoint multi selection.
+ */
 clearWaypointMultiSelection() {
   this.selectedWaypointIds.clear();
   this.touchRangeAnchorId = null;
@@ -142,6 +184,9 @@ clearWaypointMultiSelection() {
   }
 },
 
+/**
+ * Show bulk waypoint detail.
+ */
 showBulkWaypointDetail() {
   const selectedWaypoints = this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
   if (selectedWaypoints.length < 2) {
@@ -162,6 +207,11 @@ showBulkWaypointDetail() {
   });
 },
 
+/**
+ * Open bulk waypoint settings dialog.
+ *
+ * @returns {Promise<void>}
+ */
 async openBulkWaypointSettingsDialog() {
   const selectedWaypoints = this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
   if (selectedWaypoints.length === 0) {
@@ -181,6 +231,14 @@ async openBulkWaypointSettingsDialog() {
   await this.applyBulkWaypointSettingsFromDialog(values, targets);
 },
 
+/**
+ * Apply bulk waypoint settings from dialog.
+ *
+ * @param {Object} options - Named options object.
+ * @param {*} selectedWaypoints
+ *
+ * @returns {Promise<void>}
+ */
 async applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue, poiValue }, selectedWaypoints) {
   const altitude = parseFloat(altitudeValue);
   const speedKmh = parseFloat(speedValue);
@@ -241,6 +299,9 @@ async applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue,
   this.showStatus(`Updated ${selectedWaypoints.length} waypoints.`);
 },
 
+/**
+ * Handle select mode request.
+ */
 handleSelectModeRequest() {
   if (this.mode === 'select') {
     if (this.selectedWaypointIds.size > 0) {
@@ -260,12 +321,25 @@ handleSelectModeRequest() {
   this.setMode('select');
 },
 
+/**
+ * Apply bulk waypoint update.
+ *
+ * @param {Object} options - Named options object.
+ * @param {*} targetWaypoints [default: null]
+ *
+ * @returns {Object}
+ */
 applyBulkWaypointUpdate({ altitudeValue, speedValue, poiValue }, targetWaypoints = null) {
   const targets = targetWaypoints ?? this.waypoints.filter(wp => this.selectedWaypointIds.has(wp.id));
   this.applyBulkWaypointSettingsFromDialog({ altitudeValue, speedValue, hagValue: '', poiValue }, targets)
     .then(() => this.showBulkWaypointDetail());
 },
 
+/**
+ * Render list.
+ *
+ * @returns {Object}
+ */
 renderList() {
   this.ui.renderList({
     waypoints: this.waypoints,
@@ -283,6 +357,11 @@ renderList() {
   this.scheduleHeightAboveGroundRefresh();
 },
 
+/**
+ * Build list callbacks.
+ *
+ * @returns {Object}
+ */
 _buildListCallbacks() {
   const allow = this.mode === 'select';
   return {

@@ -14,6 +14,11 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUITree = {
+/**
+ * Render list.
+ *
+ * @param {Object} options - Named options object.
+ */
 renderList({
   waypoints = [],
   pois = [],
@@ -223,6 +228,13 @@ renderList({
   });
 },
 
+/**
+ * Show action picker dialog.
+ *
+ * @param {Function} onConfirm
+ *
+ * @returns {string}
+ */
 showActionPickerDialog(onConfirm) {
   const types = Object.keys(ACTION_META);
   let selectedType = types[0];
@@ -326,6 +338,13 @@ showActionPickerDialog(onConfirm) {
   });
 },
 
+/**
+ * Escape html.
+ *
+ * @param {string} value
+ *
+ * @returns {string}
+ */
 _escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')

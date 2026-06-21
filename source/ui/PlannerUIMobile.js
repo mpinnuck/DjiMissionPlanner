@@ -15,6 +15,11 @@
 // Mixed into PlannerUI.prototype in PlannerUI.js
 
 const PlannerUIMobile = {
+/**
+ * Show mobile waypoint sheet.
+ *
+ * @param {Object} options - Named options object.
+ */
 showMobileWaypointSheet({ wp, waypointIndex, pois, onAltChange, onSpeedChange, onPoiChange, onDelete }) {
   const body = this.mobileSheetBody;
   if (!body) {
@@ -68,6 +73,11 @@ showMobileWaypointSheet({ wp, waypointIndex, pois, onAltChange, onSpeedChange, o
   this._openMobileSheet();
 },
 
+/**
+ * Show mobile p o i sheet.
+ *
+ * @param {Object} options - Named options object.
+ */
 showMobilePOISheet({ poi, onNameChange, onAltChange, onDelete }) {
   const body = this.mobileSheetBody;
   if (!body) {
@@ -105,6 +115,11 @@ showMobilePOISheet({ poi, onNameChange, onAltChange, onDelete }) {
   this._openMobileSheet();
 },
 
+/**
+ * Hide mobile sheet.
+ *
+ * @returns {*}
+ */
 hideMobileSheet() {
   if (this.mobileSheet) {
     this.mobileSheet.classList.remove('open');
@@ -114,23 +129,48 @@ hideMobileSheet() {
   }
 },
 
+/**
+ * Toggle mobile mission settings.
+ *
+ * @returns {*}
+ */
 toggleMobileMissionSettings() {
   document.body.classList.toggle('mobile-mission-open');
 },
 
+/**
+ * Close mobile mission settings.
+ *
+ * @returns {*}
+ */
 closeMobileMissionSettings() {
   document.body.classList.remove('mobile-mission-open');
 },
 
 // Compatibility wrappers for earlier mobile draft usage.
+/**
+ * Show mobile detail sheet.
+ *
+ * @returns {*}
+ */
 showMobileDetailSheet() {
   this._openMobileSheet();
 },
 
+/**
+ * Hide mobile detail sheet.
+ *
+ * @returns {*}
+ */
 hideMobileDetailSheet() {
   this.hideMobileSheet();
 },
 
+/**
+ * Open mobile sheet.
+ *
+ * @returns {*}
+ */
 _openMobileSheet() {
   if (this.mobileSheet) {
     this.mobileSheet.classList.add('open');
@@ -140,6 +180,14 @@ _openMobileSheet() {
   }
 },
 
+/**
+ * Mbs header.
+ *
+ * @param {string} title
+ * @param {Function} onDelete
+ *
+ * @returns {*}
+ */
 _mbsHeader(title, onDelete) {
   const header = document.createElement('div');
   header.className = 'mbs-hdr';
@@ -163,6 +211,18 @@ _mbsHeader(title, onDelete) {
   return header;
 },
 
+/**
+ * Mbs number row.
+ *
+ * @param {string} label
+ * @param {string} value
+ * @param {*} unit
+ * @param {*} min
+ * @param {*} max
+ * @param {Function} onChange
+ *
+ * @returns {*}
+ */
 _mbsNumberRow(label, value, unit, min, max, onChange) {
   const row = document.createElement('div');
   row.className = 'mbs-row';
@@ -194,19 +254,43 @@ _mbsNumberRow(label, value, unit, min, max, onChange) {
   return row;
 },
 
+/**
+ * Resolve detail container.
+ *
+ * @param {HTMLElement} targetElement
+ *
+ * @returns {*}
+ */
 resolveDetailContainer(targetElement) {
   return targetElement || this.detailContent;
 },
 
+/**
+ * Set empty state visible.
+ *
+ * @param {boolean} visible
+ */
 setEmptyStateVisible(visible) {
   this.emptyState.style.display = visible ? 'block' : 'none';
 },
 
+/**
+ * Show nothing selected.
+ *
+ * @param {*} targetElement [default: null]
+ */
 showNothingSelected(targetElement = null) {
   const detailTarget = this.resolveDetailContainer(targetElement);
   detailTarget.innerHTML = '<div id="detail-placeholder">Nothing selected</div>';
 },
 
+/**
+ * Highlight selected item.
+ *
+ * @param {string} selectedId
+ * @param {*} selectedWaypointIds [default: new Set()]
+ * @param {string} scrollTargetId [default: undefined]
+ */
 highlightSelectedItem(selectedId, selectedWaypointIds = new Set(), scrollTargetId = undefined) {
   document.querySelectorAll('.tree-wp-hdr').forEach(el => {
     const isMultiSelected = selectedWaypointIds.has(el.dataset.wpId);
@@ -226,6 +310,11 @@ highlightSelectedItem(selectedId, selectedWaypointIds = new Set(), scrollTargetI
   });
 },
 
+/**
+ * Scroll list item into view.
+ *
+ * @param {string} itemId
+ */
 scrollListItemIntoView(itemId) {
   if (!itemId || !this.wpList) {
     return;

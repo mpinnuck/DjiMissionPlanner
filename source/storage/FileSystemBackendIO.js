@@ -15,6 +15,14 @@
 
 const FileSystemBackendIO = {
 
+/**
+ * Save.
+ *
+ * @param {string} name
+ * @param {string} jsonText
+ *
+ * @returns {Promise<*>}
+ */
 async save(name, jsonText) {
   const normalized = this.normalizePath(name);
   const { directory, fileName } = await this.resolveDirectoryForPath(normalized, true);
@@ -25,6 +33,13 @@ async save(name, jsonText) {
   return normalized;
 },
 
+/**
+ * Load.
+ *
+ * @param {string} name
+ *
+ * @returns {Promise<*>}
+ */
 async load(name) {
   const normalized = this.normalizePath(name);
   const { directory, fileName } = await this.resolveDirectoryForPath(normalized, false);
@@ -36,17 +51,36 @@ async load(name) {
   return file.text();
 },
 
+/**
+ * Delete.
+ *
+ * @param {string} name
+ *
+ * @returns {Promise<*>}
+ */
 async delete(name) {
   const normalized = this.normalizePath(name);
   const { directory, fileName } = await this.resolveDirectoryForPath(normalized, false);
   await directory.removeEntry(fileName);
 },
 
+/**
+ * List.
+ *
+ * @returns {Promise<*>}
+ */
 async list() {
   const tree = await this.listTree();
   return this.flattenTree(tree.nodes);
 },
 
+/**
+ * Flatten tree.
+ *
+ * @param {*} nodes
+ *
+ * @returns {*}
+ */
 flattenTree(nodes) {
   const results = [];
   nodes.forEach(node => {
@@ -59,6 +93,13 @@ flattenTree(nodes) {
   return results;
 },
 
+/**
+ * List tree.
+ *
+ * @param {string} preferredRootLabel [default: '']
+ *
+ * @returns {Promise<Object>}
+ */
 async listTree(preferredRootLabel = '') {
   const missionDir = await this.getMissionDirectoryHandle(true, preferredRootLabel);
   const nodes = await this.readDirectoryTree(missionDir, '');
@@ -68,10 +109,26 @@ async listTree(preferredRootLabel = '') {
   };
 },
 
+/**
+ * Join path.
+ *
+ * @param {*} parent
+ * @param {*} child
+ *
+ * @returns {*}
+ */
 joinPath(parent, child) {
   return parent ? `${parent}/${child}` : child;
 },
 
+/**
+ * Read directory tree.
+ *
+ * @param {FileSystemHandle} directoryHandle
+ * @param {string} relativePath
+ *
+ * @returns {Promise<Array>}
+ */
 async readDirectoryTree(directoryHandle, relativePath) {
   const directories = [];
   const files = [];

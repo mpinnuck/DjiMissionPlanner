@@ -16,6 +16,13 @@
 
 const FlythroughPlayback = {
 
+/**
+ * Tick.
+ *
+ * @param {*} wallNow
+ *
+ * @returns {Object}
+ */
 _tick(wallNow) {
   if (!this._playing) return;
 
@@ -43,6 +50,13 @@ _tick(wallNow) {
 
 // ── Frame interpolation ─────────────────────────────────────────────────
 
+/**
+ * Get frame.
+ *
+ * @param {number} t
+ *
+ * @returns {Object}
+ */
 _getFrame(t) {
   const tl = this._timeline;
   if (t <= tl[0].time)               return { ...tl[0] };
@@ -81,6 +95,13 @@ _getFrame(t) {
 // Dynamically recomputes gimbalPitch and fpvGimbalPitch from the actual drone
 // position at this frame moment, so the FOV projection and FPV view are exact
 // even when the spline places the drone slightly off the waypoint radius.
+/**
+ * Augment frame.
+ *
+ * @param {Object} frame
+ *
+ * @returns {*}
+ */
 _augmentFrame(frame) {
   const { lat, lng, alt, poiLat, poiLng, poiAlt } = frame;
   if (!Number.isFinite(poiLat) || !Number.isFinite(poiLng)) return frame;
@@ -96,6 +117,11 @@ _augmentFrame(frame) {
   return { ...frame, gimbalPitch, fpvGimbalPitch: gimbalPitch };
 },
 
+/**
+ * Update display.
+ *
+ * @param {Object} options - Named options object.
+ */
 _updateDisplay({ lat, lng, heading, alt, gimbalPitch, fpvGimbalPitch, poiAlt }) {
   this._activeFrame = {
     ...this._getFrame(this._missionTime),
