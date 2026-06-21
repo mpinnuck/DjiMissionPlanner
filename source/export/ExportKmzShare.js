@@ -109,7 +109,7 @@ exportAs(params) {
 
     await this._shareOrDownloadBlob(blob, filename, waypoints.length);
   });
-}
+},
 
 _buildUserActionXml(action, actionId) {
   const p = action.params || {};
@@ -200,7 +200,7 @@ _buildUserActionXml(action, actionId) {
           <wpml:actionActuatorFuncParam>${param}
           </wpml:actionActuatorFuncParam>
         </wpml:action>`;
-}
+},
 
 _esc(s) {
   return String(s)
