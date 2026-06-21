@@ -1,0 +1,196 @@
+/* Mission Defaults */
+#defaults-panel {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.field-row label {
+  width: 90px;
+  color: var(--muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.field-row input, .field-row select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+}
+.field-row input:focus, .field-row select:focus {
+  border-color: var(--accent);
+}
+.field-row .unit {
+  width: 28px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: left;
+}
+
+.field-row .small-apply {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.mission-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.mission-name-row label {
+  width: 90px;
+  color: var(--muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.mission-name-row input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+}
+.mission-name-row input:focus { border-color: var(--accent); }
+
+/* Waypoint list */
+#wp-list-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.wp-item {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.wp-item:hover { background: #edf3fa; }
+.wp-item.selected { background: rgba(31,157,85,.09); border-left: 3px solid var(--success); }
+.wp-item.poi-item { border-left: 3px solid transparent; }
+.wp-item.poi-item.selected { background: rgba(0,212,255,.07); border-left: 3px solid var(--accent2); }
+.wp-item.multi-selected { background: rgba(31,157,85,.06); border-left: 3px solid rgba(31,157,85,.5); }
+
+.wp-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.wp-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.wp-badge.wp { background: rgba(240,165,0,.2); color: var(--accent); }
+.wp-badge.poi { background: rgba(0,212,255,.2); color: var(--accent2); }
+
+.wp-name {
+  font-size: 12px;
+  font-weight: 500;
+  flex: 1;
+}
+.wp-del {
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .1s;
+}
+.wp-item:hover .wp-del { opacity: 1; }
+
+.wp-coords {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wp-leg-distance {
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+.wp-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.wp-meta-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.wp-meta-tag {
+  font-size: 10px;
+  color: var(--muted);
+  background: #edf3fa;
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.wp-meta-tag span { color: var(--text); }
+
+.wp-meta-row-computed {
+  margin-top: 1px;
+}
+
+.wp-meta-row-computed-headings,
+.wp-meta-row-computed-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.wp-meta-row-computed-headings .wp-meta-tag,
+.wp-meta-row-computed-values .wp-meta-tag {
+  text-align: center;
+}
+
+.wp-meta-row-computed-headings .wp-meta-tag {
+  font-size: 9px;
+  opacity: 0.9;
+}
+
+.wp-meta-row-computed-values {
+  margin-top: 2px;
+}
+
+.wp-meta-row-computed-values .wp-meta-tag {
+  font-size: 10px;
+}
+
+.wp-meta-tag-computed {
+  background: #f2f3f5;
+  border: 1px solid #e2e4e8;
+}
+

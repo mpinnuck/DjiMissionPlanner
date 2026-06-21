@@ -268,7 +268,12 @@ Object.assign(
   AppMapHandlers,
   AppMission,
   AppSelection,
+  AppTerrain,
+  AppDetailRender,
   AppDetail,
-  AppSaveLoad,
+  AppExport,
+  AppSave,
+  AppLoad,
+  AppLoadPath,
   AppUIEvents
 );

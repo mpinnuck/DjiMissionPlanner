@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #f4f8fc;
+  --panel: #ffffff;
+  --border: #d3deea;
+  --accent: #f0a500;
+  --accent2: #008db3;
+  --danger: #d7263d;
+  --success: #1f9d55;
+  --text: #1f2a37;
+  --muted: #5b6776;
+  --wp-color: #f0a500;
+  --poi-color: #00d4ff;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-ui: 'Barlow', sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --browser-ui-top: 0px;
+  --app-height: 100dvh;
+  --statusbar-height: 22px;
+  --sidebar-width: 300px;
+  --graph-overlay-height: 180px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  height: 100vh;
+  height: var(--app-height, 100dvh);
+  min-height: var(--app-height, 100dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+

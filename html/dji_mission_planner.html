@@ -10,7 +10,11 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 
 <!-- App CSS — split modules -->
+<link rel="stylesheet" href="../css/variables.css"/>
+<link rel="stylesheet" href="../css/topbar.css"/>
 <link rel="stylesheet" href="../css/layout.css"/>
+<link rel="stylesheet" href="../css/sidebar.css"/>
+<link rel="stylesheet" href="../css/detail.css"/>
 <link rel="stylesheet" href="../css/components.css"/>
 <link rel="stylesheet" href="../css/dialogs.css"/>
 <link rel="stylesheet" href="../css/mobile.css"/>
@@ -268,7 +272,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v6.00';
+  const APP_VERSION = 'v6.1';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -407,9 +411,16 @@
 <script src="../source/export/ExportKmz.js"></script>
 <script src="../source/mission/MissionSerializer.js"></script>
 <script src="../source/storage/LocalStorageBackend.js"></script>
+<script src="../source/storage/FileSystemBackendDB.js"></script>
+<script src="../source/storage/FileSystemBackendMeta.js"></script>
+<script src="../source/storage/FileSystemBackendDir.js"></script>
+<script src="../source/storage/FileSystemBackendIO.js"></script>
 <script src="../source/storage/FileSystemBackend.js"></script>
 <script src="../source/storage/PersistentStorage.js"></script>
 <script src="../source/virtualflight/FPVController.js"></script>
+<script src="../source/virtualflight/FlythroughPlayback.js"></script>
+<script src="../source/virtualflight/FlythroughMarkers.js"></script>
+<script src="../source/virtualflight/FlythroughTimeline.js"></script>
 <script src="../source/virtualflight/FlythroughController.js"></script>
 <script src="../source/virtualflight/FlightGraph.js"></script>
 
@@ -429,8 +440,13 @@
 <script src="../source/app/AppMapHandlers.js"></script>
 <script src="../source/app/AppMission.js"></script>
 <script src="../source/app/AppSelection.js"></script>
+<script src="../source/app/AppTerrain.js"></script>
+<script src="../source/app/AppDetailRender.js"></script>
 <script src="../source/app/AppDetail.js"></script>
-<script src="../source/app/AppSaveLoad.js"></script>
+<script src="../source/app/AppExport.js"></script>
+<script src="../source/app/AppSave.js"></script>
+<script src="../source/app/AppLoad.js"></script>
+<script src="../source/app/AppLoadPath.js"></script>
 <script src="../source/app/AppUIEvents.js"></script>
 <script src="../source/app/App.js"></script>
 
