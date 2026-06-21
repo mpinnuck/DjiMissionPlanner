@@ -1,8 +1,10 @@
 /**
- * CubicSplinePath
- *
- * Natural cubic spline (C2 continuous) through all waypoints.
- * Uses chord-length parameterization for stable sampling on uneven spacing.
+ * CubicSplinePath.js
+ * Natural cubic spline interpolation for the mission flight path.
+ * Provides CubicSplinePath.build(waypoints) which returns a list of
+ * interpolated LatLng points forming a C2-continuous (curvature-smooth)
+ * path through all waypoints.  Used by MapController to draw the route
+ * polyline and by FlythroughController to animate the drone along the path.
  */
 class CubicSplinePath {
   /**

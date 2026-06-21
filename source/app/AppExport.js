@@ -1,3 +1,14 @@
+/**
+ * AppExport.js  —  App mixin: mission JSON serialisation and KMZ export
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - exportMissionJson / importMissionJson: serialise/deserialise mission
+ *    state to/from JSON via MissionSerializer
+ *  - doExport: triggers KMZ export via kmzExporter.export()
+ *  - exportKmzAs / doMobileExport: KMZ "save as" and mobile export flows
+ *  - changeExportFolder: prompts user to choose a new KMZ export folder
+ */
 // AppExport.js
 // Mixed into App.prototype in App.js
 

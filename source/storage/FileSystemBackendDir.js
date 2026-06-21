@@ -1,3 +1,17 @@
+/**
+ * FileSystemBackendDir.js  —  FileSystemBackend mixin: directory operations
+ * Mixed into FileSystemBackend.prototype via FileSystemBackend.js.
+ *
+ * Responsibilities:
+ *  - chooseRootDirectory: shows showDirectoryPicker and persists the handle
+ *  - ensurePermission: requests readwrite permission on a directory handle
+ *  - ensureRootDirectory: restores or prompts for the root directory,
+ *    with optional preferred root label for multi-root setups
+ *  - openMissionFileDialog: shows the full mission load dialog with
+ *    folder tree navigation and file selection
+ *  - resolveDirectoryHandleFromPath / getMissionDirectoryHandle /
+ *    resolveDirectoryForPath: navigate the directory tree to a sub-path
+ */
 // FileSystemBackendDir.js
 // Mixed into FileSystemBackend.prototype
 

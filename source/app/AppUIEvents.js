@@ -1,3 +1,15 @@
+/**
+ * AppUIEvents.js  —  App mixin: UI and keyboard event binding
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - bindUIEvents: wires all desktop toolbar buttons, select inputs,
+ *    flythrough controls, FPV toggle, and keyboard shortcuts
+ *  - bindMobileUIEvents: wires the mobile toolbar, action bar, bottom sheet,
+ *    and long-press save/export gesture handlers
+ *  - _refreshDialogActions: refreshes the action list inside an open
+ *    waypoint options dialog after an action is added or removed
+ */
 // AppUIEvents.js
 // Mixed into App.prototype in App.js
 const AppUIEvents = {

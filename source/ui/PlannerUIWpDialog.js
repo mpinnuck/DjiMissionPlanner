@@ -1,3 +1,13 @@
+/**
+ * PlannerUIWpDialog.js  —  PlannerUI mixin: waypoint options dialog
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - showWaypointOptionsDialog: floating options panel for a selected waypoint.
+ *    Contains altitude (ASL/HAG), speed, POI assignment, and an actions panel.
+ *    The actions panel supports add/edit/delete/reorder for all nine supported
+ *    DJI waypoint action types via inline edit and list sub-panels.
+ */
 // PlannerUIWpDialog.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

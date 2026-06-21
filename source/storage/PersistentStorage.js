@@ -1,3 +1,16 @@
+/**
+ * PersistentStorage.js
+ * Storage facade that selects the appropriate backend at runtime.
+ * On desktop browsers with showDirectoryPicker: uses FileSystemBackend.
+ * On iOS Safari and other limited browsers: uses LocalStorageBackend.
+ *
+ * Responsibilities:
+ *  - supportsFileSystemAccess(): static capability check (showDirectoryPicker
+ *    available AND not Apple mobile UA)
+ *  - Delegates save / load / delete / list to the active backend
+ *  - Exposes canChooseRootDirectory / canOpenMissionFileDialog
+ *  - getLastLoadedMissionLocation / getDescription pass-through
+ */
 class PersistentStorage {
   constructor(options = {}) {
     this.onStatus = options.onStatus || null;

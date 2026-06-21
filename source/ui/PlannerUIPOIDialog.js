@@ -1,3 +1,12 @@
+/**
+ * PlannerUIPOIDialog.js  —  PlannerUI mixin: POI options dialog
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - showPOIOptionsDialog: floating options panel for a selected POI,
+ *    allowing name and altitude editing with live HAG display,
+ *    and a delete button with confirmation
+ */
 // PlannerUIPOIDialog.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

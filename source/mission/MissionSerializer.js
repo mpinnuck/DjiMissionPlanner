@@ -1,3 +1,15 @@
+/**
+ * MissionSerializer.js
+ * Versioned JSON serialisation and deserialisation for Mission data.
+ *
+ * Responsibilities:
+ *  - MissionSerializer.serialize(mission): converts Mission state to a
+ *    JSON string including waypoints, POIs, actions, and metadata
+ *  - MissionSerializer.deserialize(jsonText): parses JSON and returns
+ *    a plain object safe to pass to mission.loadFromSerialized()
+ *  - Handles forward/backward compatibility for older mission file formats
+ *  No DOM or UI dependencies.
+ */
 class MissionSerializer {
   // Public methods
 

@@ -1,3 +1,16 @@
+/**
+ * PlannerUIMobile.js  —  PlannerUI mixin: mobile layout and bottom sheet
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - toggleMobileMissionSettings / closeMobileMissionSettings
+ *  - showMobileSheet / hideMobileSheet: shows/hides the bottom sheet panel
+ *    with keyboard-avoidance via visualViewport resize events
+ *  - setMobileModeActive: highlights the active mode button in the action bar
+ *  - setMode: updates the mode indicator in the status bar
+ *  - scrollListItemIntoView: scrolls the waypoint list to keep selected
+ *    items visible on small screens
+ */
 // PlannerUIMobile.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

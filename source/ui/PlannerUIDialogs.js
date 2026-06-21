@@ -1,3 +1,13 @@
+/**
+ * PlannerUIDialogs.js  —  PlannerUI mixin: general-purpose dialogs
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - showExportOptionsDialog: folder vs share sheet choice for KMZ export
+ *  - showSaveOptionsDialog: folder vs save-to-files choice for mission JSON
+ *  - showConfirmDialog: reusable async confirm/cancel modal
+ *  - showBulkWaypointActionDialog: multi-waypoint altitude/speed/POI edit
+ */
 // PlannerUIDialogs.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

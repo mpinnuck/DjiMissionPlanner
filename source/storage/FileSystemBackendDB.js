@@ -1,3 +1,17 @@
+/**
+ * FileSystemBackendDB.js  —  FileSystemBackend mixin: IndexedDB persistence
+ * Mixed into FileSystemBackend.prototype via FileSystemBackend.js.
+ *
+ * Responsibilities:
+ *  - openHandleDatabase: opens the 'djiMissionPlannerFS' IndexedDB store
+ *  - persistRootDirectoryHandle / restoreRootDirectoryHandle /
+ *    clearPersistedRootDirectoryHandle: store and retrieve the chosen
+ *    root mission folder handle keyed by rootLabel
+ *  - persistLastLoadedRootDirectoryHandle / restoreLastLoadedRootDirectoryHandle
+ *  - persistLastLoadedFileHandle / restoreLastLoadedFileHandle:
+ *    stores the handle of the most recently opened mission JSON file
+ *  - directoryHandleKeyForRootLabel: generates the IndexedDB key for a label
+ */
 // FileSystemBackendDB.js
 // Mixed into FileSystemBackend.prototype
 

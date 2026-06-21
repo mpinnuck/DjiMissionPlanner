@@ -1,3 +1,15 @@
+/**
+ * ExportKmzShare.js  —  ExportKmz mixin: share, download, and export API
+ * Mixed into ExportKmz.prototype via ExportKmz.js.
+ *
+ * Responsibilities:
+ *  - _shareOrDownloadBlob: delivers the KMZ blob via Share Sheet (iOS/mobile)
+ *    or filesystem write (desktop with folder handle) or browser download
+ *  - export(params): builds KMZ and shares/downloads to the saved folder
+ *  - exportAs(params): shows showSaveFilePicker then writes the KMZ file
+ *  - _buildUserActionXml: generates WPML action XML for a single waypoint action
+ *  - _esc: XML-escapes a string value
+ */
 // ExportKmzShare.js
 // Mixed into ExportKmz.prototype
 

@@ -1,3 +1,15 @@
+/**
+ * FileSystemBackendIO.js  —  FileSystemBackend mixin: file I/O and directory tree
+ * Mixed into FileSystemBackend.prototype via FileSystemBackend.js.
+ *
+ * Responsibilities:
+ *  - save(name, jsonText): writes mission JSON to the resolved directory path
+ *  - load(name): reads and returns mission JSON from the directory
+ *  - delete(name): removes a mission file from the directory
+ *  - list(): returns a flat array of mission file names in the root directory
+ *  - flattenTree / listTree: recursively lists all JSON files in the tree
+ *  - joinPath / readDirectoryTree: directory traversal helpers
+ */
 // FileSystemBackendIO.js
 // Mixed into FileSystemBackend.prototype
 

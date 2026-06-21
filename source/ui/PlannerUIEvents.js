@@ -1,3 +1,14 @@
+/**
+ * PlannerUIEvents.js  —  PlannerUI mixin: flythrough and mobile event binding
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - bindFlythroughEvents: wires play/stop/seek/speed controls and
+ *    FOV toggle to the flythrough controller callbacks
+ *  - bindMobileEvents: wires mobile toolbar buttons, action bar,
+ *    bottom sheet overlay, and long-press save/export tap handlers
+ *  - closeExportOptionsDialog / closeSaveOptionsDialog
+ */
 // PlannerUIEvents.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

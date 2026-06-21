@@ -1,3 +1,13 @@
+/**
+ * AppMission.js  —  App mixin: mission state and map event binding
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - insertWaypointAt, addPOIMarker, recomputeAllPOI
+ *  - recomputePOI (gimbal pitch, heading, poiAlt from geometry)
+ *  - bindMapEvents: click-to-place waypoints/POIs, drag, select on map
+ *  - syncFlythroughMission: rebuilds the timeline after any mission change
+ */
 // AppMission.js
 // Mixed into App.prototype in App.js
 const AppMission = {

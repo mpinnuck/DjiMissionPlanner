@@ -1,3 +1,15 @@
+/**
+ * AppTerrain.js  —  App mixin: height-above-ground and terrain elevation
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - getTakeoffPoi: identifies the reference POI used as takeoff datum
+ *  - scheduleHeightAboveGroundRefresh: debounced HAG recalculation trigger
+ *  - _initPoiAltitudeToGroundLevel: fetches terrain elevation for a POI
+ *    and sets poi.alt relative to the takeoff datum
+ *  - refreshHeightAboveGround: fetches elevation for all waypoints and POIs,
+ *    populates heightAboveGroundByWaypointId / heightAboveGroundByPoiId maps
+ */
 // AppTerrain.js
 // Mixed into App.prototype in App.js
 

@@ -1,3 +1,14 @@
+/**
+ * AppLoad.js  —  App mixin: mission file load, clipboard, and keyboard
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - isTypingInEditableControl: guards keyboard shortcuts from firing in inputs
+ *  - copySelectedWaypointsToClipboard / deleteSelectionFromKeyboard
+ *  - openLoadMissionDialog: shows the mission load UI with folder tree or picker
+ *  - doLoadMission: loads a JSON file from the filesystem backend
+ *  - applyBulkWaypointSettingsFromDialog: applies altitude/speed/POI to selection
+ */
 // AppLoad.js
 // Mixed into App.prototype in App.js
 

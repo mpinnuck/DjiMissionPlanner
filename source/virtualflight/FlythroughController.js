@@ -1,27 +1,15 @@
 /**
- * FlythroughController
+ * FlythroughController.js
+ * Orchestrates the virtual flythrough animation along the mission path.
+ * Constructor and public playback API are defined here; all implementation
+ * methods are mixed in from the Flythrough* mixin files.
  *
- * Animates the drone along the mission spline on the Leaflet map.
- * Produces a heading-aware drone icon and a camera FOV ground footprint.
+ *  FlythroughPlayback — animation loop, frame interpolation, display update
+ *  FlythroughMarkers  — drone icon, telemetry popup, FOV cone
+ *  FlythroughTimeline — timeline builder, spline sampling, math utilities
  *
- * DJI Air 3S camera: HFOV 82°, 16:9 video → VFOV ≈ 52.1°
- *
- * Integration (App.js):
- *   this.flythrough = new FlythroughController(this.mapController.map, {
- *     onProgress: (t, total) => this.ui.updateFlythroughProgress(t, total),
- *     onComplete:  ()        => this.ui.setFlythroughStopped()
- *   });
- *
- *   // Call whenever waypoints change:
- *   this.flythrough.setMission(this.mission.waypoints);
- *
- *   // Wire UI buttons to:
- *   //   this.flythrough.play()
- *   //   this.flythrough.pause()
- *   //   this.flythrough.stop()
- *   //   this.flythrough.setSpeed(n)
- *   //   this.flythrough.setShowFOV(bool)
- *   //   this.flythrough.seekTo(fraction)   ← 0.0 – 1.0
+ * Public API: setMission, play, playFromStart, pause, stop, seekTo,
+ *             setSpeed, setShowFOV, setDroneConfig, destroy
  */
 class FlythroughController {
 

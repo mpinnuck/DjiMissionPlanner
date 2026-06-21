@@ -1,3 +1,15 @@
+/**
+ * PlannerUIFlythrough.js  —  PlannerUI mixin: flythrough progress UI
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - updateFlythroughProgress: updates the seek bar, time label, and
+ *    mobile stats strip during playback
+ *  - setFlythroughPlayState: switches play/pause/stopped button states
+ *  - setMobilePlayState: updates the mobile toolbar play button appearance
+ *  - updateStats / updateMobileStats: refreshes waypoint count,
+ *    total distance, and elapsed time displays
+ */
 // PlannerUIFlythrough.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

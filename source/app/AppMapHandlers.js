@@ -1,3 +1,16 @@
+/**
+ * AppMapHandlers.js  —  App mixin: map markers and location
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - updateStats / updateMobileStats
+ *  - locateUser (triggers LocationService)
+ *  - Waypoint and POI marker creation, refresh, and tooltip management
+ *  - Waypoint/POI recompute helpers (heading, gimbal pitch, HAG)
+ *  - addWaypointAction / deleteWaypointAction / moveWaypointAction*
+ *  - POI options dialog trigger
+ *  - syncFlythroughMission / updateRoute
+ */
 // AppMapHandlers.js
 // Mixed into App.prototype in App.js
 const AppMapHandlers = {

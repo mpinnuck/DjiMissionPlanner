@@ -1,3 +1,16 @@
+/**
+ * LocalStorageBackend.js
+ * localStorage-based storage backend for mission files.
+ * Used on iOS Safari and other browsers where the File System Access API
+ * directory picker (showDirectoryPicker) is unavailable.
+ *
+ * Responsibilities:
+ *  - save / load / delete / list: CRUD operations on localStorage keys
+ *    prefixed with 'djiMission:'
+ *  - getDescription: returns a human-readable backend description
+ *  - canChooseRootDirectory / canOpenMissionFileDialog: always false
+ *    (iOS uses Share Sheet for file delivery instead)
+ */
 class LocalStorageBackend {
   constructor(options = {}) {
     this.onStatus = options.onStatus || null;

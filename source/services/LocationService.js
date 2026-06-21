@@ -1,3 +1,16 @@
+/**
+ * LocationService.js
+ * Wraps the browser Geolocation API with caching and fallback.
+ *
+ * Responsibilities:
+ *  - locateUser: requests the current position using a multi-stage strategy
+ *    (watch → high-accuracy → low-accuracy fallback)
+ *  - Caches the last known location in IndexedDB for reuse across sessions
+ *    (used on macOS where CoreLocation has no GPS hardware)
+ *  - Fires onPending, onLocated, onStatus, onError callbacks
+ *  - getContextError: returns an error message if geolocation is unavailable
+ *    (non-secure context, unsupported browser, etc.)
+ */
 class LocationService {
   constructor(options) {
     this.onStatus = options.onStatus;

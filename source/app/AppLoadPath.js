@@ -1,3 +1,15 @@
+/**
+ * AppLoadPath.js  —  App mixin: mission folder path display helpers
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - getMissionFolderPath / normalizeCloudDisplayPath
+ *  - getLoadedMissionDisplayPath: builds a human-readable path string
+ *    shown in the load dialog header
+ *  - getLoadedMissionDisplayPathForPicker: path text for the file picker context
+ *  - getLoadPickerContextText / getLoadPickerContextSuffix
+ *  All methods are pure display-string formatters with no side effects.
+ */
 // AppLoadPath.js
 // Mixed into App.prototype in App.js
 

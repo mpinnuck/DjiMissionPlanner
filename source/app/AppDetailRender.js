@@ -1,3 +1,13 @@
+/**
+ * AppDetailRender.js  —  App mixin: detail panel rendering
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - _showMobileDetail: opens the appropriate mobile bottom sheet for a
+ *    waypoint or POI (delegates to openWaypointOptionsDialog / POI dialog)
+ *  - _renderDetail: renders the desktop detail panel for the selected item,
+ *    or clears it when nothing is selected
+ */
 // AppDetailRender.js
 // Mixed into App.prototype in App.js
 

@@ -1,3 +1,14 @@
+/**
+ * ExportKmzBuilder.js  —  ExportKmz mixin: KMZ/WPML XML construction
+ * Mixed into ExportKmz.prototype via ExportKmz.js.
+ *
+ * Responsibilities:
+ *  - _buildKmzZip: constructs the full DJI WPML KMZ zip archive including
+ *    wpmz/template.kml and wpmz/waylines.wpml from a waypoint array.
+ *    Handles heading modes, gimbal pitch, speed, finish/RC-lost actions,
+ *    gimbalEvenlyRotate segments, user waypoint actions, and POI headings.
+ *  Calls this._esc() and this._buildUserActionXml() from ExportKmzShare.
+ */
 // ExportKmzBuilder.js
 // Mixed into ExportKmz.prototype
 

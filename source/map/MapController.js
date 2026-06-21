@@ -1,3 +1,15 @@
+/**
+ * MapController.js
+ * Owns and manages the Leaflet map instance.
+ *
+ * Responsibilities:
+ *  - Map initialisation, tile layer, zoom/pan controls
+ *  - Waypoint and POI marker creation, removal, and label refresh
+ *  - Route polyline rendering via CubicSplinePath
+ *  - User location circle (showUserLocation)
+ *  - Drone position marker during flythrough (showDroneAtPosition)
+ *  - Layer management helpers (removeLayer, clearRoute)
+ */
 class MapController {
   constructor(mapElementId) {
     this.map = L.map(mapElementId, { zoomControl: true, tap: false }).setView([-33.87, 151.21], 14);

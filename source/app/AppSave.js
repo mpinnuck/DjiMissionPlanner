@@ -1,3 +1,16 @@
+/**
+ * AppSave.js  —  App mixin: mission file save
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - doUnselectAll / clearSelection
+ *  - _persistSaveFileHandle: stores a writable FileSystemFileHandle in memory
+ *  - doSaveMission: saves mission JSON to the filesystem or via Share Sheet
+ *  - doMobileSave: mobile-specific save flow (Share Sheet on iOS)
+ *  - saveMissionToFiles: shows showSaveFilePicker (desktop) or Share Sheet (iOS)
+ *  - changeSaveMissionFolder: lets user choose a new save folder
+ *  - applyDefaultAltitudeToAllWaypoints / applyConstantHeightAboveGround
+ */
 // AppSave.js
 // Mixed into App.prototype in App.js
 

@@ -1,3 +1,14 @@
+/**
+ * ExportKmz.js
+ * KMZ/WPML export class for DJI waypoint missions.
+ * Constructor accepts status/error/exported callbacks and initialises the
+ * IndexedDB-backed export folder handle.  All export methods are mixed in
+ * from the ExportKmz* mixin files via Object.assign at the bottom of this file.
+ *
+ *  ExportKmzFolder  — folder persistence and selection
+ *  ExportKmzBuilder — WPML XML / KMZ zip construction
+ *  ExportKmzShare   — share sheet, download, export API surface
+ */
 class ExportKmz {
   constructor(options) {
     this.onStatus = options.onStatus || null;

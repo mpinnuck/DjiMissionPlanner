@@ -1,3 +1,20 @@
+/**
+ * Mission.js
+ * Pure data model for a DJI waypoint mission.
+ * Holds the waypoints and POIs arrays and provides all mutation methods.
+ *
+ * Responsibilities:
+ *  - createWaypoint / addWaypoint / removeWaypoint / clearWaypoints
+ *  - createPOI / addPOI / removePOI
+ *  - Waypoint action CRUD: addWaypointAction, removeWaypointAction,
+ *    moveWaypointActionUp, moveWaypointActionDown
+ *  - recomputePOI / recomputeAllPOI: recalculates gimbal pitch,
+ *    heading, and poiAlt for POI-assigned waypoints
+ *  - calcGimbalPitch / calcHeading / haversine / bearing geometry helpers
+ *  - totalDistance: sum of all inter-waypoint segment distances
+ *  - clear: resets all waypoints and POIs
+ *  No DOM or UI dependencies — safe to unit test in isolation.
+ */
 class Mission {
   constructor() {
     this.waypoints = [];

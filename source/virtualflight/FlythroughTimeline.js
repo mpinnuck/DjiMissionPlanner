@@ -1,3 +1,16 @@
+/**
+ * FlythroughTimeline.js  —  FlythroughController mixin: timeline and math
+ * Mixed into FlythroughController.prototype via FlythroughController.js.
+ *
+ * Responsibilities:
+ *  - _actionsDwellTime: sums the hover/dwell time of all actions at a waypoint
+ *  - _buildTimeline: converts waypoints into a dense array of time-stamped
+ *    frames by sampling the cubic spline at regular intervals, computing
+ *    heading, gimbal pitch, POI tracking, and dwell pauses at each waypoint
+ *  - _haversine / _bearing: great-circle distance and bearing calculations
+ *  - _lerpAngle: shortest-arc angle interpolation
+ *  - _offsetLatLng: offset a coordinate by metres north/east
+ */
 // FlythroughTimeline.js
 // Mixed into FlythroughController.prototype
 

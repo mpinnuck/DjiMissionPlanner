@@ -1,3 +1,15 @@
+/**
+ * PlannerUITree.js  —  PlannerUI mixin: waypoint/POI tree list rendering
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - renderList: builds the expandable tree of waypoints and POIs in the
+ *    sidebar, including HAG display, action rows, expand/collapse, and
+ *    selection highlight.  Wires all item callbacks (select, delete,
+ *    add/remove/reorder actions, expand)
+ *  - showActionPickerDialog: floating overlay for choosing and configuring
+ *    a waypoint action type before adding it to a waypoint
+ */
 // PlannerUITree.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

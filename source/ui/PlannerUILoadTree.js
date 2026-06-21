@@ -1,3 +1,16 @@
+/**
+ * PlannerUILoadTree.js  —  PlannerUI mixin: mission load dialog and toast
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - showMissionLoadDialog: displays the mission load UI with a folder tree
+ *    (desktop) or Open-from-Files button (iOS), recent missions list,
+ *    and load/cancel controls
+ *  - closeMissionLoadDialog
+ *  - showToast / hideToast / ensureToastContainer: non-blocking status toasts
+ *  - setStatus: updates the status bar text
+ *  - formatFlythroughTime: mm:ss formatter used in the load dialog
+ */
 // PlannerUILoadTree.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

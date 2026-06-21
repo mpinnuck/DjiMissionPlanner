@@ -1,3 +1,19 @@
+/**
+ * FlightGraph.js
+ * Canvas-based flight profile graph shown as an overlay on the map.
+ * Displays altitude (ASL), height above ground (HAG), and speed over time
+ * for the current mission, with a draggable time cursor linked to the flythrough.
+ *
+ * Responsibilities:
+ *  - buildData: computes the graph data points from waypoints including
+ *    dwell pauses at action waypoints (delegates to FlythroughController._actionsDwellTime)
+ *  - show / hide / refresh / updateCursor / draw: lifecycle and render control
+ *  - _computeLayout / _computeScaleFns: graph geometry and scale functions
+ *  - _drawStaticGraph: renders grid, axes, altitude, HAG, and speed lines
+ *    to an offscreen canvas for efficient cursor updates
+ *  - _drawCursor: overlays the time cursor line and readout label
+ *  - _sampleAtTime: interpolates alt/HAG/speed at an arbitrary time
+ */
 class FlightGraph {
   constructor(options = {}) {
     this._overlay = options.overlayElement || null;

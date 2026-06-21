@@ -1,3 +1,14 @@
+/**
+ * PlannerUI.js
+ * Root UI class for the DJI Mission Planner.
+ * The constructor caches all DOM element references and initialises
+ * UI state. All UI methods are mixed in from the PlannerUI* mixin files
+ * via Object.assign at the bottom of this file.
+ *
+ * Also defines module-level helpers:
+ *  - ACTION_META: display metadata for each supported waypoint action type
+ *  - _actionSummary(action): returns a short human-readable action label
+ */
 const ACTION_META = {
   takePhoto:    { icon: '📷', label: 'Take Photo',    params: [
     { key: 'fileSuffix', label: 'File suffix', type: 'text', default: '' }

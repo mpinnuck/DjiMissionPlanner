@@ -1,3 +1,16 @@
+/**
+ * ExportKmzFolder.js  —  ExportKmz mixin: export folder persistence
+ * Mixed into ExportKmz.prototype via ExportKmz.js.
+ *
+ * Responsibilities:
+ *  - IndexedDB open/read/write for the chosen export folder handle
+ *  - persistFolderHandle / restoreFolderHandle / clearPersistedFolderHandle
+ *  - loadFolderHandle: restores handle and verifies read permission
+ *  - ensurePermission: requests readwrite permission on a directory handle
+ *  - hasSavedFolder / canChooseFolder
+ *  - promptForFolder: shows showDirectoryPicker and persists the result
+ *  - clearSavedFolder / getExportFolder / getSavedExportFolder
+ */
 // ExportKmzFolder.js
 // Mixed into ExportKmz.prototype
 

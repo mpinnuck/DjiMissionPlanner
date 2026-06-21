@@ -1,3 +1,12 @@
+/**
+ * App.js
+ * Root application class for the DJI Mission Planner.
+ * Owns all top-level state: mission data, map controller, UI, flythrough,
+ * location service, KMZ exporter, elevation service, and storage backend.
+ * The constructor wires every subsystem together and calls Object.assign
+ * to mix in the method groups defined in the App* mixin files.
+ * Entry point: dji_mission_planner.js calls `new App({ mapElementId })`.
+ */
 class App {
   constructor(options) {
     this.locationToastId = 'locationLookupToast';

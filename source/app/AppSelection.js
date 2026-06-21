@@ -1,3 +1,16 @@
+/**
+ * AppSelection.js  —  App mixin: waypoint selection and bulk editing
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - selectItem / clearSelection / clearWaypointMultiSelection
+ *  - toggleWaypointMultiSelect, touch-range selection
+ *  - applyWaypointSelectionState (marker highlight sync)
+ *  - showBulkWaypointDetail / openBulkWaypointSettingsDialog
+ *  - applyBulkWaypointSettingsFromDialog / applyBulkWaypointUpdate
+ *  - handleSelectModeRequest
+ *  - renderList / _buildListCallbacks
+ */
 // AppSelection2.js
 // Mixed into App.prototype in App.js
 

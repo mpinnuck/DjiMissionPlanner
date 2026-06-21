@@ -1,3 +1,17 @@
+/**
+ * FlythroughMarkers.js  —  FlythroughController mixin: map markers and UI
+ * Mixed into FlythroughController.prototype via FlythroughController.js.
+ *
+ * Responsibilities:
+ *  - _buildDroneIcon: creates the SVG drone Leaflet marker
+ *  - _bindDroneInteractions: hover tooltip and drag-to-seek on drone marker
+ *  - _attachTelemetryPopupActions: wires close/seek buttons in the popup
+ *  - _closeTelemetryPopup / _buildTelemetryHtml: telemetry overlay
+ *  - _formatTime: mm:ss time formatter
+ *  - _findNearestFrame: binary search for the closest timeline frame to a time
+ *  - _computeFOV: calculates and renders the camera field-of-view cone polygon
+ *  - _clearLayers: removes all Leaflet layers owned by the controller
+ */
 // FlythroughMarkers.js
 // Mixed into FlythroughController.prototype
 

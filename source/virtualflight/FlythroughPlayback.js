@@ -1,3 +1,16 @@
+/**
+ * FlythroughPlayback.js  —  FlythroughController mixin: animation loop
+ * Mixed into FlythroughController.prototype via FlythroughController.js.
+ *
+ * Responsibilities:
+ *  - _tick: requestAnimationFrame callback — advances playhead, calls _getFrame
+ *  - _getFrame: interpolates position/heading/gimbal/FOV from the timeline
+ *    at a given time using the cubic spline sample points
+ *  - _augmentFrame: recomputes gimbal pitch dynamically from the drone's
+ *    actual spline position to the assigned POI (more accurate than stored value)
+ *  - _updateDisplay: pushes the current frame to the map drone marker,
+ *    FPV camera, and flight graph cursor
+ */
 // FlythroughPlayback.js
 // Mixed into FlythroughController.prototype
 

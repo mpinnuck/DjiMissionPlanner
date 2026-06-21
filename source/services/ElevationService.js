@@ -1,3 +1,13 @@
+/**
+ * ElevationService.js
+ * Fetches terrain elevation data from the Open-Elevation API.
+ *
+ * Responsibilities:
+ *  - getElevations(locations): batch-fetches ASL elevation in metres
+ *    for an array of {lat, lng} positions
+ *  - Used by AppTerrain.refreshHeightAboveGround to compute HAG values
+ *    for waypoints and POIs relative to the takeoff ground elevation
+ */
 class ElevationService {
   constructor(options = {}) {
     this.onError = options.onError || null;

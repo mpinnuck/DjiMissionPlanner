@@ -1,3 +1,16 @@
+/**
+ * FileSystemBackendMeta.js  —  FileSystemBackend mixin: capabilities and metadata
+ * Mixed into FileSystemBackend.prototype via FileSystemBackend.js.
+ *
+ * Responsibilities:
+ *  - canChooseRootDirectory / canOpenMissionFileDialog: capability flags
+ *  - getLastLoadedMissionFolder / setLastLoadedMissionFolder (localStorage)
+ *  - getLastLoadedMissionRootLabel / setLastLoadedMissionRootLabel
+ *  - getLastLoadedMissionLocation / setLastLoadedMissionLocation
+ *  - markCurrentRootAsLastLoadedRoot
+ *  - getDebugContext: returns a diagnostic snapshot of all stored handles
+ *  - normalizeFolderPath / getDescription / sanitizeMissionName / normalizePath
+ */
 // FileSystemBackendMeta.js
 // Mixed into FileSystemBackend.prototype
 

@@ -1,3 +1,15 @@
+/**
+ * PlannerUIDetail.js  —  PlannerUI mixin: desktop detail panel
+ * Mixed into PlannerUI.prototype via PlannerUI.js.
+ *
+ * Responsibilities:
+ *  - showWaypointDetail: renders the full waypoint detail form in the
+ *    desktop sidebar detail panel (altitude, speed, POI, heading, actions)
+ *  - showPOIDetail: renders the POI detail form (name, altitude, HAG)
+ *  - showBulkWaypointDetail: renders the bulk-edit summary panel when
+ *    multiple waypoints are selected
+ *  - showNothingSelected: resets the detail panel to the placeholder state
+ */
 // PlannerUIDetail.js
 // Mixed into PlannerUI.prototype in PlannerUI.js
 

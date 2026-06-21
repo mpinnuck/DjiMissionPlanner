@@ -1,3 +1,14 @@
+/**
+ * AppDetail.js  —  App mixin: item detail, mode control, and clear
+ * Mixed into App.prototype via App.js.
+ *
+ * Responsibilities:
+ *  - showDetail: routes to _showMobileDetail or _renderDetail based on screen
+ *  - deleteItem: removes a waypoint or POI and refreshes the map
+ *  - setMode: switches between 'select', 'addWaypoint', 'addPOI' modes
+ *  - clearAll / clearAllWithoutPrompt: prompts then calls _doClear
+ *  - _doClear: removes all markers, clears mission data and UI state
+ */
 // AppDetail.js
 // Mixed into App.prototype in App.js
 const AppDetail = {

@@ -1,23 +1,17 @@
 /**
- * FPVController
+ * FPVController.js
+ * First-person view camera panel rendered using Three.js.
+ * Displays a real-time synthetic camera view of the mission path during
+ * flythrough, driven by frame data from FlythroughController.
  *
- * First-person view from the drone camera using Three.js r128.
- * Satellite tiles (ESRI) are fetched and laid as a textured ground plane.
- * The Three.js camera is positioned and oriented to match the drone's
- * altitude, heading and gimbal pitch each frame.
- *
- * Driven by FlythroughController via the onFrame callback:
- *
- *   this.flythrough = new FlythroughController(map, {
- *     onFrame: frame => this.fpv.updateFrame(frame),
- *     ...
- *   });
- *
- *   this.fpv = new FPVController(document.getElementById('fpv-panel'));
- *   this.fpv.setMission(waypoints);
- *
- * FlythroughController._tick() needs one addition:
- *   if (this.onFrame) this.onFrame(frame);  // after _updateDisplay(frame)
+ * Responsibilities:
+ *  - Initialises a Three.js WebGL renderer, scene, and perspective camera
+ *    inside the fpv-panel DOM element
+ *  - updateFrame: positions the camera at the drone's lat/lng/alt and
+ *    applies gimbal pitch and yaw heading from the current flythrough frame
+ *  - setDroneConfig: updates the camera field of view from the drone profile
+ *  - updateGraphCursor: keeps the flight graph cursor in sync with FPV time
+ *  - Renders a simplified terrain and sky scene for spatial orientation
  */
 class FPVController {
 
