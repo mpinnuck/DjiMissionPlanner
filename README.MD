@@ -349,7 +349,7 @@ The app supports two storage modes depending on browser capabilities.
 **Desktop (Chrome/Edge with File System Access API)**
 
 - **Click** `Save Mission` — saves directly to the file that was last loaded, overwriting it in place. No dialog is shown.
-- **Right-click or double-click** `Save Mission` — Save As: opens a file picker to choose a new name or location.
+- **Right-click or double-click** `Save Mission` — Save As: opens a file picker to choose a new name or location. The picker opens in the mission folder automatically.
 - **Long-press** `Save Mission` (hold ≥ 0.5 s) — opens a folder picker to change the default mission save folder.
 - **Click** `Load Mission` — opens a file picker. The picker remembers and reopens at the last used folder automatically across sessions.
 - **Click** `Export KMZ` — on first use, prompts for a folder via a directory picker and remembers it in IndexedDB. All subsequent single-click exports write directly to that folder, overwriting the existing file silently.
@@ -367,6 +367,12 @@ The File System Access API is not available on iOS. Every save and export uses t
 
 Saved missions use JSON so they can be reloaded and edited later.
 
+> **iOS folder navigation note:** The iOS Files picker remembers the last folder navigated to within the current session, but the app has no way to control which folder it opens at. This means:
+> - If you tap `Save 💾` and navigate to your mission folder (e.g. `Missions/Hilltop/`), then tap `Export 📤`, the Files picker will open at `Missions/Hilltop/` — you will need to manually navigate to your KMZ folder.
+> - Conversely, if you export a KMZ first and then tap `Save 💾`, the Files picker will open at the KMZ folder — you will need to navigate back to the mission folder before saving.
+>
+> This is an iOS platform limitation and cannot be changed by the app. The recommended workflow on iOS is to complete all mission edits first, save the JSON, then export the KMZ — navigating to the correct folder for each operation.
+
 ### Cloud-Based Workflow (iCloud, OneDrive, Google Drive)
 
 Keeping your mission JSON files in a cloud-synced folder is the recommended way to use the app across devices. It gives you a single mission library that is accessible everywhere — plan at your desk, refine on-site in the field, and export directly from your mobile device before flying.
@@ -376,16 +382,19 @@ Keeping your mission JSON files in a cloud-synced folder is the recommended way 
 1. **Plan on desktop** — create or refine the mission on a desktop browser with full File System Access support. Save to a cloud folder such as `iCloud Drive/Drone/Missions/Planner`.
 2. **Take it to the field** — the cloud folder syncs automatically to your iPad or iPhone. Open the app on iPad Safari, tap `Load Mission → Open from Files...`, and navigate to the cloud folder to open the mission.
 3. **Adjust on-site** — move waypoints, tweak altitudes or speeds, set the takeoff elevation for the actual launch location. The full editor is available on mobile.
-4. **Export from the field** — tap `Export 📤` to generate the `.kmz` directly on the device and save it via the share sheet.
-5. **Save edits back to cloud** — tap `Save 💾` and tap **Save to Files** to write the updated JSON back to the cloud folder so your desktop copy stays in sync.
+4. **Export from the field** — tap `Export 📤` to generate the `.kmz` directly on the device and save it via the share sheet. Navigate to your KMZ folder and tap **Replace**.
+5. **Save edits back to cloud** — tap `Save 💾` and tap **Save to Files** to write the updated JSON back to the cloud folder. Navigate to your mission folder and tap **Replace**.
 
 Recommended folder structure:
 
 ```
-iCloud Drive/Drone/Missions/Planner/
-  SiteName1.json
-  SiteName2.json
-  ...
+iCloud Drive/Drone/Missions/
+  Planner/          ← mission JSON files go here
+    SiteName1.json
+    SiteName2.json
+  KMZ/              ← exported KMZ files go here
+    SiteName1.kmz
+    SiteName2.kmz
 ```
 
 Notes:
@@ -394,6 +403,7 @@ Notes:
 - Load/save mission context and KMZ export folder context are tracked independently.
 - If cloud providers are available through the iOS Files app, they are usable via `Open from Files...`.
 - Changes made in the field are only synced back to desktop if you explicitly save back to the cloud file (step 5 above).
+- On iOS, always complete all edits before switching between Save and Export to minimise manual folder navigation.
 
 ### Exporting DJI KMZ Missions
 
@@ -418,6 +428,7 @@ Notes:
 - Terrain/elevation results depend on the external elevation service and should be treated as planning aids, not certified flight data
 - Drone support in export metadata is currently centered on DJI Air 3S, with a custom camera option for preview tuning
 - On iOS/iPadOS, every save and export requires a manual share sheet interaction — silent background saves are not possible due to platform limitations
+- On iOS/iPadOS, the Files picker always opens at the last navigated folder within the session — the app cannot direct it to a specific folder. After saving a mission JSON the picker will default to the mission folder; after exporting a KMZ it will default to the KMZ folder. Always check you are saving to the correct folder before tapping Replace
 
 ## Packaging The Source
 
