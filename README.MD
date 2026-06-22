@@ -57,8 +57,8 @@ Mission defaults such as altitude, speed, finish action, RC lost action, heading
 
 The app stores editable missions as JSON.
 
-- On browsers that support the File System Access API, missions can be saved to and loaded from a user-chosen folder
-- On browsers without that API, the app falls back to local browser storage
+- On desktop browsers that support the File System Access API (Chrome, Edge), missions are saved directly to and loaded from a user-chosen folder. The folder is remembered in IndexedDB and reused automatically on subsequent saves and sessions.
+- On iOS/iPadOS Safari, the File System Access API is not available. Every save triggers the system share sheet so the user can write the file back to iCloud Drive or another Files location.
 
 This JSON is the editable working format for the planner. It is not the same as the DJI `.kmz` export package.
 
@@ -251,9 +251,9 @@ Why use a local web server:
 - `Unselect All` clears the current selection
 - `Clear All` removes all waypoints and POIs
 - `Use My Location` centers the map on your current location when browser permissions allow it
-- `Save Mission` saves the editable JSON mission to the remembered mission folder. **Double-click or right-click** `Save Mission` to pick a new file location (Save As). **Long-press** (hold ≥ 0.5 s) `Save Mission` to open a folder picker and change which folder missions are saved into. On iOS/iPadOS, **tap** `Save 💾` to save silently to device storage (localStorage). **Long-press** `Save 💾` on iOS/iPadOS to push the file to iCloud — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**
-- `Load Mission` opens a file picker to load a previously saved JSON mission. The folder from the loaded file is remembered and used as the default location for subsequent saves and loads
-- `Export KMZ` generates the DJI waypoint package and saves it to the remembered KMZ export folder. **Double-click or right-click** `Export KMZ` to open a folder picker and choose a new export location (Export As). **Long-press** (hold ≥ 0.5 s) `Export KMZ` to change the remembered KMZ export folder without performing an export. On iOS/iPadOS, **tap** `Export 📤` to export KMZ via the system share sheet — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace** to overwrite it
+- `Save Mission` saves the editable JSON mission directly to the file it was loaded from. **Double-click or right-click** `Save Mission` to pick a new file location (Save As). **Long-press** (hold ≥ 0.5 s) `Save Mission` to open a folder picker and change which folder missions are saved into. On iOS/iPadOS, **tap** `Save 💾` to trigger the share sheet — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**
+- `Load Mission` opens a file picker to load a previously saved JSON mission. The picker opens at the last used folder automatically
+- `Export KMZ` generates the DJI waypoint package and saves it to the remembered KMZ export folder. On first use, a folder picker is shown to choose the export folder — this is remembered for all subsequent exports. **Double-click or right-click** `Export KMZ` to open a file picker and save to a specific location (Export As). **Long-press** (hold ≥ 0.5 s) `Export KMZ` to change the remembered KMZ export folder without performing an export. On iOS/iPadOS, **tap** `Export 📤` to export KMZ via the system share sheet — tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace** to overwrite it
 - `Play` resumes or starts the virtual flythrough from the **current aircraft position** and the button label changes to `Pause`. Click again to pause. **Double-click** to restart playback from the **beginning of the mission**
 - `Stop` stops the flythrough and resets the aircraft to the beginning of the mission
 - `FOV` toggles the camera field-of-view footprint on the map
@@ -346,25 +346,24 @@ This is a planning preview, not a physics-accurate flight simulator.
 
 The app supports two storage modes depending on browser capabilities.
 
-- Preferred: File System Access API using a chosen local folder
-- Fallback: browser local storage
-
-On iOS/iPadOS Safari the app always uses device storage (localStorage) — the File System Access API is intentionally bypassed to avoid triggering iOS folder pickers on every save.
-
 **Desktop (Chrome/Edge with File System Access API)**
 
-- **Click** `Save Mission` — saves to the remembered mission folder immediately.
-- **Long-press** `Save Mission` (hold ≥ 0.5 s) — opens a folder picker to change the mission save folder.
-- **Right-click or double-click** `Save Mission` — Save As (pick a new file name/location).
-- **Click** `Export KMZ` — exports to the remembered KMZ folder immediately.
-- **Long-press** `Export KMZ` (hold ≥ 0.5 s) — opens a folder picker to change the KMZ export folder.
-- **Right-click or double-click** `Export KMZ` — Export As (pick a new folder/location).
+- **Click** `Save Mission` — saves directly to the file that was last loaded, overwriting it in place. No dialog is shown.
+- **Right-click or double-click** `Save Mission` — Save As: opens a file picker to choose a new name or location.
+- **Long-press** `Save Mission` (hold ≥ 0.5 s) — opens a folder picker to change the default mission save folder.
+- **Click** `Load Mission` — opens a file picker. The picker remembers and reopens at the last used folder automatically across sessions.
+- **Click** `Export KMZ` — on first use, prompts for a folder via a directory picker and remembers it in IndexedDB. All subsequent single-click exports write directly to that folder, overwriting the existing file silently.
+- **Right-click or double-click** `Export KMZ` — Export As: opens a file picker to save to a specific location.
+- **Long-press** `Export KMZ` (hold ≥ 0.5 s) — opens a folder picker to change the remembered KMZ export folder.
+
+The mission save folder, KMZ export folder, and last loaded file are all persisted in IndexedDB and survive browser restarts. Chrome requires a permission re-grant gesture on the first interaction after a new session — this is handled automatically when you click Save, Load, or Export.
 
 **iOS/iPadOS Safari**
 
-- **Tap** `Save 💾` — saves silently to device storage (overwrites, no dialog).
-- **Long-press** `Save 💾` — pushes the file to iCloud so it is accessible on other devices (desktop, other iPads). Tap **Save to Files**, navigate to your iCloud folder, tap the existing file, then tap **Replace**.
-- **Long-press** `Export 📤` — same share-sheet flow for KMZ files, useful for opening them on a device running DJI Fly.
+The File System Access API is not available on iOS. Every save and export uses the system share sheet, which lets you write files back to iCloud Drive or any other Files location.
+
+- **Tap** `Save 💾` — triggers the share sheet. Tap **Save to Files**, navigate to your iCloud mission folder, tap the existing file, then tap **Replace** to overwrite it.
+- **Tap** `Export 📤` — triggers the share sheet for the KMZ file. Tap **Save to Files**, navigate to your iCloud KMZ folder, tap the existing file, then tap **Replace**.
 
 Saved missions use JSON so they can be reloaded and edited later.
 
@@ -377,8 +376,8 @@ Keeping your mission JSON files in a cloud-synced folder is the recommended way 
 1. **Plan on desktop** — create or refine the mission on a desktop browser with full File System Access support. Save to a cloud folder such as `iCloud Drive/Drone/Missions/Planner`.
 2. **Take it to the field** — the cloud folder syncs automatically to your iPad or iPhone. Open the app on iPad Safari, tap `Load Mission → Open from Files...`, and navigate to the cloud folder to open the mission.
 3. **Adjust on-site** — move waypoints, tweak altitudes or speeds, set the takeoff elevation for the actual launch location. The full editor is available on mobile.
-4. **Export from the field** — tap `Export 📤` (or long-press to share via the system share sheet) to generate the `.kmz` directly on the device.
-5. **Save edits back to cloud** — long-press `Save 💾` and tap **Save to Files** to write the updated JSON back to the cloud folder so your desktop copy stays in sync.
+4. **Export from the field** — tap `Export 📤` to generate the `.kmz` directly on the device and save it via the share sheet.
+5. **Save edits back to cloud** — tap `Save 💾` and tap **Save to Files** to write the updated JSON back to the cloud folder so your desktop copy stays in sync.
 
 Recommended folder structure:
 
@@ -394,7 +393,7 @@ Notes:
 - The app can only display paths that browser APIs expose. Some dialogs show relative paths rather than full OS paths.
 - Load/save mission context and KMZ export folder context are tracked independently.
 - If cloud providers are available through the iOS Files app, they are usable via `Open from Files...`.
-- Changes made in the field are only synced back to desktop if you explicitly save back to the cloud file (step 5 above). The in-browser localStorage copy on the device is separate from the cloud file.
+- Changes made in the field are only synced back to desktop if you explicitly save back to the cloud file (step 5 above).
 
 ### Exporting DJI KMZ Missions
 
@@ -402,13 +401,13 @@ To export:
 
 1. Build or load your mission.
 2. Click `Export KMZ`.
-3. Choose an export folder when prompted.
-4. The app writes the `.kmz` package for transfer to the DJI controller.
+3. On first use, choose an export folder when prompted — this is remembered for all future exports.
+4. The app writes the `.kmz` package directly to that folder, overwriting any existing file with the same name.
 
 Notes:
 
 - The export folder can be changed by right-clicking `Export KMZ`, double-clicking it, or long-pressing it on desktop (hold ≥ 0.5 s)
-- On iOS/iPadOS, long-press `Export 📤` to trigger the share sheet
+- On iOS/iPadOS, tap `Export 📤` to trigger the share sheet
 - The exported `.kmz` is the deliverable for DJI mission injection/sync tools
 
 ## Limitations And Notes
@@ -418,6 +417,7 @@ Notes:
 - Geolocation requires browser permission and a secure context such as `localhost` or HTTPS
 - Terrain/elevation results depend on the external elevation service and should be treated as planning aids, not certified flight data
 - Drone support in export metadata is currently centered on DJI Air 3S, with a custom camera option for preview tuning
+- On iOS/iPadOS, every save and export requires a manual share sheet interaction — silent background saves are not possible due to platform limitations
 
 ## Packaging The Source
 

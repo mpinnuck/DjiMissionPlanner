@@ -309,44 +309,52 @@ async openLoadMissionDialog() {
  * @returns {Promise<void>}
  */
 async doLoadMission() {
-  if (this.storage.canOpenMissionFileDialog()) {
-    try {
-      const selected = await this.storage.openMissionFileDialog();
-      this.importMissionJson(selected.jsonText);
-      const loadedPath = selected.path || selected.name || 'mission.json';
-      if (selected.rootLabel) {
-        this.lastLoadedMissionLocation = {
-          rootLabel: selected.rootLabel,
-          folderPath: selected.directoryPath || this.getMissionFolderPath(loadedPath, '')
-        };
-        this.lastLoadedMissionFolder = this.lastLoadedMissionLocation.folderPath;
-        this.lastLoadedMissionRootLabel = this.lastLoadedMissionLocation.rootLabel;
-        this.storage.setLastLoadedMissionLocation(this.lastLoadedMissionLocation);
-      }
-      let postLoadDebugContext = null;
+  // Guard against re-entry from double-click — file picker is already open.
+  if (this._loadMissionInProgress) return;
+  this._loadMissionInProgress = true;
+  try {
+    if (this.storage.canOpenMissionFileDialog()) {
       try {
-        postLoadDebugContext = await this.storage.getDebugContext();
-      } catch (error) {
-        postLoadDebugContext = null;
-      }
+        const selected = await this.storage.openMissionFileDialog();
 
-      const loadedDisplayPath = this.getLoadedMissionDisplayPathForPicker(selected, loadedPath, postLoadDebugContext);
-      this.showStatus(`Loaded mission file: ${loadedDisplayPath}`);
-      this.ui.showToast(`Loaded mission: ${loadedDisplayPath}`, 'success', { id: 'missionLoadToast' });
-      return;
-    } catch (error) {
-      const message = error && error.message ? error.message : 'Failed to load mission file.';
-      if (message === 'Mission file selection was cancelled.') {
+        this.importMissionJson(selected.jsonText);
+        const loadedPath = selected.path || selected.name || 'mission.json';
+        if (selected.rootLabel) {
+          this.lastLoadedMissionLocation = {
+            rootLabel: selected.rootLabel,
+            folderPath: selected.directoryPath || this.getMissionFolderPath(loadedPath, '')
+          };
+          this.lastLoadedMissionFolder = this.lastLoadedMissionLocation.folderPath;
+          this.lastLoadedMissionRootLabel = this.lastLoadedMissionLocation.rootLabel;
+          this.storage.setLastLoadedMissionLocation(this.lastLoadedMissionLocation);
+        }
+
+        // When directoryPath is empty (Chrome resolve() fails on restored IndexedDB
+        // handles), fall back to just the filename to avoid misleading display like
+        // "Home/Hilltop.json" when the file is actually in a subfolder.
+        const loadedDisplayPath = selected.directoryPath
+          ? this.getLoadedMissionDisplayPathForPicker(selected, loadedPath, null)
+          : (selected.name || loadedPath);
+
+        this.showStatus(`Loaded mission file: ${loadedDisplayPath}`);
+        this.ui.showToast(`Loaded mission: ${loadedDisplayPath}`, 'success', { id: 'missionLoadToast' });
+        return;
+      } catch (error) {
+        const message = error && error.message ? error.message : 'Failed to load mission file.';
+        if (message === 'Mission file selection was cancelled.') {
+          return;
+        }
+
+        this.onError(message);
+        this.ui.showToast(message, 'error');
         return;
       }
-
-      this.onError(message);
-      this.ui.showToast(message, 'error');
-      return;
     }
-  }
 
-  this.openLoadMissionDialog();
+    this.openLoadMissionDialog();
+  } finally {
+    this._loadMissionInProgress = false;
+  }
 },
 
 };

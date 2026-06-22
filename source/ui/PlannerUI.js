@@ -305,9 +305,25 @@ class PlannerUI {
     this.btnUnselectAll.addEventListener('click', handlers.onUnselectAll);
     this.btnLocate.addEventListener('click', handlers.onLocate);
     this.btnClear.addEventListener('click', handlers.onClearAll);
-    this.btnSaveMission.addEventListener('click', handlers.onSaveMission);
+
+    // Debounced click handlers for Save and Export so that a double-click
+    // cancels the pending single-click before any dblclick handler fires.
+    let saveMissionClickTimer = null;
+    this.btnSaveMission.addEventListener('click', () => {
+      clearTimeout(saveMissionClickTimer);
+      saveMissionClickTimer = setTimeout(() => handlers.onSaveMission(), 250);
+    });
+
+    // Load Mission uses a plain click — re-entry is guarded in doLoadMission()
+    // via the _loadMissionInProgress flag, which is zero-delay unlike a debounce.
     this.btnLoadMission.addEventListener('click', handlers.onLoadMission);
-    this.btnExport.addEventListener('click', handlers.onExport);
+
+    let exportClickTimer = null;
+    this.btnExport.addEventListener('click', () => {
+      clearTimeout(exportClickTimer);
+      exportClickTimer = setTimeout(() => handlers.onExport(), 250);
+    });
+
     if (this.btnFPV && typeof handlers.onToggleFPV === 'function') {
       this.btnFPV.addEventListener('click', handlers.onToggleFPV);
     }
@@ -339,10 +355,12 @@ class PlannerUI {
     if (typeof handlers.onSaveMissionAs === 'function') {
       this.btnSaveMission.addEventListener('contextmenu', event => {
         event.preventDefault();
+        clearTimeout(saveMissionClickTimer);
         handlers.onSaveMissionAs();
       });
       this.btnSaveMission.addEventListener('dblclick', event => {
         event.preventDefault();
+        clearTimeout(saveMissionClickTimer);
         handlers.onSaveMissionAs();
       });
     }
@@ -351,10 +369,12 @@ class PlannerUI {
     if (typeof handlers.onExportAs === 'function') {
       this.btnExport.addEventListener('contextmenu', e => {
         e.preventDefault();
+        clearTimeout(exportClickTimer);
         handlers.onExportAs();
       });
       this.btnExport.addEventListener('dblclick', e => {
         e.preventDefault();
+        clearTimeout(exportClickTimer);
         handlers.onExportAs();
       });
     }

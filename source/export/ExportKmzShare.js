@@ -67,6 +67,8 @@ async _shareOrDownloadBlob(blob, filename, waypointCount) {
 
 /**
  * Builds and delivers a KMZ file to the saved export folder or Share Sheet.
+ * On first use, prompts the user to choose a folder via showDirectoryPicker
+ * and persists it for all subsequent single-click exports.
  *
  * @param {Object} params
  */
@@ -78,10 +80,10 @@ export(params) {
 
   zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(async blob => {
     try {
-      const dirHandle = await this.getSavedExportFolder();
+      const dirHandle = await this.getExportFolder();
       if (dirHandle) {
         const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
-        const writable = await fileHandle.createWritable();
+        const writable = await fileHandle.createWritable({ keepExistingData: false });
         await writable.write(blob);
         await writable.close();
 
@@ -96,6 +98,7 @@ export(params) {
         return;
       }
     } catch (err) {
+      if (err && err.name === 'AbortError') return;
       console.warn('Folder save failed, falling back to download:', err);
     }
 

@@ -60,8 +60,6 @@ _persistSaveFileHandle(handle) {
  */
 async doSaveMission() {
   try {
-    // On mobile/iOS (showDirectoryPicker unavailable), save silently to localStorage.
-    // Long-press Save (saveMissionToFiles via share sheet) is used to push to iCloud.
     if (
       typeof window !== 'undefined' &&
       !PersistentStorage.supportsFileSystemAccess()
@@ -73,9 +71,33 @@ async doSaveMission() {
       return;
     }
 
-    // Desktop with full filesystem access: use the storage backend
     const jsonText = this.exportMissionJson();
-    const savedPath = await this.storage.save(this.ui.getMissionName(), jsonText);
+
+    // Chrome's FileSystemDirectoryHandle.resolve() fails on handles restored
+    // from IndexedDB, so directory-based path resolution writes to the wrong
+    // folder. Instead, write directly to the persisted file handle from the
+    // last load — it retains write capability without needing directory traversal.
+    const missionName = this.ui.getMissionName();
+    const expectedFileName = missionName.toLowerCase().endsWith('.json')
+      ? missionName
+      : `${missionName}.json`;
+
+    const lastFileHandle = await this.storage.getLastLoadedFileHandle();
+    if (lastFileHandle && lastFileHandle.name === expectedFileName) {
+      try {
+        const writable = await lastFileHandle.createWritable({ keepExistingData: false });
+        await writable.write(jsonText);
+        await writable.close();
+        this.showStatus(`Saved mission: ${lastFileHandle.name}`);
+        this.ui.showToast(`Saved mission: ${lastFileHandle.name}`, 'success');
+        return;
+      } catch (err) {
+        // Permission may have lapsed — fall through to normal directory-based save.
+        console.warn('[SaveMission] Direct file handle write failed, falling back:', err);
+      }
+    }
+
+    const savedPath = await this.storage.save(missionName, jsonText);
     this.showStatus(`Saved mission: ${savedPath}`);
     this.ui.showToast(`Saved mission: ${savedPath}`, 'success');
   } catch (error) {
@@ -83,6 +105,7 @@ async doSaveMission() {
     this.ui.showToast(error.message || 'Failed to save mission file.', 'error');
   }
 },
+
 /**
  * Do mobile save.
  *
