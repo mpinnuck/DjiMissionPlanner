@@ -60,14 +60,13 @@ _persistSaveFileHandle(handle) {
  */
 async doSaveMission() {
   try {
+    // On iOS/mobile where the File System Access API is unavailable,
+    // always show the share sheet so the user can save back to iCloud.
     if (
       typeof window !== 'undefined' &&
       !PersistentStorage.supportsFileSystemAccess()
     ) {
-      const jsonText = this.exportMissionJson();
-      const savedPath = await this.storage.save(this.ui.getMissionName(), jsonText);
-      this.showStatus(`Saved: ${savedPath}`);
-      this.ui.showToast('Mission saved', 'success');
+      await this.saveMissionToFiles();
       return;
     }
 
@@ -151,9 +150,17 @@ async saveMissionToFiles() {
 
     if (typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function') {
       // Save As — always show the picker so the user can choose a new location/name.
-      // The resulting handle is persisted so that subsequent plain saves overwrite this file.
+      // startIn is set to the last loaded file handle so the picker opens in the
+      // mission folder rather than the last-used picker location (e.g. KMZ folder).
+      let startIn;
+      try {
+        startIn = await this.storage.getLastLoadedFileHandle() || undefined;
+      } catch (e) {
+        startIn = undefined;
+      }
       const fileHandle = await window.showSaveFilePicker({
         suggestedName: filename,
+        startIn,
         types: [
           {
             description: 'Mission JSON',

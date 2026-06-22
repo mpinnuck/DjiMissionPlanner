@@ -202,6 +202,8 @@ async clearSavedFolder() {
 
 /**
  * Get export folder.
+ * Returns null on platforms where showDirectoryPicker is unavailable (e.g. iOS),
+ * allowing the caller to fall back to the share sheet.
  *
  * @returns {Promise<*>}
  */
@@ -220,6 +222,12 @@ async getExportFolder() {
     } catch (err) {
       this.folderHandle = null;
     }
+  }
+
+  // showDirectoryPicker is not available on iOS/iPadOS — return null so the
+  // caller falls through to the share sheet instead of throwing an error.
+  if (!this.canChooseFolder()) {
+    return null;
   }
 
   if (!this.hasSavedFolder()) {
