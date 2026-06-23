@@ -138,7 +138,7 @@ class FPVController {
    * Update camera from a FlythroughController frame object.
    * { lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch }
    */
-  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed, poiAlt, distance, segmentIndex, poiId }) {
+  updateFrame({ lat, lng, alt, heading, gimbalPitch, fpvGimbalPitch, speed, poiAlt, distance, segmentIndex, poiId, time }) {
     if (!this._visible || !this._missionCenter) return;
 
     const pos = this._toScene(lat, lng);
@@ -168,7 +168,7 @@ class FPVController {
     );
 
     this._renderer.render(this._scene, this._camera);
-    this._drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId);
+    this._drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId, time);
   }
 
   /**
@@ -290,8 +290,9 @@ class FPVController {
    * @param {*} distance
    * @param {number} segmentIndex
    * @param {string} poiId
+   * @param {number} time
    */
-  _drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId) {
+  _drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId, time) {
     const c   = this._hudCtx;
     const w   = this._hudCanvas.width;
     const h   = this._hudCanvas.height;
@@ -343,6 +344,23 @@ class FPVController {
     c.fillText(`SPD`, w - 14, h * 0.08);
     c.fillStyle = '#ffffff';
     c.fillText(`${speedKmh != null ? Math.round(speedKmh) : '—'} km/h`, w - 14, h * 0.14);
+
+    // ── Elapsed time (bottom-right, just left of DIST) ──
+    const totalSec = Number.isFinite(time) ? Math.floor(time) : null;
+    const timeStr = totalSec == null ? '—' : (() => {
+      const hh = Math.floor(totalSec / 3600);
+      const mm = Math.floor((totalSec % 3600) / 60);
+      const ss = totalSec % 60;
+      return hh > 0
+        ? `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+        : `${mm}:${String(ss).padStart(2, '0')}`;
+    })();
+    c.fillStyle = '#2ed573';
+    c.font = small;
+    c.textAlign = 'right';
+    c.fillText(`TIME`, w - 14 - w * 0.10, h * 0.92);
+    c.fillStyle = '#ffffff';
+    c.fillText(timeStr, w - 14 - w * 0.10, h * 0.965);
 
     // ── Distance travelled (bottom-right) ──
     const distM = Number.isFinite(distance) ? distance : null;
