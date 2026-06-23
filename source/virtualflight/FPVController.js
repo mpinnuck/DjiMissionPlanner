@@ -22,6 +22,41 @@ class FPVController {
   static TILE_ZOOM = 17;           // satellite tile zoom (254m per tile at Sydney lat)
   static SKY_COLOR = 0x87ceeb;     // sky blue
 
+  // ── HUD colours ────────────────────────────────────────────────────────
+  static HUD_COLOR_GREEN = '#2ed573';
+  static HUD_COLOR_WHITE = '#ffffff';
+  static HUD_COLOR_AMBER = '#f0a500';
+  static HUD_COLOR_CYAN  = '#00d4ff';
+
+  // ── HUD layout ─────────────────────────────────────────────────────────
+  static HUD_EDGE_PAD      = 14;     // px inset from left/right canvas edge
+  static HUD_FONT_LARGE    = 0.055;  // large label font height as fraction of canvas h
+  static HUD_FONT_SMALL    = 0.040;  // small label font height as fraction of canvas h
+  static HUD_SHADOW_BLUR   = 4;
+
+  // Y positions as fraction of canvas h
+  static HUD_TOP_LABEL_Y   = 0.08;
+  static HUD_TOP_VALUE_Y   = 0.14;
+  static HUD_HDG_VALUE_Y   = 0.135;
+  static HUD_GMB_READOUT_Y = 0.18;
+  static HUD_BOT_LABEL_Y   = 0.92;
+  static HUD_BOT_VALUE_Y   = 0.965;
+
+  // X offsets as fraction of canvas w
+  static HUD_POI_X_OFFSET  = 0.075;  // POI column offset right of WP anchor
+  static HUD_TIME_X_OFFSET = 0.10;   // TIME column offset left of DIST anchor
+
+  // Gimbal pitch indicator
+  static HUD_GMB_IND_Y      = 0.88;  // indicator centre Y as fraction of h
+  static HUD_GMB_IND_W      = 0.18;  // indicator half-width as fraction of w
+  static HUD_GMB_PTR_LEN    = 0.6;   // pointer length as fraction of lineW
+  static HUD_GMB_DEG_Y      = 0.05;  // degree label Y offset below indicator centre
+  static HUD_GMB_IND_LINE_W = 1.5;   // stroke width for indicator baseline
+  static HUD_GMB_PTR_LINE_W = 2;     // stroke width for pointer line
+
+  // Crosshair
+  static HUD_CROSS_SIZE = 0.018;     // arm length as fraction of h
+
   constructor(container, options = {}) {
     this._container = container;   // div element holding the FPV panel
     this.onStatus   = options.onStatus || null;
@@ -293,57 +328,58 @@ class FPVController {
    * @param {number} time
    */
   _drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId, time) {
-    const c   = this._hudCtx;
-    const w   = this._hudCanvas.width;
-    const h   = this._hudCanvas.height;
+    const F = FPVController;
+    const c = this._hudCtx;
+    const w = this._hudCanvas.width;
+    const h = this._hudCanvas.height;
     if (!w || !h) return;
 
     c.clearRect(0, 0, w, h);
 
-    const font  = `${Math.round(h * 0.055)}px 'Share Tech Mono', monospace`;
-    const small = `${Math.round(h * 0.040)}px 'Share Tech Mono', monospace`;
-    c.shadowColor   = 'rgba(0,0,0,0.8)';
-    c.shadowBlur    = 4;
+    const font  = `${Math.round(h * F.HUD_FONT_LARGE)}px 'Share Tech Mono', monospace`;
+    const small = `${Math.round(h * F.HUD_FONT_SMALL)}px 'Share Tech Mono', monospace`;
+    c.shadowColor = 'rgba(0,0,0,0.8)';
+    c.shadowBlur  = F.HUD_SHADOW_BLUR;
 
     // ── Altitude (top-left) ──
-    c.fillStyle = '#2ed573';
+    c.fillStyle = F.HUD_COLOR_GREEN;
     c.font = font;
     c.textAlign = 'left';
-    c.fillText(`ALT`, 14, h * 0.08);
-    c.fillStyle = '#ffffff';
-    c.fillText(`${Math.round(alt)}m`, 14, h * 0.14);
+    c.fillText(`ALT`, F.HUD_EDGE_PAD, h * F.HUD_TOP_LABEL_Y);
+    c.fillStyle = F.HUD_COLOR_WHITE;
+    c.fillText(`${Math.round(alt)}m`, F.HUD_EDGE_PAD, h * F.HUD_TOP_VALUE_Y);
 
     // ── Last waypoint passed + POI (bottom-left) ──
     if (Number.isFinite(segmentIndex)) {
       const wpNum = segmentIndex + 1;
-      c.fillStyle = '#2ed573';
+      c.fillStyle = F.HUD_COLOR_GREEN;
       c.font = small;
       c.textAlign = 'left';
-      c.fillText(`WP`, 14, h * 0.92);
-      c.fillStyle = '#ffffff';
-      c.fillText(`#${wpNum}`, 14, h * 0.965);
+      c.fillText(`WP`, F.HUD_EDGE_PAD, h * F.HUD_BOT_LABEL_Y);
+      c.fillStyle = F.HUD_COLOR_WHITE;
+      c.fillText(`#${wpNum}`, F.HUD_EDGE_PAD, h * F.HUD_BOT_VALUE_Y);
 
       if (poiId) {
         const poi = (this._graphMission && Array.isArray(this._graphMission.pois))
           ? this._graphMission.pois.find(p => p.id === poiId)
           : null;
         const poiLabel = poi ? (poi.name || poiId) : poiId;
-        c.fillStyle = '#00d4ff';
+        c.fillStyle = F.HUD_COLOR_CYAN;
         c.font = small;
-        c.fillText(`POI`, 14 + w * 0.075, h * 0.92);
-        c.fillStyle = '#ffffff';
-        c.fillText(poiLabel, 14 + w * 0.075, h * 0.965);
+        c.fillText(`POI`, F.HUD_EDGE_PAD + w * F.HUD_POI_X_OFFSET, h * F.HUD_BOT_LABEL_Y);
+        c.fillStyle = F.HUD_COLOR_WHITE;
+        c.fillText(poiLabel, F.HUD_EDGE_PAD + w * F.HUD_POI_X_OFFSET, h * F.HUD_BOT_VALUE_Y);
       }
     }
 
     // ── Speed (top-right) ──
     const speedKmh = Number.isFinite(speed) ? speed * 3.6 : null;
-    c.fillStyle = '#f0a500';
+    c.fillStyle = F.HUD_COLOR_AMBER;
     c.font = font;
     c.textAlign = 'right';
-    c.fillText(`SPD`, w - 14, h * 0.08);
-    c.fillStyle = '#ffffff';
-    c.fillText(`${speedKmh != null ? Math.round(speedKmh) : '—'} km/h`, w - 14, h * 0.14);
+    c.fillText(`SPD`, w - F.HUD_EDGE_PAD, h * F.HUD_TOP_LABEL_Y);
+    c.fillStyle = F.HUD_COLOR_WHITE;
+    c.fillText(`${speedKmh != null ? Math.round(speedKmh) : '—'} km/h`, w - F.HUD_EDGE_PAD, h * F.HUD_TOP_VALUE_Y);
 
     // ── Elapsed time (bottom-right, just left of DIST) ──
     const totalSec = Number.isFinite(time) ? Math.floor(time) : null;
@@ -355,56 +391,56 @@ class FPVController {
         ? `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
         : `${mm}:${String(ss).padStart(2, '0')}`;
     })();
-    c.fillStyle = '#2ed573';
+    c.fillStyle = F.HUD_COLOR_GREEN;
     c.font = small;
     c.textAlign = 'right';
-    c.fillText(`TIME`, w - 14 - w * 0.10, h * 0.92);
-    c.fillStyle = '#ffffff';
-    c.fillText(timeStr, w - 14 - w * 0.10, h * 0.965);
+    c.fillText(`TIME`, w - F.HUD_EDGE_PAD - w * F.HUD_TIME_X_OFFSET, h * F.HUD_BOT_LABEL_Y);
+    c.fillStyle = F.HUD_COLOR_WHITE;
+    c.fillText(timeStr, w - F.HUD_EDGE_PAD - w * F.HUD_TIME_X_OFFSET, h * F.HUD_BOT_VALUE_Y);
 
     // ── Distance travelled (bottom-right) ──
     const distM = Number.isFinite(distance) ? distance : null;
     const distStr = distM == null ? '—' : distM >= 1000 ? `${(distM / 1000).toFixed(2)} km` : `${Math.round(distM)} m`;
-    c.fillStyle = '#2ed573';
+    c.fillStyle = F.HUD_COLOR_GREEN;
     c.font = small;
     c.textAlign = 'right';
-    c.fillText(`DIST`, w - 14, h * 0.92);
-    c.fillStyle = '#ffffff';
-    c.fillText(distStr, w - 14, h * 0.965);
+    c.fillText(`DIST`, w - F.HUD_EDGE_PAD, h * F.HUD_BOT_LABEL_Y);
+    c.fillStyle = F.HUD_COLOR_WHITE;
+    c.fillText(distStr, w - F.HUD_EDGE_PAD, h * F.HUD_BOT_VALUE_Y);
 
     // ── Heading (top-centre) ──
     const hdgLabel = this._headingLabel(heading);
-    c.fillStyle = '#00d4ff';
+    c.fillStyle = F.HUD_COLOR_CYAN;
     c.font = font;
     c.textAlign = 'center';
-    c.fillText(hdgLabel, w / 2, h * 0.08);
-    c.fillStyle = '#ffffff';
+    c.fillText(hdgLabel, w / 2, h * F.HUD_TOP_LABEL_Y);
+    c.fillStyle = F.HUD_COLOR_WHITE;
     c.font = small;
-    c.fillText(`${Math.round(((heading % 360) + 360) % 360)}°`, w / 2, h * 0.135);
+    c.fillText(`${Math.round(((heading % 360) + 360) % 360)}°`, w / 2, h * F.HUD_HDG_VALUE_Y);
 
     // ── Gimbal pitch readout (just below heading) ──
-    c.fillStyle = '#f0a500';
+    c.fillStyle = F.HUD_COLOR_AMBER;
     c.font = small;
     c.textAlign = 'center';
-    c.fillText(`GMB ${Math.round(gimbalPitch)}°`, w / 2, h * 0.18);
+    c.fillText(`GMB ${Math.round(gimbalPitch)}°`, w / 2, h * F.HUD_GMB_READOUT_Y);
 
     // ── Gimbal pitch indicator (bottom-centre) ──
     // Horizontal line with a tick showing tilt angle
-    const cx = w / 2, cy = h * 0.88;
-    const lineW = w * 0.18;
+    const cx = w / 2, cy = h * F.HUD_GMB_IND_Y;
+    const lineW = w * F.HUD_GMB_IND_W;
     const clampedPitch = Math.max(-90, Math.min(90, gimbalPitch));
     const pitchRad = clampedPitch * Math.PI / 180;
     c.strokeStyle = 'rgba(255,255,255,0.7)';
-    c.lineWidth = 1.5;
+    c.lineWidth = F.HUD_GMB_IND_LINE_W;
     c.beginPath();
     c.moveTo(cx - lineW, cy);
     c.lineTo(cx + lineW, cy);
     c.stroke();
 
     // Pointer line showing gimbal tilt
-    const pointerLen = lineW * 0.6;
-    c.strokeStyle = '#f0a500';
-    c.lineWidth = 2;
+    const pointerLen = lineW * F.HUD_GMB_PTR_LEN;
+    c.strokeStyle = F.HUD_COLOR_AMBER;
+    c.lineWidth = F.HUD_GMB_PTR_LINE_W;
     c.beginPath();
     c.moveTo(cx, cy);
     // Mapping: 0 deg = horizontal, -90 deg = vertical down, +90 deg = vertical up.
@@ -414,15 +450,15 @@ class FPVController {
     c.fillStyle = 'rgba(255,255,255,0.6)';
     c.font = small;
     c.textAlign = 'center';
-    c.fillText(`${Math.round(gimbalPitch)}°`, cx, cy + h * 0.05);
+    c.fillText(`${Math.round(gimbalPitch)}°`, cx, cy + h * F.HUD_GMB_DEG_Y);
 
     // ── Crosshair (centre) ──
-    const cross = h * 0.018;
+    const cross = h * F.HUD_CROSS_SIZE;
     c.strokeStyle = 'rgba(255,255,255,0.5)';
     c.lineWidth = 1;
     c.beginPath();
-    c.moveTo(w/2 - cross, h/2); c.lineTo(w/2 + cross, h/2);
-    c.moveTo(w/2, h/2 - cross); c.lineTo(w/2, h/2 + cross);
+    c.moveTo(w / 2 - cross, h / 2); c.lineTo(w / 2 + cross, h / 2);
+    c.moveTo(w / 2, h / 2 - cross); c.lineTo(w / 2, h / 2 + cross);
     c.stroke();
   }
 
