@@ -132,7 +132,12 @@ class FPVController {
 
     if (!Array.isArray(waypoints) || waypoints.length < 1) {
       this._missionCenter = null;
+      this._graphCurrentTime = 0;
+      this._graphTotalTime = 0;
       this._clearTiles();
+      if (this._hudCtx) {
+        this._hudCtx.clearRect(0, 0, this._hudCanvas.width, this._hudCanvas.height);
+      }
       if (this._flightGraph) {
         this._flightGraph.hide();
       }

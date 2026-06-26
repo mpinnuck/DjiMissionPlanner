@@ -60,6 +60,29 @@ function _actionSummary(action) {
 }
 
 class PlannerUI {
+
+  // ── Mission defaults ───────────────────────────────────────────────────
+  static SPEED_DEFAULT_KMH          = 44;
+  static SPEED_MIN_KMH              = 4;
+  static SPEED_MAX_KMH              = 54;
+  static ALT_DEFAULT_M              = 80;
+  static ALT_MIN_M                  = 1;
+  static ALT_MAX_M                  = 500;
+  static CONST_HAG_DEFAULT_M        = 80;
+  static CONST_HAG_MIN_M            = 1;
+  static CONST_HAG_MAX_M            = 500;
+  static TAKEOFF_ELEVATION_DEFAULT_M = 0;
+  static TAKEOFF_ELEVATION_MIN_M    = 0;
+  static TAKEOFF_ELEVATION_MAX_M    = 500;
+  static HFOV_DEFAULT_DEG           = 82;
+  static HFOV_MIN_DEG               = 30;
+  static HFOV_MAX_DEG               = 140;
+  static DRONE_PROFILE_DEFAULT      = 'air3s';
+  static FINISH_ACTION_DEFAULT      = 'noAction';
+  static RC_LOST_ACTION_DEFAULT     = 'goContinue';
+  static HEADING_MODE_DEFAULT       = 'followWayline';
+  static MISSION_NAME_DEFAULT       = 'MyMission';
+
   constructor(options = {}) {
     this.mapElement = document.getElementById(options.mapElementId || 'map');
     this.wpList = document.getElementById('wp-list');
@@ -103,14 +126,29 @@ class PlannerUI {
     this.ftSeekInput = document.getElementById('ftSeek');
     this.ftProgress = document.getElementById('ftProgress');
     this.missionNameInput = document.getElementById('missionName');
+    this.missionNameInput.value = PlannerUI.MISSION_NAME_DEFAULT;
     this.defaultAltitudeInput = document.getElementById('defAlt');
+    this.defaultAltitudeInput.min   = PlannerUI.ALT_MIN_M;
+    this.defaultAltitudeInput.max   = PlannerUI.ALT_MAX_M;
+    this.defaultAltitudeInput.value = PlannerUI.ALT_DEFAULT_M;
     this.btnApplyDefaultAlt = document.getElementById('btnApplyDefaultAlt');
     this.defaultSpeedInput = document.getElementById('defSpeed');
+    this.defaultSpeedInput.min   = PlannerUI.SPEED_MIN_KMH;
+    this.defaultSpeedInput.max   = PlannerUI.SPEED_MAX_KMH;
+    this.defaultSpeedInput.value = PlannerUI.SPEED_DEFAULT_KMH;
     this.btnApplyDefaultSpeed = document.getElementById('btnApplyDefaultSpeed');
     this.droneProfileSelect = document.getElementById('defDrone');
     this.cameraHfovInput = document.getElementById('defHfov');
+    this.cameraHfovInput.min = PlannerUI.HFOV_MIN_DEG;
+    this.cameraHfovInput.max = PlannerUI.HFOV_MAX_DEG;
     this.takeoffElevationInput = document.getElementById('defTakeoffElevation');
+    this.takeoffElevationInput.min   = PlannerUI.TAKEOFF_ELEVATION_MIN_M;
+    this.takeoffElevationInput.max   = PlannerUI.TAKEOFF_ELEVATION_MAX_M;
+    this.takeoffElevationInput.value = PlannerUI.TAKEOFF_ELEVATION_DEFAULT_M;
     this.defaultConstHagInput = document.getElementById('defConstHag');
+    this.defaultConstHagInput.min   = PlannerUI.CONST_HAG_MIN_M;
+    this.defaultConstHagInput.max   = PlannerUI.CONST_HAG_MAX_M;
+    this.defaultConstHagInput.value = PlannerUI.CONST_HAG_DEFAULT_M;
     this.btnApplyConstHag = document.getElementById('btnApplyConstHag');
     this.finishActionSelect = document.getElementById('defFinish');
     this.rcLostActionSelect = document.getElementById('defRCLost');
@@ -134,7 +172,7 @@ class PlannerUI {
    * @returns {*}
    */
   getMissionName() {
-    return this.missionNameInput.value || 'Mission';
+    return this.missionNameInput.value || PlannerUI.MISSION_NAME_DEFAULT;
   }
 
   /**
@@ -143,7 +181,7 @@ class PlannerUI {
    * @returns {number}
    */
   getDefaultAltitude() {
-    return parseFloat(this.defaultAltitudeInput.value) || 80;
+    return parseFloat(this.defaultAltitudeInput.value) || PlannerUI.ALT_DEFAULT_M;
   }
 
   /**
@@ -153,7 +191,7 @@ class PlannerUI {
    */
   getDefaultSpeed() {
     const speedKmh = parseFloat(this.defaultSpeedInput.value);
-    return Number.isFinite(speedKmh) ? Number((speedKmh / 3.6).toFixed(2)) : 8;
+    return Number.isFinite(speedKmh) ? Number((speedKmh / 3.6).toFixed(2)) : Number((PlannerUI.SPEED_DEFAULT_KMH / 3.6).toFixed(2));
   }
 
   /**
@@ -163,7 +201,7 @@ class PlannerUI {
    */
   getTakeoffElevation() {
     const v = parseFloat(this.takeoffElevationInput?.value);
-    return Number.isFinite(v) && v >= 0 ? v : 0;
+    return Number.isFinite(v) && v >= 0 ? v : PlannerUI.TAKEOFF_ELEVATION_DEFAULT_M;
   }
 
   /**
@@ -172,7 +210,7 @@ class PlannerUI {
    * @returns {number}
    */
   getConstantHeightAboveGround() {
-    return parseFloat(this.defaultConstHagInput?.value);
+    return parseFloat(this.defaultConstHagInput?.value) || PlannerUI.CONST_HAG_DEFAULT_M;
   }
 
   /**
@@ -181,7 +219,7 @@ class PlannerUI {
    * @returns {*}
    */
   getDroneProfileId() {
-    return this.droneProfileSelect ? this.droneProfileSelect.value : 'air3s';
+    return this.droneProfileSelect ? this.droneProfileSelect.value : PlannerUI.DRONE_PROFILE_DEFAULT;
   }
 
   /**
@@ -191,7 +229,7 @@ class PlannerUI {
    */
   getCameraHfov() {
     const value = parseFloat(this.cameraHfovInput?.value);
-    return Number.isFinite(value) ? value : 82;
+    return Number.isFinite(value) ? value : PlannerUI.HFOV_DEFAULT_DEG;
   }
 
   /**
@@ -206,7 +244,7 @@ class PlannerUI {
     const isCustom = this.getDroneProfileId() === 'custom';
     this.cameraHfovInput.disabled = !isCustom;
     if (!isCustom) {
-      this.cameraHfovInput.value = '82';
+      this.cameraHfovInput.value = PlannerUI.HFOV_DEFAULT_DEG;
     }
   }
 
@@ -254,6 +292,25 @@ class PlannerUI {
       headingMode: this.getHeadingMode(),
       takeoffElevation: this.getTakeoffElevation()
     };
+  }
+
+  /**
+   * Resets all mission settings fields to their default values.
+   * Called by clearAll so a fresh mission cannot accidentally overwrite the previous one.
+   */
+  resetMissionSettings() {
+    const D = PlannerUI;
+    this.missionNameInput.value           = D.MISSION_NAME_DEFAULT;
+    this.defaultAltitudeInput.value       = D.ALT_DEFAULT_M;
+    this.defaultSpeedInput.value          = D.SPEED_DEFAULT_KMH;
+    if (this.droneProfileSelect)          this.droneProfileSelect.value    = D.DRONE_PROFILE_DEFAULT;
+    if (this.cameraHfovInput)             this.cameraHfovInput.value       = D.HFOV_DEFAULT_DEG;
+    if (this.takeoffElevationInput)       this.takeoffElevationInput.value = D.TAKEOFF_ELEVATION_DEFAULT_M;
+    if (this.defaultConstHagInput)        this.defaultConstHagInput.value  = D.CONST_HAG_DEFAULT_M;
+    if (this.finishActionSelect)          this.finishActionSelect.value    = D.FINISH_ACTION_DEFAULT;
+    if (this.rcLostActionSelect)          this.rcLostActionSelect.value    = D.RC_LOST_ACTION_DEFAULT;
+    if (this.headingModeSelect)           this.headingModeSelect.value     = D.HEADING_MODE_DEFAULT;
+    this.updateDroneInputsState();
   }
 
   /**

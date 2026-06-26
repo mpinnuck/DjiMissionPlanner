@@ -186,6 +186,7 @@ syncFlythroughMission() {
     this.flythrough.showAtCurrentTime();
   }
   if (this.fpv) {
+    this.fpv.updateGraphCursor(this.flythrough.currentTime, this.flythrough.totalTime);
     this.fpv.setMission(this.waypoints, this.mission, {
       heightAboveGroundByWaypointId: this.heightAboveGroundByWaypointId
     });

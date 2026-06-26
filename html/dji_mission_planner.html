@@ -135,17 +135,17 @@
     <div id="defaults-panel">
       <div class="mission-name-row">
         <label>Mission Name</label>
-        <input id="missionName" type="text" value="MyMission" placeholder="e.g. Survey_Run1"/>
+        <input id="missionName" type="text" placeholder="e.g. Survey_Run1"/>
       </div>
       <div class="field-row">
         <label>Default Alt.</label>
-        <input id="defAlt" type="number" value="80" min="1" max="500" step="1"/>
+        <input id="defAlt" type="number" step="1"/>
         <span class="unit">m</span>
         <button class="ghost small-apply" id="btnApplyDefaultAlt" title="Apply default altitude to all waypoints">Apply all</button>
       </div>
       <div class="field-row">
         <label>Default Speed</label>
-        <input id="defSpeed" type="number" value="43" min="4" max="54" step="1"/>
+        <input id="defSpeed" type="number" step="1"/>
         <span class="unit">km/h</span>
         <button class="ghost small-apply" id="btnApplyDefaultSpeed" title="Apply default speed to all waypoints">Apply all</button>
       </div>
@@ -158,17 +158,17 @@
       </div>
       <div class="field-row">
         <label>Cam HFOV</label>
-        <input id="defHfov" type="number" value="82" min="30" max="140" step="1"/>
+        <input id="defHfov" type="number" step="1"/>
         <span class="unit">deg</span>
       </div>
       <div class="field-row">
         <label>Takeoff Elev.</label>
-        <input id="defTakeoffElevation" type="number" value="0" min="0" max="500" step="1"/>
+        <input id="defTakeoffElevation" type="number" step="1"/>
         <span class="unit">m</span>
       </div>
       <div class="field-row">
         <label>Const. HAG</label>
-        <input id="defConstHag" type="number" value="80" min="1" max="500" step="1"/>
+        <input id="defConstHag" type="number" step="1"/>
         <span class="unit">m</span>
         <button class="ghost small-apply" id="btnApplyConstHag" title="Set all waypoints to a constant height above ground">Apply all</button>
       </div>
@@ -272,7 +272,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v7.5';
+  const APP_VERSION = 'v7.6';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {

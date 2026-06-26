@@ -134,6 +134,7 @@ _doClear() {
   this.lastWaypointAnchorId = null;
   this.touchRangeAnchorId = null;
   this.ui.showNothingSelected();
+  this.ui.resetMissionSettings();
   this.renderList();
   this.updateStats();
 },
