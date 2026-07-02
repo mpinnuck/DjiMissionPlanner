@@ -259,6 +259,9 @@ moveWaypointActionDown(wpId, actionId) {
  * @param {Object} wp
  */
 _refreshDialogActions(wp) {
-
+  const overlay = document.getElementById('waypointOptionsModal');
+  if (overlay && typeof overlay._refreshActions === 'function') {
+    overlay._refreshActions(Array.isArray(wp.actions) ? wp.actions : []);
+  }
 }
 };
