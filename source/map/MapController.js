@@ -186,7 +186,7 @@ class MapController {
       });
 
       input.addEventListener('blur', () => {
-        setTimeout(() => clearResults(), 150);
+        setTimeout(() => clearResults(), 300);
       });
 
       toggle.addEventListener('click', event => {
@@ -218,7 +218,7 @@ class MapController {
    * @returns {Promise<Array>}
    */
   async _fetchAddressSuggestions(query, limit = 8) {
-    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=${limit}&q=${encodeURIComponent(query)}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=${limit}&email=${encodeURIComponent('noreply@app.microconcepts.com.au')}&q=${encodeURIComponent(query)}`;
     try {
       const response = await fetch(url, {
         headers: {
