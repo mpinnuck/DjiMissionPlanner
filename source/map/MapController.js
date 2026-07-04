@@ -23,10 +23,249 @@ class MapController {
       { attribution: 'Tiles © Esri', maxZoom: 19 }
     ).addTo(this.map);
 
-    L.tileLayer(
+    this.streetLayer = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+      { attribution: '', maxZoom: 19, opacity: 0.8 }
+    ).addTo(this.map);
+
+    this.labelsLayer = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
       { attribution: '', maxZoom: 19, opacity: 0.7 }
     ).addTo(this.map);
+
+    this.streetNamesVisible = true;
+
+    this._addressSearchDebounce = null;
+    this._addressSearchToken = 0;
+    this._addressSearchResults = [];
+    this.addAddressSearchControl();
+  }
+
+  /**
+   * Adds a live address search control with narrowing dropdown suggestions.
+   */
+  addAddressSearchControl() {
+    if (!L.control) {
+      return;
+    }
+
+    const control = L.control({ position: 'topleft' });
+    control.onAdd = () => {
+      const container = L.DomUtil.create('div', 'leaflet-bar dji-address-search-control');
+      const toggle = L.DomUtil.create('button', 'dji-address-search-toggle', container);
+      const panel = L.DomUtil.create('div', 'dji-address-search-panel', container);
+      const input = L.DomUtil.create('input', 'dji-address-search-input', panel);
+      const list = L.DomUtil.create('div', 'dji-address-search-results', panel);
+
+      toggle.type = 'button';
+      toggle.title = 'Search address or place';
+      toggle.textContent = '🔍';
+      input.type = 'text';
+      input.placeholder = 'Search address or place...';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+
+      const closePanel = () => {
+        container.classList.remove('open');
+        clearResults();
+      };
+
+      const openPanel = () => {
+        container.classList.add('open');
+        input.value = '';
+        clearResults();
+        input.focus();
+      };
+
+      const togglePanel = () => {
+        if (container.classList.contains('open')) {
+          closePanel();
+          return;
+        }
+        openPanel();
+      };
+
+      const clearResults = () => {
+        this._addressSearchResults = [];
+        list.innerHTML = '';
+        list.classList.remove('open');
+      };
+
+      const renderResults = results => {
+        list.innerHTML = '';
+        this._addressSearchResults = results;
+        if (!results.length) {
+          list.classList.remove('open');
+          return;
+        }
+
+        results.forEach((result, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'dji-address-search-result';
+          button.textContent = result.displayName;
+          button.dataset.index = String(index);
+          button.addEventListener('click', () => {
+            this._applyAddressSearchResult(result);
+            input.value = result.displayName;
+            closePanel();
+          });
+          list.appendChild(button);
+        });
+
+        list.classList.add('open');
+      };
+
+      const requestSuggestions = async query => {
+        const token = ++this._addressSearchToken;
+        const results = await this._fetchAddressSuggestions(query, 8);
+        if (token !== this._addressSearchToken) {
+          return;
+        }
+        renderResults(results);
+      };
+
+      input.addEventListener('input', () => {
+        const query = input.value.trim();
+        if (this._addressSearchDebounce) {
+          clearTimeout(this._addressSearchDebounce);
+        }
+
+        if (query.length < 3) {
+          clearResults();
+          return;
+        }
+
+        this._addressSearchDebounce = setTimeout(() => {
+          requestSuggestions(query);
+        }, 220);
+      });
+
+      input.addEventListener('keydown', event => {
+        if (!this._addressSearchResults.length) {
+          if (event.key === 'Escape') {
+            clearResults();
+            input.blur();
+          }
+          return;
+        }
+
+        const current = list.querySelector('.dji-address-search-result.active');
+        const items = Array.from(list.querySelectorAll('.dji-address-search-result'));
+        let activeIndex = current ? items.indexOf(current) : -1;
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          activeIndex = Math.min(items.length - 1, activeIndex + 1);
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          activeIndex = Math.max(0, activeIndex - 1);
+        } else if (event.key === 'Enter') {
+          event.preventDefault();
+          const selected = activeIndex >= 0 ? this._addressSearchResults[activeIndex] : this._addressSearchResults[0];
+          if (selected) {
+            this._applyAddressSearchResult(selected);
+            input.value = selected.displayName;
+            closePanel();
+          }
+          return;
+        } else if (event.key === 'Escape') {
+          closePanel();
+          return;
+        } else {
+          return;
+        }
+
+        items.forEach((item, idx) => {
+          const isActive = idx === activeIndex;
+          item.classList.toggle('active', isActive);
+          if (isActive) {
+            item.scrollIntoView({ block: 'nearest' });
+          }
+        });
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => clearResults(), 150);
+      });
+
+      toggle.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        togglePanel();
+      });
+
+      this.map.on('click', () => {
+        closePanel();
+      });
+
+      L.DomEvent.disableClickPropagation(container);
+      if (typeof L.DomEvent.disableScrollPropagation === 'function') {
+        L.DomEvent.disableScrollPropagation(container);
+      }
+      return container;
+    };
+
+    control.addTo(this.map);
+  }
+
+  /**
+   * Fetches address suggestions from Nominatim for a query.
+   *
+   * @param {string} query
+   * @param {number} limit
+   *
+   * @returns {Promise<Array>}
+   */
+  async _fetchAddressSuggestions(query, limit = 8) {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=${limit}&q=${encodeURIComponent(query)}`;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json'
+        }
+      });
+      if (!response.ok) {
+        return [];
+      }
+
+      const results = await response.json();
+      if (!Array.isArray(results) || results.length === 0) {
+        return [];
+      }
+
+      return results.map(result => ({
+        displayName: result.display_name || 'Unknown location',
+        lat: Number.parseFloat(result.lat),
+        lon: Number.parseFloat(result.lon),
+        boundingbox: Array.isArray(result.boundingbox) ? result.boundingbox : null
+      })).filter(result => Number.isFinite(result.lat) && Number.isFinite(result.lon));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Centers the map to a selected search result.
+   *
+   * @param {Object} result
+   */
+  _applyAddressSearchResult(result) {
+    const bbox = result && Array.isArray(result.boundingbox) ? result.boundingbox : null;
+    if (bbox && bbox.length === 4) {
+      const south = Number.parseFloat(bbox[0]);
+      const north = Number.parseFloat(bbox[1]);
+      const west = Number.parseFloat(bbox[2]);
+      const east = Number.parseFloat(bbox[3]);
+      if ([south, north, west, east].every(Number.isFinite)) {
+        this.map.fitBounds([[south, west], [north, east]], { maxZoom: 17 });
+        return;
+      }
+    }
+
+    if (Number.isFinite(result.lat) && Number.isFinite(result.lon)) {
+      this.map.setView([result.lat, result.lon], 17);
+    }
   }
 
   // Public methods
@@ -252,6 +491,23 @@ class MapController {
     if (layer) {
       this.map.removeLayer(layer);
     }
+  }
+
+  /**
+   * Toggle street names and road overlay visibility.
+   *
+   * @returns {boolean}
+   */
+  toggleStreetNames() {
+    if (this.streetNamesVisible) {
+      this.map.removeLayer(this.streetLayer);
+      this.map.removeLayer(this.labelsLayer);
+    } else {
+      this.streetLayer.addTo(this.map);
+      this.labelsLayer.addTo(this.map);
+    }
+    this.streetNamesVisible = !this.streetNamesVisible;
+    return this.streetNamesVisible;
   }
 
   /**

@@ -8,6 +8,7 @@
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.min.css"/>
 
 <!-- App CSS — split modules -->
 <link rel="stylesheet" href="../css/variables.css"/>
@@ -74,6 +75,10 @@
   <div class="sep"></div>
   <div class="tb-group">
     <button class="ghost" id="btnLocate" title="Center map on your current location">📡 Use My Location</button>
+  </div>
+  <div class="sep"></div>
+  <div class="tb-group">
+    <button class="ghost" id="btnToggleStreets" title="Toggle street names">🗺 Streets</button>
   </div>
   <div class="sep"></div>
   <div class="tb-group">
@@ -272,7 +277,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v7.7';
+  const APP_VERSION = 'v7.8';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -367,6 +372,7 @@
       btnUnselectAll: '✖ Clear Sel',
       btnClear: '🗑 Clear',
       btnLocate: '📡 Locate',
+      btnToggleStreets: '🗺 Streets',
       btnSaveMission: '💾 Save',
       btnLoadMission: '📂 Load',
       btnExport: '⬇ Export'
@@ -400,6 +406,7 @@
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.383.0/umd/lucide.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

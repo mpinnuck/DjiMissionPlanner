@@ -114,6 +114,17 @@ button.ghost {
 }
 button.ghost:hover { background: #eaf1f8; color: var(--text); }
 
+.tb-group .ghost.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.tb-group .ghost.active:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
 button.accent {
   background: var(--accent);
   color: #000;

@@ -89,6 +89,42 @@ bindUIEvents() {
     }
   });
 
+  const streetNamesStorageKey = 'djiMissionPlanner.streetNamesVisible';
+  const getStoredStreetNamesVisible = () => {
+    try {
+      const rawValue = window.localStorage.getItem(streetNamesStorageKey);
+      if (rawValue === 'true') return true;
+      if (rawValue === 'false') return false;
+    } catch (error) {
+      // Ignore storage access failures (private mode / blocked storage).
+    }
+    return null;
+  };
+  const storeStreetNamesVisible = visible => {
+    try {
+      window.localStorage.setItem(streetNamesStorageKey, String(!!visible));
+    } catch (error) {
+      // Ignore storage write failures.
+    }
+  };
+
+  const btnToggleStreets = document.getElementById('btnToggleStreets');
+  if (btnToggleStreets && this.mapController && typeof this.mapController.toggleStreetNames === 'function') {
+    const storedStreetNamesVisible = getStoredStreetNamesVisible();
+    if (storedStreetNamesVisible !== null && storedStreetNamesVisible !== !!this.mapController.streetNamesVisible) {
+      this.mapController.toggleStreetNames();
+    }
+
+    btnToggleStreets.classList.toggle('active', !!this.mapController.streetNamesVisible);
+    storeStreetNamesVisible(!!this.mapController.streetNamesVisible);
+
+    btnToggleStreets.addEventListener('click', () => {
+      const visible = this.mapController.toggleStreetNames();
+      btnToggleStreets.classList.toggle('active', visible);
+      storeStreetNamesVisible(visible);
+    });
+  }
+
   window.addEventListener('keydown', async event => {
     const isCopyShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'c';
     const isDeleteShortcut = !event.metaKey && !event.ctrlKey && !event.altKey

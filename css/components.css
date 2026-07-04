@@ -13,6 +13,159 @@
 }
 .leaflet-control-attribution a { color: var(--muted) !important; }
 
+.leaflet-control-geocoder {
+  border: 1px solid var(--border) !important;
+  border-radius: 4px !important;
+  overflow: hidden;
+  z-index: 650;
+}
+
+.leaflet-control-geocoder a,
+.leaflet-control-geocoder .leaflet-control-geocoder-icon {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border: none !important;
+}
+
+.leaflet-control-geocoder .leaflet-control-geocoder-icon {
+  background-image: none !important;
+  width: 30px;
+  height: 30px;
+  position: relative;
+}
+
+.leaflet-control-geocoder .leaflet-control-geocoder-icon::before {
+  content: '🔍';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.leaflet-control-geocoder-form input {
+  background: var(--panel);
+  color: var(--text);
+  border: none;
+  height: 30px;
+}
+
+.leaflet-control-geocoder-form input::placeholder {
+  color: var(--muted);
+}
+
+.leaflet-control-geocoder-alternatives {
+  background: var(--panel) !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+.leaflet-control-geocoder-alternatives li {
+  color: var(--text) !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+.leaflet-control-geocoder-alternatives li:hover {
+  background: #eaf1f8 !important;
+}
+
+.dji-address-search-control {
+  z-index: 650;
+  position: relative;
+  width: auto;
+  background: transparent;
+  border: none !important;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.dji-address-search-toggle {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+}
+
+.dji-address-search-toggle:hover {
+  background: #eaf1f8;
+}
+
+.dji-address-search-panel {
+  display: none;
+  position: absolute;
+  top: 36px;
+  left: 0;
+  width: min(90vw, 360px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.dji-address-search-control.open .dji-address-search-panel {
+  display: block;
+}
+
+.dji-address-search-input {
+  width: 100%;
+  height: 34px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.dji-address-search-input::placeholder {
+  color: var(--muted);
+}
+
+.dji-address-search-results {
+  display: none;
+  border-top: 1px solid var(--border);
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--panel);
+}
+
+.dji-address-search-results.open {
+  display: block;
+}
+
+.dji-address-search-result {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.dji-address-search-result:last-child {
+  border-bottom: none;
+}
+
+.dji-address-search-result:hover,
+.dji-address-search-result.active {
+  background: #eaf1f8;
+}
+
 .wp-map-popup .leaflet-popup-content-wrapper {
   background: rgba(8, 12, 18, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.12);
