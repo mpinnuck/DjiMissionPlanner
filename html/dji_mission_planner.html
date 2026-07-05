@@ -40,6 +40,10 @@
     var isAppleMobile = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
     var mobileLayoutQuery = '(any-pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))';
+    var hasTouch = (navigator.maxTouchPoints || 0) > 0
+      || window.matchMedia('(any-pointer: coarse)').matches
+      || window.matchMedia('(hover: none)').matches;
+    document.documentElement.classList.toggle('touch-capable', hasTouch);
     document.body && document.body.classList.toggle('screen-sm', window.matchMedia(mobileLayoutQuery).matches);
     document.documentElement.classList.toggle('screen-sm', window.matchMedia(mobileLayoutQuery).matches);
     if (isAppleMobile && isSafari) {
@@ -203,7 +207,13 @@
       </div>
     </div>
 
-    <div class="panel-title">Waypoints &amp; POIs</div>
+    <div class="panel-title waypoints-pois-titlebar">
+      <span>Waypoints &amp; POIs</span>
+      <label class="wp-multisel-toggle" id="wpMultiSelectToggle" title="Multi-select waypoints" hidden>
+        <input type="checkbox" id="wpMultiSelectCheckbox">
+        <span class="wp-multisel-label">Select</span>
+      </label>
+    </div>
     <div id="wp-list-wrap">
       <div class="empty-state" id="emptyState">
         <div class="big">🗺</div>
@@ -277,7 +287,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v7.10';
+  const APP_VERSION = 'v7.11';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {

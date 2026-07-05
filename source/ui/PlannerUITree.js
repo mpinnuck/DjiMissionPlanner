@@ -30,6 +30,7 @@ renderList({
   onSelect,
   onDelete,
   onToggleWaypointMultiSelect,
+  onClearSelection,
   onAddAction,
   onDeleteAction,
   onMoveActionUp,
@@ -149,6 +150,13 @@ renderList({
     });
   });
 
+  this._onClearWaypointSelection = typeof onClearSelection === 'function'
+    ? onClearSelection
+    : null;
+  if (this.wpMultiSelectCheckbox) {
+    this.wpMultiSelectCheckbox.checked = !!this._multiSelectMode;
+  }
+
   list.querySelectorAll('.js-wp-expand').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -160,19 +168,57 @@ renderList({
   });
 
   list.querySelectorAll('.tree-wp-hdr').forEach(hdr => {
-    hdr.addEventListener('click', e => {
+    const isTouchCapable = document.documentElement.classList.contains('touch-capable');
+
+    const handleWaypointHeaderTap = e => {
+      if (e && typeof e.stopPropagation === 'function') {
+        e.stopPropagation();
+      }
       if (e.target.closest('.tree-wp-expand, .tree-wp-del')) return;
       const wpId = hdr.dataset.wpId;
-      const isCtrlCmd = e.ctrlKey || e.metaKey;
-      if (isCtrlCmd && onToggleWaypointMultiSelect) {
-        const isAlreadySelected = hdr.classList.contains('multi-selected') || hdr.classList.contains('selected');
+      const isMultiSelectEnabled = !!(this.wpMultiSelectCheckbox && this.wpMultiSelectCheckbox.checked);
+      this._multiSelectMode = isMultiSelectEnabled;
+
+      if (isMultiSelectEnabled) {
+        const isAlreadySelected = selectedWaypointIds.has(wpId);
         onToggleWaypointMultiSelect(wpId, !isAlreadySelected, {});
-      } else if (e.shiftKey) {
-        onSelect && onSelect(wpId, 'wp', { shiftKey: true });
       } else {
-        onSelect && onSelect(wpId, 'wp');
+        const isCtrlCmd = e.ctrlKey || e.metaKey;
+        if (isCtrlCmd && onToggleWaypointMultiSelect) {
+          const isAlreadySelected = hdr.classList.contains('multi-selected') || hdr.classList.contains('selected');
+          onToggleWaypointMultiSelect(wpId, !isAlreadySelected, {});
+        } else if (e.shiftKey) {
+          onSelect && onSelect(wpId, 'wp', { shiftKey: true });
+        } else {
+          onSelect && onSelect(wpId, 'wp');
+        }
       }
-    });
+    };
+
+    if (isTouchCapable) {
+      if (typeof window.PointerEvent === 'function') {
+        hdr.addEventListener('pointerup', e => {
+          if (e.pointerType === 'mouse') {
+            return;
+          }
+          if (typeof e.preventDefault === 'function') {
+            e.preventDefault();
+          }
+          handleWaypointHeaderTap(e);
+        }, { passive: false });
+      } else {
+        hdr.addEventListener('touchend', e => {
+          if (typeof e.preventDefault === 'function') {
+            e.preventDefault();
+          }
+          handleWaypointHeaderTap(e);
+        }, { passive: false });
+      }
+    } else {
+      hdr.addEventListener('click', e => {
+        handleWaypointHeaderTap(e);
+      });
+    }
   });
 
   list.querySelectorAll('.js-wp-del').forEach(btn => {

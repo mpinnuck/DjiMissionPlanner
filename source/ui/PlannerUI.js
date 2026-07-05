@@ -160,6 +160,42 @@ class PlannerUI {
     this._expandedWpIds = new Set();
     this._wpSectionOpen = true;
     this._poiSectionOpen = true;
+    this._multiSelectMode = false;
+    this._onClearWaypointSelection = null;
+    this.wpMultiSelectToggle = document.getElementById('wpMultiSelectToggle');
+    this.wpMultiSelectCheckbox = document.getElementById('wpMultiSelectCheckbox');
+    const isCoarsePointerHost = window.matchMedia('(pointer: coarse)').matches;
+
+    if (this.wpMultiSelectToggle) {
+      this.wpMultiSelectToggle.hidden = !isCoarsePointerHost;
+    }
+
+    if (!isCoarsePointerHost) {
+      this._multiSelectMode = false;
+      if (this.wpMultiSelectCheckbox) {
+        this.wpMultiSelectCheckbox.checked = false;
+        this.wpMultiSelectCheckbox.disabled = true;
+      }
+    } else if (this.wpMultiSelectCheckbox) {
+      this.wpMultiSelectCheckbox.disabled = false;
+    }
+
+    if (this.wpMultiSelectToggle) {
+      this.wpMultiSelectToggle.addEventListener('click', e => {
+        e.stopPropagation();
+      });
+    }
+
+    if (this.wpMultiSelectCheckbox) {
+      this.wpMultiSelectCheckbox.checked = !!this._multiSelectMode;
+      this.wpMultiSelectCheckbox.addEventListener('change', e => {
+        e.stopPropagation();
+        this._multiSelectMode = !!this.wpMultiSelectCheckbox.checked;
+        if (!this._multiSelectMode && typeof this._onClearWaypointSelection === 'function') {
+          this._onClearWaypointSelection();
+        }
+      });
+    }
 
     this.updateDroneInputsState();
   }

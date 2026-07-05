@@ -141,6 +141,28 @@
   background: var(--bg);
 }
 
+.waypoints-pois-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.waypoints-pois-titlebar .wp-multisel-toggle {
+  margin-left: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.waypoints-pois-titlebar > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .mission-settings-titlebar {
   display: flex;
   align-items: center;

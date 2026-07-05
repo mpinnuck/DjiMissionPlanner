@@ -33,6 +33,38 @@
 .tree-section-body { display: block; }
 .tree-section-body.collapsed { display: none; }
 
+/* Multi-select toggle — hidden on desktop mouse, visible on touch */
+.wp-multisel-toggle {
+  display: none;
+  margin-left: auto;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  font-size: 0.78rem;
+  color: var(--text-muted, #aaa);
+  user-select: none;
+}
+
+.wp-multisel-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+
+.wp-multisel-toggle:has(input:checked) {
+  background: var(--accent-bg, rgba(59,130,246,.25));
+  color: var(--accent, #3b82f6);
+}
+
+@media (any-pointer: coarse) {
+  :root.touch-capable:not(.screen-sm) .wp-multisel-toggle {
+    display: flex;
+  }
+}
+
 /* ── Waypoint rows ───────────────────────────────────────────────── */
 .tree-wp {
   border-bottom: 1px solid rgba(255,255,255,.05);
@@ -46,10 +78,23 @@
   cursor: pointer;
   user-select: none;
   min-height: 32px;
+  touch-action: manipulation;
 }
 .tree-wp-hdr:hover { background: var(--hover-bg, rgba(255,255,255,.04)); }
 .tree-wp-hdr.selected { background: var(--accent-bg, rgba(59,130,246,.18)); }
 .tree-wp-hdr.multi-selected { background: rgba(59,130,246,.10); border-left: 2px solid rgba(96,165,250,.5); }
+
+:root.touch-capable .tree-wp-hdr:not(.selected):not(.multi-selected):hover {
+  background: transparent;
+}
+
+:root.touch-capable .tree-wp-hdr.selected:hover {
+  background: var(--accent-bg, rgba(59,130,246,.18));
+}
+
+:root.touch-capable .tree-wp-hdr.multi-selected:hover {
+  background: rgba(59,130,246,.10);
+}
 
 .tree-wp-expand {
   width: 18px; height: 18px;
@@ -95,11 +140,12 @@
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   opacity: 0;
+  pointer-events: none;
   transition: opacity .1s;
   -webkit-tap-highlight-color: transparent;
 }
 .tree-wp-hdr:hover .tree-wp-del,
-.tree-wp-hdr.selected .tree-wp-del { opacity: 1; }
+.tree-wp-hdr.selected .tree-wp-del { opacity: 1; pointer-events: auto; }
 .tree-wp-del:hover { background: rgba(239,68,68,.2); color: #f87171; }
 
 /* ── Action sub-list ─────────────────────────────────────────────── */
@@ -134,11 +180,12 @@
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   opacity: 0;
+  pointer-events: none;
   -webkit-tap-highlight-color: transparent;
 }
 .tree-action-row:hover .tree-action-up,
 .tree-action-row:hover .tree-action-dn,
-.tree-action-row:hover .tree-action-del { opacity: 1; }
+.tree-action-row:hover .tree-action-del { opacity: 1; pointer-events: auto; }
 .tree-action-del:hover { background: rgba(239,68,68,.2); color: #f87171; }
 .tree-action-up:hover, .tree-action-dn:hover { background: rgba(255,255,255,.1); }
 
@@ -171,6 +218,14 @@
 .tree-poi:hover { background: var(--hover-bg, rgba(255,255,255,.04)); }
 .tree-poi.selected { background: var(--accent-bg, rgba(59,130,246,.18)); }
 
+:root.touch-capable .tree-poi:not(.selected):hover {
+  background: transparent;
+}
+
+:root.touch-capable .tree-poi.selected:hover {
+  background: var(--accent-bg, rgba(59,130,246,.18));
+}
+
 .tree-poi-dot { font-size: 13px; flex-shrink: 0; }
 .tree-poi-label {
   font-size: 12px;
@@ -190,11 +245,52 @@
   border-radius: 3px;
   display: flex; align-items: center; justify-content: center;
   opacity: 0;
+  pointer-events: none;
   -webkit-tap-highlight-color: transparent;
 }
 .tree-poi:hover .tree-poi-del,
-.tree-poi.selected .tree-poi-del { opacity: 1; }
+.tree-poi.selected .tree-poi-del { opacity: 1; pointer-events: auto; }
 .tree-poi-del:hover { background: rgba(239,68,68,.2); color: #f87171; }
+
+/* iPad/iOS Safari: avoid first-tap being consumed by simulated :hover state.
+   On touch devices, do not reveal interactive controls on hover. */
+@media (hover: none) {
+  .tree-section-hdr:hover,
+  .tree-wp-expand:hover,
+  .tree-wp-del:hover,
+  .tree-poi-del:hover,
+  .tree-action-up:hover,
+  .tree-action-dn:hover,
+  .tree-action-del:hover,
+  .tree-add-action:hover,
+  .action-type-btn:hover {
+    background: inherit;
+    color: inherit;
+  }
+
+  /* Keep explicit selected visuals authoritative on touch devices. */
+  .tree-wp-hdr.selected {
+    background: var(--accent-bg, rgba(59,130,246,.18));
+  }
+
+  .tree-wp-hdr.multi-selected {
+    background: rgba(59,130,246,.10);
+    border-left: 2px solid rgba(96,165,250,.5);
+  }
+
+  .tree-poi.selected {
+    background: var(--accent-bg, rgba(59,130,246,.18));
+  }
+
+  .tree-wp-hdr:hover .tree-wp-del,
+  .tree-poi:hover .tree-poi-del,
+  .tree-action-row:hover .tree-action-up,
+  .tree-action-row:hover .tree-action-dn,
+  .tree-action-row:hover .tree-action-del {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
 
 /* ── Action picker dialog ─────────────────────────────────────────── */
 .action-picker-overlay {

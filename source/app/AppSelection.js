@@ -368,6 +368,9 @@ _buildListCallbacks() {
     onToggleWaypointMultiSelect: allow
       ? (id, selected, options) => this.toggleWaypointMultiSelect(id, selected, options)
       : null,
+    onClearSelection: allow
+      ? () => this.clearWaypointMultiSelection()
+      : null,
     onRangeWaypointMultiSelect: allow
       ? (anchorId, targetId, isSelected) => this.moveWaypointTouchRange(anchorId, targetId, isSelected)
       : null,
