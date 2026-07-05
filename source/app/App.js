@@ -20,9 +20,6 @@ class App {
     this.activeWaypointTooltipId = null;
     this.activeWaypointPopup = null;
     this.activePOIPopup = null;
-    this._mobileScreenMql = typeof window !== 'undefined'
-      ? window.matchMedia('(any-pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))')
-      : null;
     this.mission = new Mission();
     this.ui = new PlannerUI({ mapElementId: options.mapElementId || 'map' });
     this.droneProfiles = {
@@ -160,7 +157,7 @@ class App {
   }
 
   get isMobileScreen() {
-    return this._mobileScreenMql ? this._mobileScreenMql.matches : false;
+    return document.documentElement.classList.contains('screen-sm');
   }
 
   /**

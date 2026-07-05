@@ -200,6 +200,10 @@ class MapController {
       });
 
       L.DomEvent.disableClickPropagation(container);
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        L.DomEvent.disableClickPropagation(sidebar);
+      }
       if (typeof L.DomEvent.disableScrollPropagation === 'function') {
         L.DomEvent.disableScrollPropagation(container);
       }

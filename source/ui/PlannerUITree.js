@@ -169,6 +169,11 @@ renderList({
 
   list.querySelectorAll('.tree-wp-hdr').forEach(hdr => {
     const isTouchCapable = document.documentElement.classList.contains('touch-capable');
+    const TAP_MOVE_THRESHOLD_PX = 12;
+    let pointerStartX = 0;
+    let pointerStartY = 0;
+    let pointerMoved = false;
+    let pointerActive = false;
 
     const handleWaypointHeaderTap = e => {
       if (e && typeof e.stopPropagation === 'function') {
@@ -197,8 +202,34 @@ renderList({
 
     if (isTouchCapable) {
       if (typeof window.PointerEvent === 'function') {
+        hdr.addEventListener('pointerdown', e => {
+          if (e.pointerType === 'mouse') {
+            return;
+          }
+          pointerStartX = e.clientX;
+          pointerStartY = e.clientY;
+          pointerMoved = false;
+          pointerActive = true;
+        }, { passive: true });
+
+        hdr.addEventListener('pointermove', e => {
+          if (!pointerActive || e.pointerType === 'mouse') {
+            return;
+          }
+          if (Math.abs(e.clientX - pointerStartX) > TAP_MOVE_THRESHOLD_PX
+            || Math.abs(e.clientY - pointerStartY) > TAP_MOVE_THRESHOLD_PX) {
+            pointerMoved = true;
+          }
+        }, { passive: true });
+
         hdr.addEventListener('pointerup', e => {
           if (e.pointerType === 'mouse') {
+            return;
+          }
+          const shouldHandleTap = pointerActive && !pointerMoved;
+          pointerActive = false;
+          pointerMoved = false;
+          if (!shouldHandleTap) {
             return;
           }
           if (typeof e.preventDefault === 'function') {
@@ -206,13 +237,54 @@ renderList({
           }
           handleWaypointHeaderTap(e);
         }, { passive: false });
+
+        hdr.addEventListener('pointercancel', () => {
+          pointerActive = false;
+          pointerMoved = false;
+        });
       } else {
+        hdr.addEventListener('touchstart', e => {
+          const touch = e.changedTouches && e.changedTouches[0];
+          if (!touch) {
+            return;
+          }
+          pointerStartX = touch.clientX;
+          pointerStartY = touch.clientY;
+          pointerMoved = false;
+          pointerActive = true;
+        }, { passive: true });
+
+        hdr.addEventListener('touchmove', e => {
+          if (!pointerActive) {
+            return;
+          }
+          const touch = e.changedTouches && e.changedTouches[0];
+          if (!touch) {
+            return;
+          }
+          if (Math.abs(touch.clientX - pointerStartX) > TAP_MOVE_THRESHOLD_PX
+            || Math.abs(touch.clientY - pointerStartY) > TAP_MOVE_THRESHOLD_PX) {
+            pointerMoved = true;
+          }
+        }, { passive: true });
+
         hdr.addEventListener('touchend', e => {
+          const shouldHandleTap = pointerActive && !pointerMoved;
+          pointerActive = false;
+          pointerMoved = false;
+          if (!shouldHandleTap) {
+            return;
+          }
           if (typeof e.preventDefault === 'function') {
             e.preventDefault();
           }
           handleWaypointHeaderTap(e);
         }, { passive: false });
+
+        hdr.addEventListener('touchcancel', () => {
+          pointerActive = false;
+          pointerMoved = false;
+        });
       }
     } else {
       hdr.addEventListener('click', e => {

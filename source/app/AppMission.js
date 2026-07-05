@@ -262,12 +262,16 @@ bindMapEvents() {
         this.selectItem(poi.id, 'poi');
       }
     } else if (this.mode === 'select') {
-      const hasSelection = this.selectedId || this.selectedWaypointIds.size > 0;
-      if (hasSelection) {
-        this.closeWaypointTooltip();
-        this.ui.closeWaypointOptionsDialog();
-        this.ui.closePOIOptionsDialog();
-        this.clearSelection(true);
+      const target = e.originalEvent && e.originalEvent.target;
+      const onMap = !target || this.mapController.map.getContainer().contains(target);
+      if (onMap) {
+        const hasSelection = this.selectedId || this.selectedWaypointIds.size > 0;
+        if (hasSelection) {
+          this.closeWaypointTooltip();
+          this.ui.closeWaypointOptionsDialog();
+          this.ui.closePOIOptionsDialog();
+          this.clearSelection(true);
+        }
       }
     }
   });
