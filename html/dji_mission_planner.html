@@ -39,7 +39,7 @@
     var ua = navigator.userAgent || '';
     var isAppleMobile = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
-    var mobileLayoutQuery = '(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))';
+    var mobileLayoutQuery = '(any-pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))';
     document.body && document.body.classList.toggle('screen-sm', window.matchMedia(mobileLayoutQuery).matches);
     document.documentElement.classList.toggle('screen-sm', window.matchMedia(mobileLayoutQuery).matches);
     if (isAppleMobile && isSafari) {
@@ -277,7 +277,7 @@
 </div>
 
 <script>
-  const APP_VERSION = 'v7.9';
+  const APP_VERSION = 'v7.10';
   window.APP_VERSION = APP_VERSION;
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -297,10 +297,31 @@
       sbVersionEl.textContent = APP_VERSION;
     }
 
-    const smallScreenQuery = window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))');
+    const smallScreenQuery = window.matchMedia('(any-pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))');
+    const runStagedReflow = fn => {
+      if (typeof fn !== 'function') {
+        return;
+      }
+
+      requestAnimationFrame(fn);
+      setTimeout(fn, 180);
+      setTimeout(fn, 500);
+    };
+    const refreshMapSize = () => {
+      const map = window.missionPlannerApp
+        && window.missionPlannerApp.mapController
+        && window.missionPlannerApp.mapController.map;
+      if (map && typeof map.invalidateSize === 'function') {
+        map.invalidateSize({ pan: false, debounceMoveend: true });
+      }
+    };
     const applyScreenSmClass = () => {
       document.body.classList.toggle('screen-sm', smallScreenQuery.matches);
       document.documentElement.classList.toggle('screen-sm', smallScreenQuery.matches);
+
+      // iPad Safari can report final viewport/layout a little later.
+      // Staged invalidations ensure Leaflet tiles fill the full width on first paint.
+      runStagedReflow(refreshMapSize);
     };
     applyScreenSmClass();
     if (typeof smallScreenQuery.addEventListener === 'function') {
@@ -361,8 +382,8 @@
     window.addEventListener('resize', updateLayoutMetrics);
     window.addEventListener('orientationchange', () => {
       updateLayoutMetrics();
-      requestAnimationFrame(updateLayoutMetrics);
-      setTimeout(updateLayoutMetrics, 180);
+      runStagedReflow(updateLayoutMetrics);
+      runStagedReflow(refreshMapSize);
     });
 
     const toolbarLabelMap = {
@@ -378,7 +399,7 @@
       btnExport: '⬇ Export'
     };
 
-    const compactTopbarQuery = window.matchMedia('(pointer: coarse) and (max-width: 1700px)');
+    const compactTopbarQuery = window.matchMedia('(any-pointer: coarse) and (max-width: 1700px)');
 
     const applyCompactToolbarLabels = () => {
       const useCompact = compactTopbarQuery.matches;

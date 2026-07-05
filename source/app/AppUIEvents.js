@@ -201,7 +201,7 @@ bindMobileUIEvents() {
   const applyScreenSm = () => {
     document.body.classList.toggle(
       'screen-sm',
-      window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))').matches
+      window.matchMedia('(any-pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))').matches
     );
   };
   applyScreenSm();

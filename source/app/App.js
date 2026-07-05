@@ -21,7 +21,7 @@ class App {
     this.activeWaypointPopup = null;
     this.activePOIPopup = null;
     this._mobileScreenMql = typeof window !== 'undefined'
-      ? window.matchMedia('(pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))')
+      ? window.matchMedia('(any-pointer: coarse) and ((max-width: 1024px) or (max-height: 820px))')
       : null;
     this.mission = new Mission();
     this.ui = new PlannerUI({ mapElementId: options.mapElementId || 'map' });
