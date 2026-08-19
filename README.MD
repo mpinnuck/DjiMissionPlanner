@@ -222,6 +222,60 @@ http://localhost:8000/html/dji_mission_planner.html
 
 This project is a static web app, so there is no build step. Use a local web server rather than opening the HTML file directly, because browser APIs such as geolocation and local save/load flows work correctly when served from `localhost`.
 
+### Updating the Ubuntu Cloud Server
+
+This project is deployed as a static web app under nginx. There is no `dji-mission-planner.service` unit in this setup; the app is served from `/var/www/djimissionplanner/` by nginx.
+
+To deploy a new version of the app to the cloud Ubuntu web server:
+
+1. Connect over SSH:
+
+```sh
+ssh <your-user>@<your-cloud-server>
+```
+
+2. Confirm the site files exist in the web root:
+
+```sh
+ls -la /var/www/djimissionplanner
+```
+
+3. Check nginx is running and the config is valid:
+
+```sh
+sudo systemctl status nginx
+sudo nginx -t
+```
+
+4. Deploy the latest static files from this repo:
+
+```sh
+cd /Users/markpinnuck/Dev/GitHub/DjiMissionPlanner
+make deploy
+```
+
+5. Reload nginx if the config or site root changed:
+
+```sh
+sudo nginx -s reload
+```
+
+or, if needed:
+
+```sh
+sudo systemctl restart nginx
+```
+
+6. Confirm the site responds:
+
+```sh
+curl -I http://localhost/
+```
+
+or, from a browser, open the configured site URL (for example `https://app.microconcepts.com.au/djimissionplanner/`).
+
+In this deployment model, updating the files in `/var/www/djimissionplanner/` is the real publish step; nginx simply serves those files.
+
 ## Running The App
 
 This is a static web app. There is no build step.
