@@ -205,16 +205,33 @@ Key folders:
 - `source/ui/` - UI behavior and dialogs
 - `source/virtualflight/` - flythrough and FPV preview logic
 
+## Development
+
+To run the planner locally from this source checkout, open a terminal in VS Code and start a local web server from the project root:
+
+```sh
+cd /Users/markpinnuck/Dev/GitHub/DjiMissionPlanner
+python3 -m http.server 8000
+```
+
+Then open the planner in a browser at:
+
+```text
+http://localhost:8000/html/dji_mission_planner.html
+```
+
+This project is a static web app, so there is no build step. Use a local web server rather than opening the HTML file directly, because browser APIs such as geolocation and local save/load flows work correctly when served from `localhost`.
+
 ## Running The App
 
 This is a static web app. There is no build step.
 
 Open it from a local web server, not from the `file:` protocol.
 
-Example:
+Example from the VS Code terminal:
 
 ```sh
-cd /path/to/DjiMissionPlanner
+cd /Users/markpinnuck/Dev/GitHub/DjiMissionPlanner
 python3 -m http.server 8000
 ```
 

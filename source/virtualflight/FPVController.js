@@ -37,6 +37,8 @@ class FPVController {
   // Y positions as fraction of canvas h
   static HUD_TOP_LABEL_Y   = 0.08;
   static HUD_TOP_VALUE_Y   = 0.14;
+  static HUD_HAG_LABEL_Y   = 0.18;
+  static HUD_HAG_VALUE_Y   = 0.22;
   static HUD_HDG_VALUE_Y   = 0.135;
   static HUD_GMB_READOUT_Y = 0.18;
   static HUD_BOT_LABEL_Y   = 0.92;
@@ -207,8 +209,10 @@ class FPVController {
       0
     );
 
+    const hag = this._currentHagForFrame(lat, lng);
+
     this._renderer.render(this._scene, this._camera);
-    this._drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId, time);
+    this._drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId, time, hag);
   }
 
   /**
@@ -332,7 +336,7 @@ class FPVController {
    * @param {string} poiId
    * @param {number} time
    */
-  _drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId, time) {
+  _drawHUD(alt, heading, gimbalPitch, speed, distance, segmentIndex, poiId, time, hag = null) {
     const F = FPVController;
     const c = this._hudCtx;
     const w = this._hudCanvas.width;
@@ -346,13 +350,21 @@ class FPVController {
     c.shadowColor = 'rgba(0,0,0,0.8)';
     c.shadowBlur  = F.HUD_SHADOW_BLUR;
 
-    // ── Altitude (top-left) ──
+    // ── Altitude / HAG (top-left) ──
     c.fillStyle = F.HUD_COLOR_GREEN;
     c.font = font;
     c.textAlign = 'left';
     c.fillText(`ALT`, F.HUD_EDGE_PAD, h * F.HUD_TOP_LABEL_Y);
     c.fillStyle = F.HUD_COLOR_WHITE;
     c.fillText(`${Math.round(alt)}m`, F.HUD_EDGE_PAD, h * F.HUD_TOP_VALUE_Y);
+
+    if (Number.isFinite(hag)) {
+      c.fillStyle = F.HUD_COLOR_GREEN;
+      c.font = small;
+      c.fillText(`HAG`, F.HUD_EDGE_PAD, h * F.HUD_HAG_LABEL_Y);
+      c.fillStyle = F.HUD_COLOR_WHITE;
+      c.fillText(`${Math.round(hag)}m`, F.HUD_EDGE_PAD, h * F.HUD_HAG_VALUE_Y);
+    }
 
     // ── Last waypoint passed + POI (bottom-left) ──
     if (Number.isFinite(segmentIndex)) {
@@ -479,6 +491,50 @@ class FPVController {
     const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
                   'S','SSW','SW','WSW','W','WNW','NW','NNW'];
     return dirs[Math.round(norm / 22.5) % 16];
+  }
+
+  /**
+   * Resolve the live HAG for the current drone position from the waypoint map.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   * @returns {number|null}
+   */
+  _currentHagForFrame(lat, lng) {
+    const map = this._graphHeightAboveGroundByWaypointId;
+    if (!(map instanceof Map) || !Array.isArray(this._graphWaypoints) || this._graphWaypoints.length === 0) {
+      return null;
+    }
+
+    let closestWp = null;
+    let closestDist = Infinity;
+
+    for (const wp of this._graphWaypoints) {
+      const dist = this._haversine(lat, lng, wp.lat, wp.lng);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestWp = wp;
+      }
+    }
+
+    if (!closestWp) {
+      return null;
+    }
+
+    const hag = Number(map.get(closestWp.id));
+    return Number.isFinite(hag) ? hag : null;
+  }
+
+  /**
+   * Great-circle distance in metres.
+   */
+  _haversine(lat1, lng1, lat2, lng2) {
+    const R = FPVController.EARTH_R;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
   // ── Satellite tile loading ─────────────────────────────────────────────────
