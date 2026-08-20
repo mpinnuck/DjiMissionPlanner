@@ -28,7 +28,7 @@ class App {
         label: 'DJI Air 3S',
         hfovDeg: 82,
         aspect: 16 / 9,
-        droneEnumValue: 68,
+        droneEnumValue: 77,
         droneSubEnumValue: 0
       }
     };
@@ -197,7 +197,7 @@ class App {
         label: 'Custom Camera',
         hfovDeg: safeHfov,
         aspect: 16 / 9,
-        droneEnumValue: 68,
+        droneEnumValue: 77,
         droneSubEnumValue: 0
       };
     }

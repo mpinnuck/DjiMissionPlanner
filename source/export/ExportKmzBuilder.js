@@ -35,7 +35,7 @@ _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, 
   const lastIndex = waypoints.length - 1;
   const droneEnumValue = Number.isInteger(droneConfig && droneConfig.droneEnumValue)
     ? droneConfig.droneEnumValue
-    : 68;
+    : 77;
   const droneSubEnumValue = Number.isInteger(droneConfig && droneConfig.droneSubEnumValue)
     ? droneConfig.droneSubEnumValue
     : 0;
