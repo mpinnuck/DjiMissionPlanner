@@ -167,7 +167,7 @@
 }
 
 .wp-map-popup .leaflet-popup-content-wrapper {
-  background: rgba(8, 12, 18, 0.86);
+  background: rgba(8, 12, 18, 0.43);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   color: #f4f8fc;
@@ -179,11 +179,11 @@
 }
 
 .wp-map-popup .leaflet-popup-tip {
-  background: rgba(8, 12, 18, 0.86);
+  background: rgba(8, 12, 18, 0.43);
 }
 
 .ft-telemetry-popup .leaflet-popup-content-wrapper {
-  background: rgba(8, 12, 18, 0.9);
+  background: rgba(8, 12, 18, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 10px;
   color: #f4f8fc;
@@ -195,7 +195,7 @@
 }
 
 .ft-telemetry-popup .leaflet-popup-tip {
-  background: rgba(8, 12, 18, 0.9);
+  background: rgba(8, 12, 18, 0.45);
 }
 
 .ft-telemetry-card {

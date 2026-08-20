@@ -37,7 +37,7 @@
 .wp-options-modal {
   width: min(203px, 46.125vw);
   max-height: 72vh;
-  background: rgba(10, 12, 16, 0.96);
+  background: rgba(10, 12, 16, 0.48);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   color: #f8faff;
