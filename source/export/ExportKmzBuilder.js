@@ -65,6 +65,7 @@ _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, 
     <wpml:exitOnRCLost>goContinue</wpml:exitOnRCLost>
     <wpml:executeRCLostAction>${rcLost}</wpml:executeRCLostAction>
     <wpml:globalTransitionalSpeed>${globalSpeed}</wpml:globalTransitionalSpeed>
+    <wpml:globalGimbalPitchMode>usePointSetting</wpml:globalGimbalPitchMode>
     <wpml:droneInfo>
       <wpml:droneEnumValue>${droneEnumValue}</wpml:droneEnumValue>
       <wpml:droneSubEnumValue>${droneSubEnumValue}</wpml:droneSubEnumValue>
@@ -103,6 +104,10 @@ _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, 
     // ── Gimbal pitches ───────────────────────────────────────────────────
     const gimbalPitch = (usePOI && wp.gimbalPitch != null)
       ? Number(wp.gimbalPitch).toFixed(2) : '0';
+    const nextWp = !isLast ? waypoints[i + 1] : null;
+    const nextUsePOI = !!(nextWp && nextWp.poiId);
+    const nextGimbalPitch = (nextUsePOI && nextWp.gimbalPitch != null)
+      ? Number(nextWp.gimbalPitch).toFixed(2) : '0';
 
     // ── Group A: gimbalRotate snap — WP0 only ────────────────────────────
     let snapGroup = '';
@@ -138,7 +143,8 @@ _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, 
     }
 
     // ── Group B: gimbalEvenlyRotate — all waypoints except last ──────────
-    // Trigger: betweenAdjacentPoints, span [i, i] (Dronelink pattern)
+    // Trigger: betweenAdjacentPoints, explicit span [i, i+1].
+    // Segment i -> i+1 should end at waypoint(i+1) pitch.
     let evenGroup = '';
     if (!isLast) {
       const gid = grpId++;
@@ -146,7 +152,7 @@ _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, 
       <wpml:actionGroup>
         <wpml:actionGroupId>${gid}</wpml:actionGroupId>
         <wpml:actionGroupStartIndex>${i}</wpml:actionGroupStartIndex>
-        <wpml:actionGroupEndIndex>${i}</wpml:actionGroupEndIndex>
+        <wpml:actionGroupEndIndex>${i + 1}</wpml:actionGroupEndIndex>
         <wpml:actionGroupMode>sequence</wpml:actionGroupMode>
         <wpml:actionTrigger>
           <wpml:actionTriggerType>betweenAdjacentPoints</wpml:actionTriggerType>
@@ -156,7 +162,7 @@ _buildKmzZip({ waypoints, missionName, finishAction, rcLostAction, headingMode, 
           <wpml:actionActuatorFunc>gimbalEvenlyRotate</wpml:actionActuatorFunc>
           <wpml:actionActuatorFuncParam>
             <wpml:payloadPositionIndex>0</wpml:payloadPositionIndex>
-            <wpml:gimbalPitchRotateAngle>${gimbalPitch}</wpml:gimbalPitchRotateAngle>
+            <wpml:gimbalPitchRotateAngle>${nextGimbalPitch}</wpml:gimbalPitchRotateAngle>
           </wpml:actionActuatorFuncParam>
         </wpml:action>
       </wpml:actionGroup>`;

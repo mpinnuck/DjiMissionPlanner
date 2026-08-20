@@ -458,17 +458,17 @@ class PlannerUI {
       });
     }
 
-    // Right-click or double-click on Export = Export As (pick a new location)
-    if (typeof handlers.onExportAs === 'function') {
+    // Right-click or double-click on Export = change persistent KMZ folder
+    if (typeof handlers.onChangeExportFolder === 'function') {
       this.btnExport.addEventListener('contextmenu', e => {
         e.preventDefault();
         clearTimeout(exportClickTimer);
-        handlers.onExportAs();
+        handlers.onChangeExportFolder();
       });
       this.btnExport.addEventListener('dblclick', e => {
         e.preventDefault();
         clearTimeout(exportClickTimer);
-        handlers.onExportAs();
+        handlers.onChangeExportFolder();
       });
     }
 

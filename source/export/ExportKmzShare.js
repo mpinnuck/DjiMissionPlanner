@@ -79,26 +79,67 @@ export(params) {
   const { waypoints } = params;
 
   zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(async blob => {
+    const supportsFolderPicker = typeof this.canChooseFolder === 'function' && this.canChooseFolder();
+    const writeToFolder = async dirHandle => {
+      const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable({ keepExistingData: false });
+      await writable.write(blob);
+      await writable.close();
+
+      const folderName = dirHandle.name || 'selected folder';
+      const successMessage = `${filename} exported to folder ${folderName}`;
+      if (this.onExported) {
+        this.onExported(successMessage);
+      }
+      if (this.onStatus) {
+        this.onStatus(successMessage);
+      }
+    };
+
     try {
       const dirHandle = await this.getExportFolder();
       if (dirHandle) {
-        const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
-        const writable = await fileHandle.createWritable({ keepExistingData: false });
-        await writable.write(blob);
-        await writable.close();
+        await writeToFolder(dirHandle);
+        return;
+      }
 
-        const folderName = dirHandle.name || 'selected folder';
-        const successMessage = `${filename} exported to folder ${folderName}`;
-        if (this.onExported) {
-          this.onExported(successMessage);
-        }
+      // On desktop browsers with folder picker support, do not silently
+      // fall back to browser downloads (which can look like the "wrong folder").
+      if (supportsFolderPicker) {
         if (this.onStatus) {
-          this.onStatus(successMessage);
+          this.onStatus('Export canceled: no folder selected.');
         }
         return;
       }
     } catch (err) {
       if (err && err.name === 'AbortError') return;
+
+      if (supportsFolderPicker) {
+        // Retry once with a fresh folder prompt in case the stored handle is stale.
+        try {
+          if (typeof this.clearSavedFolder === 'function') {
+            await this.clearSavedFolder();
+          }
+          const retryHandle = typeof this.promptForFolder === 'function'
+            ? await this.promptForFolder()
+            : null;
+          if (retryHandle) {
+            await writeToFolder(retryHandle);
+            return;
+          }
+          if (this.onStatus) {
+            this.onStatus('Export canceled: folder selection was not completed.');
+          }
+          return;
+        } catch (retryErr) {
+          console.warn('Folder save retry failed:', retryErr);
+          if (this.onError) {
+            this.onError(`Failed to export to selected folder: ${retryErr.message || retryErr}`);
+          }
+          return;
+        }
+      }
+
       console.warn('Folder save failed, falling back to download:', err);
     }
 
