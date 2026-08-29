@@ -62,6 +62,7 @@ class FPVController {
   constructor(container, options = {}) {
     this._container = container;   // div element holding the FPV panel
     this.onStatus   = options.onStatus || null;
+    this.onGraphSeek = typeof options.onGraphSeek === 'function' ? options.onGraphSeek : null;
 
     this._scene     = null;
     this._camera    = null;
@@ -86,7 +87,12 @@ class FPVController {
     if (typeof FlightGraph === 'function') {
       this._flightGraph = new FlightGraph({
         overlayElement: options.graphOverlay || null,
-        canvasElement: options.graphCanvas || null
+        canvasElement: options.graphCanvas || null,
+        onScrub: event => {
+          if (this.onGraphSeek) {
+            this.onGraphSeek(event);
+          }
+        }
       });
     }
 

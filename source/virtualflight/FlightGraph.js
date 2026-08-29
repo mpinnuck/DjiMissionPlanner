@@ -18,12 +18,17 @@ class FlightGraph {
   constructor(options = {}) {
     this._overlay = options.overlayElement || null;
     this._canvas = options.canvasElement || null;
+    this.onScrub = typeof options.onScrub === 'function' ? options.onScrub : null;
     this._offscreenCanvas = document.createElement('canvas');
     this._staticDrawn = false;
     this._layout = null;
     this._scaleFns = null;
     this._data = null;
     this._visible = false;
+    this._isPointerScrubbing = false;
+    this._lastCursorTime = 0;
+
+    this._bindInteractions();
   }
 
   // Public methods
@@ -245,6 +250,107 @@ class FlightGraph {
     ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.drawImage(this._offscreenCanvas, 0, 0, w, h, 0, 0, rect.width, rect.height);
     this._drawCursor(ctx, this._layout, this._scaleFns, cursorTime);
+    this._lastCursorTime = Number.isFinite(cursorTime) ? cursorTime : this._lastCursorTime;
+  }
+
+  /**
+   * Binds pointer handlers for cursor scrubbing on the graph canvas.
+   */
+  _bindInteractions() {
+    if (!this._canvas) {
+      return;
+    }
+
+    this._canvas.addEventListener('pointerdown', event => {
+      if (!this._visible || !this._data) {
+        return;
+      }
+
+      this._isPointerScrubbing = true;
+      if (typeof this._canvas.setPointerCapture === 'function') {
+        this._canvas.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+      this._handleScrubPointerEvent(event, 'start');
+    });
+
+    this._canvas.addEventListener('pointermove', event => {
+      if (!this._isPointerScrubbing) {
+        return;
+      }
+      event.preventDefault();
+      this._handleScrubPointerEvent(event, 'update');
+    });
+
+    const finishScrub = event => {
+      if (!this._isPointerScrubbing) {
+        return;
+      }
+
+      this._isPointerScrubbing = false;
+      if (typeof this._canvas.releasePointerCapture === 'function') {
+        try {
+          this._canvas.releasePointerCapture(event.pointerId);
+        } catch (error) {
+          // Ignore capture release failures from stale pointer IDs.
+        }
+      }
+      event.preventDefault();
+      this._handleScrubPointerEvent(event, 'end');
+    };
+
+    this._canvas.addEventListener('pointerup', finishScrub);
+    this._canvas.addEventListener('pointercancel', finishScrub);
+  }
+
+  /**
+   * Converts a pointer event into timeline time, redraws the cursor,
+   * and publishes scrub events to the parent controller.
+   *
+   * @param {PointerEvent} event
+   * @param {'start'|'update'|'end'} phase
+   */
+  _handleScrubPointerEvent(event, phase) {
+    if (!this._layout || !this._data) {
+      return;
+    }
+
+    const totalTime = Math.max(0, Number(this._data.totalTime) || 0);
+    const cursorTime = this._timeAtClientX(event.clientX, totalTime);
+    this.draw(cursorTime);
+
+    if (this.onScrub) {
+      const fraction = totalTime > 0
+        ? Math.max(0, Math.min(1, cursorTime / totalTime))
+        : 0;
+      this.onScrub({
+        time: cursorTime,
+        totalTime,
+        fraction,
+        phase
+      });
+    }
+  }
+
+  /**
+   * Resolve graph timeline time from viewport X coordinate.
+   *
+   * @param {number} clientX
+   * @param {number} totalTime
+   * @returns {number}
+   */
+  _timeAtClientX(clientX, totalTime) {
+    if (!this._canvas || !this._layout || totalTime <= 0) {
+      return 0;
+    }
+
+    const rect = this._canvas.getBoundingClientRect();
+    const xPx = clientX - rect.left;
+    const graphLeft = this._layout.padLeft;
+    const graphRight = this._layout.padLeft + this._layout.plotW;
+    const clampedX = Math.max(graphLeft, Math.min(graphRight, xPx));
+    const ratio = (clampedX - graphLeft) / Math.max(1, this._layout.plotW);
+    return ratio * totalTime;
   }
 
   // Private members

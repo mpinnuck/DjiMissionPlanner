@@ -43,10 +43,42 @@ class App {
     const fpvPanel = document.getElementById('fpv-panel');
     const graphOverlay = document.getElementById('ftGraphOverlay');
     const graphCanvas = document.getElementById('ftGraphCanvas');
+    this.graphScrubWasPlaying = false;
     this.fpv = (typeof FPVController === 'function' && fpvPanel)
       ? new FPVController(fpvPanel, {
         graphOverlay,
-        graphCanvas
+        graphCanvas,
+        onGraphSeek: event => {
+          if (!this.flythrough) {
+            return;
+          }
+
+          const fraction = Number(event && event.fraction);
+          const safeFraction = Number.isFinite(fraction)
+            ? Math.max(0, Math.min(1, fraction))
+            : 0;
+          const phase = event && event.phase;
+
+          if (phase === 'start') {
+            this.graphScrubWasPlaying = this.flythrough.isPlaying;
+            if (this.graphScrubWasPlaying) {
+              this.flythrough.pause();
+              this.ui.setFlythroughPlayState('paused');
+            }
+          }
+
+          this.flythrough.seekTo(safeFraction);
+
+          if (phase === 'end') {
+            if (this.graphScrubWasPlaying) {
+              this.flythrough.play();
+              this.ui.setFlythroughPlayState('playing');
+            } else {
+              this.ui.setFlythroughPlayState('paused');
+            }
+            this.graphScrubWasPlaying = false;
+          }
+        }
       })
       : null;
     this.isFPVVisible = false;
